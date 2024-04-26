@@ -746,7 +746,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_consume() {
+    fn test_consume_char() {
         let mut tokenizer = Tokenizer::new("he llo, world!\n".to_string());
         assert_eq!(tokenizer.consume_char(), Some('h'));
         assert_eq!(tokenizer.consume_char(), Some('e'));
