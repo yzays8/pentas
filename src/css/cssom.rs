@@ -1,3 +1,5 @@
+use crate::css::tokenizer::Token;
+
 /// https://www.w3.org/TR/cssom-1/#cssstylesheet
 #[derive(Debug)]
 pub struct StyleSheet {
@@ -58,10 +60,26 @@ pub enum Combinator {
     Tilde,
 }
 
+/// - https://www.w3.org/TR/css-syntax-3/#declaration
+/// - https://www.w3.org/TR/cssom-1/#css-declarations
 #[derive(Debug, PartialEq)]
 pub struct Declaration {
     pub name: String,
-    pub value: String,
+    pub value: Vec<ComponentValue>,
+}
+
+/// https://www.w3.org/TR/css-syntax-3/#component-value
+#[derive(Debug, PartialEq)]
+pub enum ComponentValue {
+    PreservedToken(Token),
+    Function {
+        name: String,
+        values: Vec<ComponentValue>,
+    },
+    SimpleBlock {
+        associated_token: Token,
+        values: Vec<ComponentValue>,
+    }
 }
 
 /// - https://www.w3.org/TR/css-syntax-3/#at-rules
