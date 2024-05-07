@@ -3,7 +3,7 @@ use std::vec;
 use anyhow::{bail, Ok, Result};
 
 /// https://www.w3.org/TR/css-syntax-3/#tokenization
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Ident(String),
     Function(String),
@@ -33,7 +33,7 @@ pub enum Token {
     Eof,
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub enum HashType {
     Id,
     #[default]
@@ -47,7 +47,7 @@ pub enum TypeFlag {
     Number,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum NumericType {
     Integer(i32),
     Number(f32),
@@ -69,6 +69,18 @@ impl Tokenizer {
             current_pos: 0,
             current_char: None,
         }
+    }
+
+    pub fn tokenize(&mut self) -> Result<Vec<Token>> {
+        let mut tokens = Vec::new();
+        loop {
+            let token = self.consume_token()?;
+            tokens.push(token.clone());
+            if token == Token::Eof {
+                break;
+            }
+        }
+        Ok(tokens)
     }
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-token
