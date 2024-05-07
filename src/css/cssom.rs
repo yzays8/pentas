@@ -18,7 +18,7 @@ pub enum Rule {
 }
 
 /// https://www.w3.org/TR/css-syntax-3/#qualified-rule
-type QualifiedRule = StyleRule;
+pub type QualifiedRule = StyleRule;
 
 /// - https://www.w3.org/TR/css-syntax-3/#style-rules
 /// - https://www.w3.org/TR/cssom-1/#the-cssstylerule-interface
@@ -79,7 +79,7 @@ pub enum ComponentValue {
     SimpleBlock {
         associated_token: Token,
         values: Vec<ComponentValue>,
-    }
+    },
 }
 
 /// - https://www.w3.org/TR/css-syntax-3/#at-rules
