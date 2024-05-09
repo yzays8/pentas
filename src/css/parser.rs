@@ -1,8 +1,9 @@
 use std::collections::VecDeque;
 
-use crate::css::cssom::{
-    ComponentValue, Declaration, QualifiedRule, Rule, Selector, SimpleSelector, StyleSheet,
-};
+use anyhow::Result;
+
+use crate::css::cssom::{ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet};
+use crate::css::selector::SelectorParser;
 use crate::css::tokenizer::Token;
 
 #[derive(Debug)]
@@ -23,20 +24,20 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> StyleSheet {
-        StyleSheet {
-            rules: self.consume_list_of_rules(),
-        }
+    pub fn parse(&mut self) -> Result<StyleSheet> {
+        Ok(StyleSheet {
+            rules: self.consume_list_of_rules()?,
+        })
     }
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-list-of-rules
-    fn consume_list_of_rules(&mut self) -> Vec<Rule> {
+    fn consume_list_of_rules(&mut self) -> Result<Vec<Rule>> {
         let mut rules = Vec::new();
 
         loop {
             match self.consume_token() {
                 Token::Whitespace => continue,
-                Token::Eof => return rules,
+                Token::Eof => return Ok(rules),
                 Token::Cdo | Token::Cdc => {
                     unimplemented!();
                 }
@@ -45,43 +46,50 @@ impl Parser {
                 }
                 _ => {
                     self.need_reconsume = true;
-                    rules.push(Rule::QualifiedRule(self.consume_qualified_rule().unwrap()));
+                    rules.push(Rule::QualifiedRule(self.consume_qualified_rule()?.unwrap()));
                 }
             }
         }
     }
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-a-qualified-rule
-    fn consume_qualified_rule(&mut self) -> Option<QualifiedRule> {
+    fn consume_qualified_rule(&mut self) -> Result<Option<QualifiedRule>> {
         let mut qualified_rule = QualifiedRule {
             // A prelude for style rules is a selector.
             // https://www.w3.org/TR/css-syntax-3/#syntax-description
             selectors: Vec::new(),
             declarations: Vec::new(),
         };
+        let mut selectors_buf = Vec::new();
 
         loop {
             match self.consume_token() {
                 Token::Eof => {
                     eprintln!("parse error in consume_qualified_rule");
-                    return None;
+                    return Ok(None);
                 }
                 Token::OpenBrace => {
                     qualified_rule
                         .declarations
                         .extend(self.consume_list_of_declarations());
-                    return Some(qualified_rule);
+
+                    // Remove trailing whitespace tokens from the buffer, because
+                    // the last whitespace tokens can't be parsed in the selector grammar.
+                    while let Some(ComponentValue::PreservedToken(Token::Whitespace)) =
+                        selectors_buf.last()
+                    {
+                        selectors_buf.pop();
+                    }
+
+                    qualified_rule
+                        .selectors
+                        .extend(SelectorParser::new(selectors_buf).parse()?);
+
+                    return Ok(Some(qualified_rule));
                 }
                 _ => {
-                    // todo: need to parse selector
                     self.need_reconsume = true;
-                    let component_val = self.consume_component_value();
-                    qualified_rule.selectors.push(match component_val {
-                        ComponentValue::PreservedToken(Token::Ident(s)) => {
-                            Selector::Simple(SimpleSelector::Type(s.to_string()))
-                        }
-                        _ => Selector::Simple(SimpleSelector::Type("".to_string())),
-                    });
+                    selectors_buf.push(self.consume_component_value());
                 }
             }
         }

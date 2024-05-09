@@ -1,3 +1,4 @@
+use crate::css::selector::Selector;
 use crate::css::tokenizer::Token;
 
 /// https://www.w3.org/TR/cssom-1/#cssstylesheet
@@ -28,36 +29,6 @@ pub struct StyleRule {
     pub selectors: Vec<Selector>,
 
     pub declarations: Vec<Declaration>,
-}
-
-/// https://www.w3.org/TR/selectors-3/#selector-syntax
-#[derive(Debug, PartialEq)]
-pub enum Selector {
-    Simple(SimpleSelector),
-    Compound(Box<Selector>, Combinator, Box<Selector>),
-}
-
-/// https://www.w3.org/TR/selectors-3/#simple-selectors
-#[derive(Debug, PartialEq)]
-pub enum SimpleSelector {
-    Type(String),
-    Universal,
-    Attribute {
-        name: String,
-        value: Option<String>,
-        op: Option<String>,
-    },
-    Class(String),
-    Id(String),
-    PseudoClass,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Combinator {
-    Whitespace,
-    GreaterThan,
-    Plus,
-    Tilde,
 }
 
 /// - https://www.w3.org/TR/css-syntax-3/#declaration
