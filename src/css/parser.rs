@@ -308,10 +308,12 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::css::tokenizer::Tokenizer;
+    use crate::css::cssom::*;
+    use crate::css::selector::*;
+    use crate::css::tokenizer::*;
 
     #[test]
-    fn test_parser() {
+    fn test_parse1() {
         let css = r#"
             h1 {
                 color: red;
@@ -321,9 +323,131 @@ mod tests {
                 color: blue;
             }
         "#;
-        let tokens = Tokenizer::new(css).tokenize();
-        let mut parser = Parser::new(tokens.unwrap());
-        let style_sheet = parser.parse();
-        println!("{:#?}", style_sheet);
+        let mut parser = Parser::new(Tokenizer::new(css).tokenize().unwrap());
+        let style_sheet = parser.parse().unwrap();
+        let mut rules = style_sheet.rules.iter();
+        assert_eq!(
+            rules.next().unwrap(),
+            &Rule::QualifiedRule(QualifiedRule {
+                selectors: vec![Selector::Simple(vec![SimpleSelector::Type {
+                    namespace_prefix: None,
+                    name: "h1".to_string()
+                }])],
+                declarations: vec![
+                    Declaration {
+                        name: "color".to_string(),
+                        value: vec![ComponentValue::PreservedToken(Token::Ident(
+                            "red".to_string()
+                        ))],
+                    },
+                    Declaration {
+                        name: "grid-template-columns".to_string(),
+                        value: vec![
+                            ComponentValue::PreservedToken(Token::Dimension(
+                                NumericType::Integer(1),
+                                "fr".to_string()
+                            )),
+                            ComponentValue::PreservedToken(Token::Whitespace),
+                            ComponentValue::PreservedToken(Token::Dimension(
+                                NumericType::Integer(2),
+                                "fr".to_string()
+                            )),
+                        ],
+                    },
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn test_parse2() {
+        let css = r#"
+            h1, h2, h3 {
+                color: red;
+            }
+            #myId > .myClass + div > h1[title="hello"] {
+                color: blue;
+                font-size: 16px;
+            }
+        "#;
+        let mut parser = Parser::new(Tokenizer::new(css).tokenize().unwrap());
+        let style_sheet = parser.parse().unwrap();
+        let mut rules = style_sheet.rules.iter();
+        assert_eq!(
+            rules.next().unwrap(),
+            &Rule::QualifiedRule(QualifiedRule {
+                selectors: vec![
+                    Selector::Simple(vec![SimpleSelector::Type {
+                        namespace_prefix: None,
+                        name: "h1".to_string()
+                    }]),
+                    Selector::Simple(vec![SimpleSelector::Type {
+                        namespace_prefix: None,
+                        name: "h2".to_string()
+                    }]),
+                    Selector::Simple(vec![SimpleSelector::Type {
+                        namespace_prefix: None,
+                        name: "h3".to_string()
+                    }]),
+                ],
+                declarations: vec![Declaration {
+                    name: "color".to_string(),
+                    value: vec![ComponentValue::PreservedToken(Token::Ident(
+                        "red".to_string()
+                    ))],
+                }],
+            })
+        );
+        assert_eq!(
+            rules.next().unwrap(),
+            &Rule::QualifiedRule(QualifiedRule {
+                selectors: vec![Selector::Complex(
+                    Box::new(Selector::Simple(vec![SimpleSelector::Id(
+                        "myId".to_string()
+                    ),])),
+                    Combinator::GreaterThan,
+                    Box::new(Selector::Complex(
+                        Box::new(Selector::Simple(vec![SimpleSelector::Class(
+                            "myClass".to_string()
+                        ),])),
+                        Combinator::Plus,
+                        Box::new(Selector::Complex(
+                            Box::new(Selector::Simple(vec![SimpleSelector::Type {
+                                namespace_prefix: None,
+                                name: "div".to_string()
+                            },])),
+                            Combinator::GreaterThan,
+                            Box::new(Selector::Simple(vec![
+                                SimpleSelector::Type {
+                                    namespace_prefix: None,
+                                    name: "h1".to_string(),
+                                },
+                                SimpleSelector::Attribute {
+                                    namespace_prefix: None,
+                                    name: "title".to_string(),
+                                    op: Some("=".to_string()),
+                                    value: Some("hello".to_string()),
+                                },
+                            ]))
+                        ))
+                    ))
+                )],
+                declarations: vec![
+                    Declaration {
+                        name: "color".to_string(),
+                        value: vec![ComponentValue::PreservedToken(Token::Ident(
+                            "blue".to_string()
+                        ))],
+                    },
+                    Declaration {
+                        name: "font-size".to_string(),
+                        value: vec![ComponentValue::PreservedToken(Token::Dimension(
+                            NumericType::Integer(16),
+                            "px".to_string()
+                        ))],
+                    },
+                ],
+            })
+        );
     }
 }
