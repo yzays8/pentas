@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::default::Default;
 use std::rc::Rc;
 
 use anyhow::{bail, Result};
@@ -9,16 +8,15 @@ use crate::html::dom::{DocumentTree, Element, Node, NodeType};
 use crate::html::tokenizer::{Token, Tokenizer};
 
 #[derive(Error, Debug)]
-#[error("{message} (in the Tree Construction stage)\nCurrent token: {current_token:?}\nCurrent tree:\n{current_tree}")]
+#[error("{message} (in the HTML tree construction stage)\nCurrent HTML token: {current_token:?}\nCurrent DOM tree:\n{current_tree}")]
 struct ParseError {
     message: String,
     current_token: Token,
     current_tree: String,
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum InsertionMode {
-    #[default]
     Initial,
     BeforeHtml,
     BeforeHead,
@@ -39,7 +37,7 @@ pub struct Parser {
 
     // When the insertion mode is switched to "text" or "in table text", the original insertion mode is also set.
     // This is the insertion mode to which the tree construction stage will return.
-    orig_insertion_mode: InsertionMode,
+    orig_insertion_mode: Option<InsertionMode>,
 }
 
 impl Parser {
@@ -48,7 +46,7 @@ impl Parser {
             insertion_mode: InsertionMode::Initial,
             tokenizer,
             stack: Vec::new(),
-            orig_insertion_mode: Default::default(),
+            orig_insertion_mode: None,
         }
     }
 
@@ -255,7 +253,7 @@ impl Parser {
                                 "title" => {
                                     // Quite simplified
                                     self.insert_element(tag_name, attributes);
-                                    self.orig_insertion_mode = InsertionMode::InHead;
+                                    self.orig_insertion_mode = Some(InsertionMode::InHead);
                                     self.insertion_mode = InsertionMode::Text;
                                 }
                                 _ => unimplemented!("token: {:?}", token),
@@ -300,7 +298,7 @@ impl Parser {
                                 || *c == '\r'
                                 || *c == ' ' =>
                         {
-                            self.insert_tokens_char(c);
+                            self.insert_tokens_char(*c);
                         }
                         Token::Doctype { .. } => {
                             eprintln!("parse error, ignored the token: {:?}", token);
@@ -330,7 +328,7 @@ impl Parser {
                         Token::Character(c) => match c {
                             '\u{0000}' => eprintln!("parse error, ignored the token: {:?}", token),
                             _ => {
-                                self.insert_tokens_char(c);
+                                self.insert_tokens_char(*c);
                             }
                         },
                         Token::Doctype { .. } => {
@@ -366,7 +364,7 @@ impl Parser {
 
                                 loop {
                                     if node_type.as_str() == "li" {
-                                        self.gen_implied_end_tags(Some("li"));
+                                        self.generate_implied_end_tags(Some("li"));
                                         if self.get_current_elm_name().unwrap().as_str() != "li" {
                                             eprintln!("parse error");
                                         }
@@ -439,7 +437,7 @@ impl Parser {
                                 self.insertion_mode = InsertionMode::AfterBody;
                             }
                             "div" | "ul" => {
-                                self.gen_implied_end_tags(None);
+                                self.generate_implied_end_tags(None);
                                 if self.get_current_elm_name().unwrap().as_str() != tag_name {
                                     eprintln!("parse error");
                                 }
@@ -452,7 +450,7 @@ impl Parser {
                                 }
                             }
                             "p" => {
-                                self.gen_implied_end_tags(Some("p"));
+                                self.generate_implied_end_tags(Some("p"));
                                 if self.get_current_elm_name().unwrap().as_str() != "p" {
                                     eprintln!("parse error");
                                 }
@@ -476,7 +474,7 @@ impl Parser {
                                 }
                             }
                             "li" => {
-                                self.gen_implied_end_tags(Some("li"));
+                                self.generate_implied_end_tags(Some("li"));
                                 if self.get_current_elm_name().unwrap().as_str() != "li" {
                                     eprintln!("parse error");
                                 }
@@ -500,7 +498,7 @@ impl Parser {
                                 }
                             }
                             "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => {
-                                self.gen_implied_end_tags(None);
+                                self.generate_implied_end_tags(None);
                                 if self.get_current_elm_name().unwrap().as_str() != tag_name {
                                     eprintln!("parse error");
                                 }
@@ -537,12 +535,12 @@ impl Parser {
                         Token::Character(c) => match c {
                             '\u{0000}' => unreachable!(),
                             _ => {
-                                self.insert_tokens_char(c);
+                                self.insert_tokens_char(*c);
                             }
                         },
                         Token::EndTag { tag_name, .. } if tag_name != "script" => {
                             self.stack.pop();
-                            self.insertion_mode = self.orig_insertion_mode;
+                            self.insertion_mode = self.orig_insertion_mode.unwrap();
                         }
                         _ => {
                             unimplemented!("token: {:?}", token);
@@ -553,7 +551,7 @@ impl Parser {
                     InsertionMode::AfterBody => match &token {
                         Token::Character(c) => {
                             if let '\t' | '\n' | '\x0C' | '\r' | ' ' = c {
-                                self.insert_tokens_char(c);
+                                self.insert_tokens_char(*c);
                             }
                         }
                         Token::Doctype { .. } => {
@@ -582,7 +580,7 @@ impl Parser {
                                 || *c == '\r'
                                 || *c == ' ' =>
                         {
-                            self.insert_tokens_char(c);
+                            self.insert_tokens_char(*c);
                         }
                         Token::StartTag { tag_name, .. } if tag_name == "html" => {
                             unimplemented!("token: {:?}", token)
@@ -621,7 +619,7 @@ impl Parser {
         }
     }
 
-    fn gen_implied_end_tags(&mut self, excluded_tag: Option<&str>) {
+    fn generate_implied_end_tags(&mut self, excluded_tag: Option<&str>) {
         let mut tag_lists = vec![
             "dd", "dt", "li", "optgroup", "option", "p", "rb", "rp", "rt", "rtc",
         ];
@@ -661,11 +659,11 @@ impl Parser {
         self.stack.push(Rc::clone(&new_node));
     }
 
-    fn insert_tokens_char(&mut self, c: &char) {
+    fn insert_tokens_char(&mut self, c: char) {
         let mut need_to_push_node = false;
         if let Some(n) = &mut self.stack.last().unwrap().borrow_mut().child_nodes.last() {
             if let NodeType::Text(text) = &mut n.borrow_mut().node_type {
-                text.push(*c);
+                text.push(c);
             } else {
                 need_to_push_node = true;
             }
