@@ -22,7 +22,7 @@ pub enum SimpleSelector {
     },
     Class(String),
     Id(String),
-    PseudoClass,
+    // PseudoClass,
 }
 
 #[derive(Debug, PartialEq)]
@@ -254,12 +254,12 @@ impl SelectorParser {
     // type_selector
     //   : [ namespace_prefix ]? element_name
     //   ;
-    fn parse_type_selector(&mut self) -> Result<SimpleSelector> {
-        Ok(SimpleSelector::Type {
-            namespace_prefix: self.parse_namespace_prefix(),
-            name: self.parse_element_name()?,
-        })
-    }
+    // fn parse_type_selector(&mut self) -> Result<SimpleSelector> {
+    //     Ok(SimpleSelector::Type {
+    //         namespace_prefix: self.parse_namespace_prefix(),
+    //         name: self.parse_element_name()?,
+    //     })
+    // }
 
     // namespace_prefix
     //   : [ IDENT | '*' ]? '|'
@@ -312,17 +312,17 @@ impl SelectorParser {
     // universal
     //   : [ namespace_prefix ]? '*'
     //   ;
-    fn parse_universal(&mut self) -> Result<SimpleSelector> {
-        let prefix = self.parse_namespace_prefix();
-        if self.input.pop_front() == Some(ComponentValue::PreservedToken(CssToken::Delim('*'))) {
-            Ok(SimpleSelector::Universal(prefix))
-        } else {
-            bail!(
-                "Expected \"*\" but found {:?} when parsing CSS selectors in parse_universal",
-                self.input.front()
-            );
-        }
-    }
+    // fn parse_universal(&mut self) -> Result<SimpleSelector> {
+    //     let prefix = self.parse_namespace_prefix();
+    //     if self.input.pop_front() == Some(ComponentValue::PreservedToken(CssToken::Delim('*'))) {
+    //         Ok(SimpleSelector::Universal(prefix))
+    //     } else {
+    //         bail!(
+    //             "Expected \"*\" but found {:?} when parsing CSS selectors in parse_universal",
+    //             self.input.front()
+    //         );
+    //     }
+    // }
 
     // class
     //   : '.' IDENT
