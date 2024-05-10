@@ -15,7 +15,7 @@ pub fn run() -> Result<()> {
         let html = std::fs::read_to_string(args.html.unwrap())?;
         println!(
             "{}",
-            DocumentTree::build(Parser::new(Tokenizer::new(html.to_string())).parse()?)?
+            DocumentTree::build(Parser::new(Tokenizer::new(&html)).parse()?)?
         );
     }
 

@@ -698,12 +698,8 @@ mod tests {
         // </html>
 
         let html = "<!DOCTYPE html>\n<html class=e>\n\t<head><title>Aliens?</title></head>\n\t<body>Why yes.</body>\n</html>";
-        let tree = DocumentTree::build(
-            Parser::new(Tokenizer::new(html.to_string()))
-                .parse()
-                .unwrap(),
-        )
-        .unwrap();
+        let tree =
+            DocumentTree::build(Parser::new(Tokenizer::new(&html)).parse().unwrap()).unwrap();
         let mut dfs_iter = tree.get_dfs_iter();
 
         assert_eq!(
@@ -773,12 +769,8 @@ mod tests {
         // </html>
 
         let html = "<!DOCTYPE html>\n<html>\n\t<head><title>Lists</title></head>\n\t<body>\n\t\t<ul>\n\t\t\t<li>Item1\n\t\t\t\t<p class=\"foo\">Paragraph1\n\t\t\t<li>Item2</li>\n\t\t\t<li>Item3\n\t\t</ul>\n\t</body>\n</html>";
-        let tree = DocumentTree::build(
-            Parser::new(Tokenizer::new(html.to_string()))
-                .parse()
-                .unwrap(),
-        )
-        .unwrap();
+        let tree =
+            DocumentTree::build(Parser::new(Tokenizer::new(&html)).parse().unwrap()).unwrap();
         let mut dfs_iter = tree.get_dfs_iter();
 
         assert_eq!(
