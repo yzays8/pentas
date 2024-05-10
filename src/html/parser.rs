@@ -4,7 +4,7 @@ use std::rc::Rc;
 use anyhow::{bail, Result};
 use thiserror::Error;
 
-use crate::html::dom::{DocumentTree, Element, DomNode, NodeType};
+use crate::html::dom::{DocumentTree, DomNode, Element, NodeType};
 use crate::html::tokenizer::{HtmlToken, HtmlTokenizer};
 
 #[derive(Error, Debug)]
@@ -98,12 +98,12 @@ impl HtmlParser {
                                         .to_string(),
                                     });
                                 }
-                                let n = Rc::new(RefCell::new(DomNode::new(NodeType::DocumentType(
-                                    match name {
+                                let n = Rc::new(RefCell::new(DomNode::new(
+                                    NodeType::DocumentType(match name {
                                         Some(name) => name.clone(),
                                         None => String::new(),
-                                    },
-                                ))));
+                                    }),
+                                )));
                                 document_node.borrow_mut().child_nodes.push(Rc::clone(&n));
                                 self.insertion_mode = InsertionMode::BeforeHtml;
                             }
@@ -134,11 +134,12 @@ impl HtmlParser {
                                 attributes,
                                 ..
                             } if tag_name == "html" => {
-                                let n =
-                                    Rc::new(RefCell::new(DomNode::new(NodeType::Element(Element {
+                                let n = Rc::new(RefCell::new(DomNode::new(NodeType::Element(
+                                    Element {
                                         tag_name: tag_name.clone(),
                                         attributes: attributes.clone(),
-                                    }))));
+                                    },
+                                ))));
                                 document_node.borrow_mut().child_nodes.push(Rc::clone(&n));
                                 self.stack.push(Rc::clone(&n));
                                 self.insertion_mode = InsertionMode::BeforeHead;
@@ -159,11 +160,12 @@ impl HtmlParser {
                                 }
                             }
                             _ => {
-                                let n =
-                                    Rc::new(RefCell::new(DomNode::new(NodeType::Element(Element {
+                                let n = Rc::new(RefCell::new(DomNode::new(NodeType::Element(
+                                    Element {
                                         tag_name: "html".to_string(),
                                         attributes: Vec::new(),
-                                    }))));
+                                    },
+                                ))));
                                 document_node.borrow_mut().child_nodes.push(Rc::clone(&n));
                                 self.stack.push(Rc::clone(&n));
                                 self.insertion_mode = InsertionMode::BeforeHead;
@@ -696,8 +698,8 @@ mod tests {
         // </html>
 
         let html = "<!DOCTYPE html>\n<html class=e>\n\t<head><title>Aliens?</title></head>\n\t<body>Why yes.</body>\n</html>";
-        let tree =
-            DocumentTree::build(HtmlParser::new(HtmlTokenizer::new(&html)).parse().unwrap()).unwrap();
+        let tree = DocumentTree::build(HtmlParser::new(HtmlTokenizer::new(&html)).parse().unwrap())
+            .unwrap();
         let mut dfs_iter = tree.get_dfs_iter();
 
         assert_eq!(
@@ -767,8 +769,8 @@ mod tests {
         // </html>
 
         let html = "<!DOCTYPE html>\n<html>\n\t<head><title>Lists</title></head>\n\t<body>\n\t\t<ul>\n\t\t\t<li>Item1\n\t\t\t\t<p class=\"foo\">Paragraph1\n\t\t\t<li>Item2</li>\n\t\t\t<li>Item3\n\t\t</ul>\n\t</body>\n</html>";
-        let tree =
-            DocumentTree::build(HtmlParser::new(HtmlTokenizer::new(&html)).parse().unwrap()).unwrap();
+        let tree = DocumentTree::build(HtmlParser::new(HtmlTokenizer::new(&html)).parse().unwrap())
+            .unwrap();
         let mut dfs_iter = tree.get_dfs_iter();
 
         assert_eq!(
