@@ -233,12 +233,10 @@ impl CssTokenizer {
         let mut string = String::new();
         let ending_char = if let Some(ending_char) = ending_char {
             ending_char
+        } else if let Some(c) = self.current_char {
+            c
         } else {
-            if let Some(c) = self.current_char {
-                c
-            } else {
-                bail!("current input code point does not exist");
-            }
+            bail!("current input code point does not exist");
         };
 
         loop {
