@@ -2,11 +2,11 @@ use anyhow::{Ok, Result};
 use clap::Parser as _;
 
 use crate::cli;
-use crate::css::parser::Parser as CssParser;
-use crate::css::tokenizer::Tokenizer as CssTokenizer;
+use crate::css::parser::CssParser;
+use crate::css::tokenizer::CssTokenizer;
 use crate::html::dom::DocumentTree;
-use crate::html::parser::Parser;
-use crate::html::tokenizer::Tokenizer;
+use crate::html::parser::HtmlParser;
+use crate::html::tokenizer::HtmlTokenizer;
 
 pub fn run() -> Result<()> {
     let args = cli::Args::parse();
@@ -15,7 +15,7 @@ pub fn run() -> Result<()> {
         let html = std::fs::read_to_string(args.html.unwrap())?;
         println!(
             "{}",
-            DocumentTree::build(Parser::new(Tokenizer::new(&html)).parse()?)?
+            DocumentTree::build(HtmlParser::new(HtmlTokenizer::new(&html)).parse()?)?
         );
     }
 

@@ -4,7 +4,7 @@ use anyhow::{bail, Ok, Result};
 
 /// https://www.w3.org/TR/css-syntax-3/#tokenization
 #[derive(Clone, Debug, PartialEq)]
-pub enum Token {
+pub enum CssToken {
     Ident(String),
     Function(String),
     AtKeyword(String),
@@ -54,7 +54,7 @@ pub enum NumericType {
 }
 
 #[derive(Debug)]
-pub struct Tokenizer {
+pub struct CssTokenizer {
     input: Vec<char>,
     current_pos: usize,
 
@@ -62,7 +62,7 @@ pub struct Tokenizer {
     current_char: Option<char>,
 }
 
-impl Tokenizer {
+impl CssTokenizer {
     pub fn new(input: &str) -> Self {
         Self {
             input: input.chars().collect(),
@@ -71,12 +71,12 @@ impl Tokenizer {
         }
     }
 
-    pub fn tokenize(&mut self) -> Result<Vec<Token>> {
+    pub fn tokenize(&mut self) -> Result<Vec<CssToken>> {
         let mut tokens = Vec::new();
         loop {
             let token = self.consume_token()?;
             tokens.push(token.clone());
-            if token == Token::Eof {
+            if token == CssToken::Eof {
                 break;
             }
         }
@@ -84,7 +84,7 @@ impl Tokenizer {
     }
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-token
-    pub fn consume_token(&mut self) -> Result<Token> {
+    pub fn consume_token(&mut self) -> Result<CssToken> {
         self.consume_comments()?;
         match self.consume_char() {
             Some(c) => match c {
@@ -92,12 +92,12 @@ impl Tokenizer {
                     while let Some('\n') | Some('\t') | Some(' ') = self.peek_char() {
                         self.consume_char();
                     }
-                    Ok(Token::Whitespace)
+                    Ok(CssToken::Whitespace)
                 }
                 '"' => Ok(self.consume_string_token(None)?),
                 '#' => {
                     if (self.peek_char().is_some()
-                        && Tokenizer::is_ident_code_point(self.peek_char().unwrap()))
+                        && CssTokenizer::is_ident_code_point(self.peek_char().unwrap()))
                         || self.are_valid_escape(Some(self.peek_str(2)))
                     {
                         let type_flag = if self.would_start_ident(Some(self.peek_str(3))) {
@@ -105,23 +105,23 @@ impl Tokenizer {
                         } else {
                             HashType::Unrestricted
                         };
-                        Ok(Token::Hash(self.consume_ident_sequence(), type_flag))
+                        Ok(CssToken::Hash(self.consume_ident_sequence(), type_flag))
                     } else {
-                        Ok(Token::Delim(c))
+                        Ok(CssToken::Delim(c))
                     }
                 }
                 '\'' => Ok(self.consume_string_token(None)?),
-                '(' => Ok(Token::OpenParenthesis),
-                ')' => Ok(Token::CloseParenthesis),
+                '(' => Ok(CssToken::OpenParenthesis),
+                ')' => Ok(CssToken::CloseParenthesis),
                 '+' => {
                     if self.start_with_number(None) {
                         self.current_pos -= 1;
                         Ok(self.consume_numeric_token())
                     } else {
-                        Ok(Token::Delim(c))
+                        Ok(CssToken::Delim(c))
                     }
                 }
-                ',' => Ok(Token::Comma),
+                ',' => Ok(CssToken::Comma),
                 '-' => {
                     if self.start_with_number(None) {
                         self.current_pos -= 1;
@@ -129,12 +129,12 @@ impl Tokenizer {
                     } else if self.peek_str(2) == vec![Some('-'), Some('>')] {
                         self.consume_char();
                         self.consume_char();
-                        Ok(Token::Cdc)
+                        Ok(CssToken::Cdc)
                     } else if self.would_start_ident(None) {
                         self.current_pos -= 1;
                         Ok(self.consume_ident_like_sequence())
                     } else {
-                        Ok(Token::Delim(c))
+                        Ok(CssToken::Delim(c))
                     }
                 }
                 '.' => {
@@ -142,52 +142,52 @@ impl Tokenizer {
                         self.current_pos -= 1;
                         Ok(self.consume_numeric_token())
                     } else {
-                        Ok(Token::Delim(c))
+                        Ok(CssToken::Delim(c))
                     }
                 }
-                ':' => Ok(Token::Colon),
-                ';' => Ok(Token::Semicolon),
+                ':' => Ok(CssToken::Colon),
+                ';' => Ok(CssToken::Semicolon),
                 '<' => {
                     if self.peek_str(3) == vec![Some('!'), Some('-'), Some('-')] {
                         self.consume_char();
                         self.consume_char();
                         self.consume_char();
-                        Ok(Token::Cdo)
+                        Ok(CssToken::Cdo)
                     } else {
-                        Ok(Token::Delim(c))
+                        Ok(CssToken::Delim(c))
                     }
                 }
                 '@' => {
                     if self.would_start_ident(Some(self.peek_str(3))) {
-                        Ok(Token::AtKeyword(self.consume_ident_sequence()))
+                        Ok(CssToken::AtKeyword(self.consume_ident_sequence()))
                     } else {
-                        Ok(Token::Delim(c))
+                        Ok(CssToken::Delim(c))
                     }
                 }
-                '[' => Ok(Token::OpenSquareBracket),
+                '[' => Ok(CssToken::OpenSquareBracket),
                 '\\' => {
                     if self.are_valid_escape(None) {
                         self.current_pos -= 1;
                         Ok(self.consume_ident_like_sequence())
                     } else {
                         eprintln!("parse error: invalid escape in consume_token");
-                        Ok(Token::Delim(c))
+                        Ok(CssToken::Delim(c))
                     }
                 }
-                ']' => Ok(Token::CloseSquareBracket),
-                '{' => Ok(Token::OpenBrace),
-                '}' => Ok(Token::CloseBrace),
+                ']' => Ok(CssToken::CloseSquareBracket),
+                '{' => Ok(CssToken::OpenBrace),
+                '}' => Ok(CssToken::CloseBrace),
                 '0'..='9' => {
                     self.current_pos -= 1;
                     Ok(self.consume_numeric_token())
                 }
-                c if Tokenizer::is_ident_start_char(c) => {
+                c if CssTokenizer::is_ident_start_char(c) => {
                     self.current_pos -= 1;
                     Ok(self.consume_ident_like_sequence())
                 }
-                _ => Ok(Token::Delim(c)),
+                _ => Ok(CssToken::Delim(c)),
             },
-            None => Ok(Token::Eof),
+            None => Ok(CssToken::Eof),
         }
     }
 
@@ -226,7 +226,7 @@ impl Tokenizer {
     }
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-string-token
-    fn consume_string_token(&mut self, ending_char: Option<char>) -> Result<Token> {
+    fn consume_string_token(&mut self, ending_char: Option<char>) -> Result<CssToken> {
         let mut string = String::new();
         let ending_char = if let Some(ending_char) = ending_char {
             ending_char
@@ -242,7 +242,7 @@ impl Tokenizer {
             match self.consume_char() {
                 Some(c) => match c {
                     c if c == ending_char => {
-                        return Ok(Token::String(string));
+                        return Ok(CssToken::String(string));
                     }
                     '\n' => {
                         eprintln!("parse error: newline in consume_string_token");
@@ -263,26 +263,26 @@ impl Tokenizer {
                 },
                 None => {
                     eprintln!("parse error: EOF in consume_string_token");
-                    return Ok(Token::String(string));
+                    return Ok(CssToken::String(string));
                 }
             }
         }
     }
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-numeric-token
-    fn consume_numeric_token(&mut self) -> Token {
+    fn consume_numeric_token(&mut self) -> CssToken {
         let number = self.consume_number();
 
         if self.would_start_ident(Some(self.peek_str(3))) {
-            Token::Dimension(number, self.consume_ident_sequence())
+            CssToken::Dimension(number, self.consume_ident_sequence())
         } else if self.peek_char() == Some('%') {
             self.consume_char();
-            Token::Percentage(match number {
+            CssToken::Percentage(match number {
                 NumericType::Integer(i) => i as f32,
                 NumericType::Number(f) => f,
             })
         } else {
-            Token::Number(number)
+            CssToken::Number(number)
         }
     }
 
@@ -316,16 +316,16 @@ impl Tokenizer {
     }
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-ident-like-token
-    fn consume_ident_like_sequence(&mut self) -> Token {
+    fn consume_ident_like_sequence(&mut self) -> CssToken {
         let string = self.consume_ident_sequence();
         if string.eq_ignore_ascii_case("url") && self.peek_char() == Some('(') {
             self.consume_char();
             unimplemented!();
         } else if self.peek_char() == Some('(') {
             self.consume_char();
-            Token::Function(string)
+            CssToken::Function(string)
         } else {
-            Token::Ident(string)
+            CssToken::Ident(string)
         }
     }
 
@@ -335,7 +335,7 @@ impl Tokenizer {
         loop {
             let c = self.consume_char();
             match c {
-                Some(c) if Tokenizer::is_ident_code_point(c) => {
+                Some(c) if CssTokenizer::is_ident_code_point(c) => {
                     result.push(c);
                 }
                 _ => {
@@ -450,11 +450,11 @@ impl Tokenizer {
         match three_chars[0] {
             Some('-') => {
                 ((three_chars[1].is_some()
-                    && Tokenizer::is_ident_start_char(three_chars[1].unwrap()))
+                    && CssTokenizer::is_ident_start_char(three_chars[1].unwrap()))
                     || three_chars[1] == Some('-'))
                     || self.are_valid_escape(Some(vec![three_chars[1], three_chars[2]]))
             }
-            c if c.is_some() && Tokenizer::is_ident_start_char(c.unwrap()) => true,
+            c if c.is_some() && CssTokenizer::is_ident_start_char(c.unwrap()) => true,
             Some('\\') => three_chars[1] != Some('\n'),
             _ => false,
         }
@@ -509,7 +509,7 @@ mod tests {
 
     #[test]
     fn test_consume_char() {
-        let mut tokenizer = Tokenizer::new("he llo, world!\n");
+        let mut tokenizer = CssTokenizer::new("he llo, world!\n");
         assert_eq!(tokenizer.consume_char(), Some('h'));
         assert_eq!(tokenizer.consume_char(), Some('e'));
         assert_eq!(tokenizer.consume_char(), Some(' '));
@@ -534,7 +534,7 @@ mod tests {
 
     #[test]
     fn test_peek_str() {
-        let mut tokenizer = Tokenizer::new("hi");
+        let mut tokenizer = CssTokenizer::new("hi");
         assert_eq!(tokenizer.peek_str(2), vec![Some('h'), Some('i')]);
         assert_eq!(tokenizer.peek_str(3), vec![Some('h'), Some('i'), None]);
         assert_eq!(
@@ -545,61 +545,61 @@ mod tests {
 
     #[test]
     fn test_consume_comments() {
-        let mut tokenizer = Tokenizer::new("/* hello, world! */");
+        let mut tokenizer = CssTokenizer::new("/* hello, world! */");
         assert!(tokenizer.consume_comments().is_ok());
         assert_eq!(tokenizer.consume_char(), None);
 
-        let mut tokenizer = Tokenizer::new("/* hello, world!");
+        let mut tokenizer = CssTokenizer::new("/* hello, world!");
         assert!(tokenizer.consume_comments().is_err());
         assert_eq!(tokenizer.consume_char(), None);
 
-        let mut tokenizer = Tokenizer::new(r"/* hello, world! *//* Hello, World! */");
+        let mut tokenizer = CssTokenizer::new(r"/* hello, world! *//* Hello, World! */");
         assert!(tokenizer.consume_comments().is_ok());
         assert_eq!(tokenizer.consume_char(), None);
     }
 
     #[test]
     fn test_consume_token1() {
-        let mut tokenizer = Tokenizer::new("12345 67890");
+        let mut tokenizer = CssTokenizer::new("12345 67890");
         assert_eq!(
             tokenizer.consume_token().unwrap(),
-            Token::Number(NumericType::Integer(12345))
+            CssToken::Number(NumericType::Integer(12345))
         );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
         assert_eq!(
             tokenizer.consume_token().unwrap(),
-            Token::Number(NumericType::Integer(67890))
+            CssToken::Number(NumericType::Integer(67890))
         );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Eof);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Eof);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Eof);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Eof);
     }
 
     #[test]
     fn test_consume_token2() {
-        let mut tokenizer = Tokenizer::new("#12345");
+        let mut tokenizer = CssTokenizer::new("#12345");
         assert_eq!(
             tokenizer.consume_token().unwrap(),
-            Token::Hash("12345".to_string(), HashType::Unrestricted)
+            CssToken::Hash("12345".to_string(), HashType::Unrestricted)
         );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Eof);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Eof);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Eof);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Eof);
     }
 
     #[test]
     fn test_consume_token3() {
-        let mut tokenizer = Tokenizer::new("12345.67890");
+        let mut tokenizer = CssTokenizer::new("12345.67890");
         assert_eq!(
             tokenizer.consume_token().unwrap(),
-            Token::Number(NumericType::Number(12345.67890))
+            CssToken::Number(NumericType::Number(12345.67890))
         );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Eof);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Eof);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Eof);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Eof);
     }
 
     #[test]
     fn test_consume_token4() {
         // From: https://developer.mozilla.org/en-US/docs/Learn/CSS/First_steps/Styling_a_biography_page
-        let mut tokenizer = Tokenizer::new(
+        let mut tokenizer = CssTokenizer::new(
             r"h1 {
             color: #375e97;
             font-size: 2em;
@@ -609,95 +609,95 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token().unwrap(),
-            Token::Ident("h1".to_string())
+            CssToken::Ident("h1".to_string())
         );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
 
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::OpenBrace);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
-
-        assert_eq!(
-            tokenizer.consume_token().unwrap(),
-            Token::Ident("color".to_string())
-        );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Colon);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
-        assert_eq!(
-            tokenizer.consume_token().unwrap(),
-            Token::Hash("375e97".to_string(), HashType::Unrestricted)
-        );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Semicolon);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::OpenBrace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
 
         assert_eq!(
             tokenizer.consume_token().unwrap(),
-            Token::Ident("font-size".to_string())
+            CssToken::Ident("color".to_string())
         );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Colon);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Colon);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
         assert_eq!(
             tokenizer.consume_token().unwrap(),
-            Token::Dimension(NumericType::Integer(2), "em".to_string())
+            CssToken::Hash("375e97".to_string(), HashType::Unrestricted)
         );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Semicolon);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Semicolon);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
 
         assert_eq!(
             tokenizer.consume_token().unwrap(),
-            Token::Ident("font-family".to_string())
+            CssToken::Ident("font-size".to_string())
         );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Colon);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Colon);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
         assert_eq!(
             tokenizer.consume_token().unwrap(),
-            Token::Ident("Georgia".to_string())
+            CssToken::Dimension(NumericType::Integer(2), "em".to_string())
         );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Comma);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
-        assert_eq!(
-            tokenizer.consume_token().unwrap(),
-            Token::String("Times New Roman".to_string())
-        );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Comma);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
-        assert_eq!(
-            tokenizer.consume_token().unwrap(),
-            Token::Ident("Times".to_string())
-        );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Comma);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
-        assert_eq!(
-            tokenizer.consume_token().unwrap(),
-            Token::Ident("serif".to_string())
-        );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Semicolon);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Semicolon);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
 
         assert_eq!(
             tokenizer.consume_token().unwrap(),
-            Token::Ident("border-bottom".to_string())
+            CssToken::Ident("font-family".to_string())
         );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Colon);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Colon);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
         assert_eq!(
             tokenizer.consume_token().unwrap(),
-            Token::Dimension(NumericType::Integer(1), "px".to_string())
+            CssToken::Ident("Georgia".to_string())
         );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Comma);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
         assert_eq!(
             tokenizer.consume_token().unwrap(),
-            Token::Ident("solid".to_string())
+            CssToken::String("Times New Roman".to_string())
         );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Comma);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
         assert_eq!(
             tokenizer.consume_token().unwrap(),
-            Token::Hash("375e97".to_string(), HashType::Unrestricted)
+            CssToken::Ident("Times".to_string())
         );
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Semicolon);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Whitespace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Comma);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::Ident("serif".to_string())
+        );
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Semicolon);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
 
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::CloseBrace);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Eof);
-        assert_eq!(tokenizer.consume_token().unwrap(), Token::Eof);
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::Ident("border-bottom".to_string())
+        );
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Colon);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::Dimension(NumericType::Integer(1), "px".to_string())
+        );
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::Ident("solid".to_string())
+        );
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::Hash("375e97".to_string(), HashType::Unrestricted)
+        );
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Semicolon);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
+
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::CloseBrace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Eof);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Eof);
     }
 }

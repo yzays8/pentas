@@ -4,14 +4,14 @@ use std::rc::Rc;
 use anyhow::{bail, Result};
 use thiserror::Error;
 
-use crate::html::dom::{DocumentTree, Element, Node, NodeType};
-use crate::html::tokenizer::{Token, Tokenizer};
+use crate::html::dom::{DocumentTree, Element, DomNode, NodeType};
+use crate::html::tokenizer::{HtmlToken, HtmlTokenizer};
 
 #[derive(Error, Debug)]
 #[error("{message} (in the HTML tree construction stage)\nCurrent HTML token: {current_token:?}\nCurrent DOM tree:\n{current_tree}")]
 struct ParseError {
     message: String,
-    current_token: Token,
+    current_token: HtmlToken,
     current_tree: String,
 }
 
@@ -30,18 +30,18 @@ enum InsertionMode {
 }
 
 #[derive(Debug)]
-pub struct Parser {
+pub struct HtmlParser {
     insertion_mode: InsertionMode,
-    tokenizer: Tokenizer,
-    stack: Vec<Rc<RefCell<Node>>>,
+    tokenizer: HtmlTokenizer,
+    stack: Vec<Rc<RefCell<DomNode>>>,
 
     // When the insertion mode is switched to "text" or "in table text", the original insertion mode is also set.
     // This is the insertion mode to which the tree construction stage will return.
     orig_insertion_mode: Option<InsertionMode>,
 }
 
-impl Parser {
-    pub fn new(tokenizer: Tokenizer) -> Self {
+impl HtmlParser {
+    pub fn new(tokenizer: HtmlTokenizer) -> Self {
         Self {
             insertion_mode: InsertionMode::Initial,
             tokenizer,
@@ -51,9 +51,9 @@ impl Parser {
     }
 
     /// https://html.spec.whatwg.org/multipage/parsing.html#overview-of-the-parsing-model
-    pub fn parse(&mut self) -> Result<Rc<RefCell<Node>>> {
+    pub fn parse(&mut self) -> Result<Rc<RefCell<DomNode>>> {
         // The output of the whole parsing (tree construction) is a Document object.
-        let document_node = Rc::new(RefCell::new(Node::new(NodeType::Document)));
+        let document_node = Rc::new(RefCell::new(DomNode::new(NodeType::Document)));
 
         let mut end_of_parsing = false;
         while !end_of_parsing {
@@ -65,7 +65,7 @@ impl Parser {
                     // https://html.spec.whatwg.org/multipage/parsing.html#the-initial-insertion-mode
                     InsertionMode::Initial => {
                         match &token {
-                            Token::Character(c)
+                            HtmlToken::Character(c)
                                 if *c == '\t'
                                     || *c == '\n'
                                     || *c == '\x0C'
@@ -74,10 +74,10 @@ impl Parser {
                             {
                                 // Ignore the token
                             }
-                            Token::Comment(_) => {
+                            HtmlToken::Comment(_) => {
                                 unimplemented!("token: {:?}", token);
                             }
-                            Token::Doctype {
+                            HtmlToken::Doctype {
                                 name,
                                 public_identifier,
                                 system_identifier,
@@ -98,7 +98,7 @@ impl Parser {
                                         .to_string(),
                                     });
                                 }
-                                let n = Rc::new(RefCell::new(Node::new(NodeType::DocumentType(
+                                let n = Rc::new(RefCell::new(DomNode::new(NodeType::DocumentType(
                                     match name {
                                         Some(name) => name.clone(),
                                         None => String::new(),
@@ -117,10 +117,10 @@ impl Parser {
                     // https://html.spec.whatwg.org/multipage/parsing.html#the-before-html-insertion-mode
                     InsertionMode::BeforeHtml => {
                         match &token {
-                            Token::Doctype { .. } => {
+                            HtmlToken::Doctype { .. } => {
                                 eprintln!("parse error, ignored the token: {:?}", token);
                             }
-                            Token::Character(c)
+                            HtmlToken::Character(c)
                                 if *c == '\t'
                                     || *c == '\n'
                                     || *c == '\x0C'
@@ -129,13 +129,13 @@ impl Parser {
                             {
                                 // Ignore the token
                             }
-                            Token::StartTag {
+                            HtmlToken::StartTag {
                                 tag_name,
                                 attributes,
                                 ..
                             } if tag_name == "html" => {
                                 let n =
-                                    Rc::new(RefCell::new(Node::new(NodeType::Element(Element {
+                                    Rc::new(RefCell::new(DomNode::new(NodeType::Element(Element {
                                         tag_name: tag_name.clone(),
                                         attributes: attributes.clone(),
                                     }))));
@@ -143,9 +143,9 @@ impl Parser {
                                 self.stack.push(Rc::clone(&n));
                                 self.insertion_mode = InsertionMode::BeforeHead;
                             }
-                            Token::EndTag { tag_name, .. } => {
+                            HtmlToken::EndTag { tag_name, .. } => {
                                 if let "head" | "body" | "html" | "br" = tag_name.as_str() {
-                                    let n = Rc::new(RefCell::new(Node::new(NodeType::Element(
+                                    let n = Rc::new(RefCell::new(DomNode::new(NodeType::Element(
                                         Element {
                                             tag_name: "html".to_string(),
                                             attributes: Vec::new(),
@@ -160,7 +160,7 @@ impl Parser {
                             }
                             _ => {
                                 let n =
-                                    Rc::new(RefCell::new(Node::new(NodeType::Element(Element {
+                                    Rc::new(RefCell::new(DomNode::new(NodeType::Element(Element {
                                         tag_name: "html".to_string(),
                                         attributes: Vec::new(),
                                     }))));
@@ -174,7 +174,7 @@ impl Parser {
                     // https://html.spec.whatwg.org/multipage/parsing.html#the-before-head-insertion-mode
                     InsertionMode::BeforeHead => {
                         match &token {
-                            Token::Character(c)
+                            HtmlToken::Character(c)
                                 if *c == '\t'
                                     || *c == '\n'
                                     || *c == '\x0C'
@@ -183,10 +183,10 @@ impl Parser {
                             {
                                 // Ignore the token
                             }
-                            Token::Doctype { .. } => {
+                            HtmlToken::Doctype { .. } => {
                                 eprintln!("parse error, ignored the token: {:?}", token);
                             }
-                            Token::StartTag {
+                            HtmlToken::StartTag {
                                 tag_name,
                                 attributes,
                                 ..
@@ -197,7 +197,7 @@ impl Parser {
                                 }
                                 _ => unimplemented!("token: {:?}", token),
                             },
-                            Token::EndTag { tag_name, .. } => {
+                            HtmlToken::EndTag { tag_name, .. } => {
                                 if let "head" | "body" | "html" | "br" = tag_name.as_str() {
                                     self.insert_element(tag_name, &Vec::new());
                                     self.insertion_mode = InsertionMode::InHead;
@@ -217,7 +217,7 @@ impl Parser {
                     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inhead
                     InsertionMode::InHead => {
                         match &token {
-                            Token::Character(c)
+                            HtmlToken::Character(c)
                                 if *c == '\t'
                                     || *c == '\n'
                                     || *c == '\x0C'
@@ -226,16 +226,16 @@ impl Parser {
                             {
                                 // Ignore the token
                             }
-                            Token::Doctype { .. } => {
+                            HtmlToken::Doctype { .. } => {
                                 eprintln!("parse error, ignored the token: {:?}", token);
                             }
-                            Token::StartTag {
+                            HtmlToken::StartTag {
                                 tag_name,
                                 attributes,
                                 ..
                             } => match tag_name.as_str() {
                                 "meta" => {
-                                    let n = Rc::new(RefCell::new(Node::new(NodeType::Element(
+                                    let n = Rc::new(RefCell::new(DomNode::new(NodeType::Element(
                                         Element {
                                             tag_name: tag_name.clone(),
                                             attributes: attributes.clone(),
@@ -258,7 +258,7 @@ impl Parser {
                                 }
                                 _ => unimplemented!("token: {:?}", token),
                             },
-                            Token::EndTag { tag_name, .. } if tag_name == "head" => {
+                            HtmlToken::EndTag { tag_name, .. } if tag_name == "head" => {
                                 let elm = self.stack.pop().unwrap();
                                 if let NodeType::Element(elm) = &elm.borrow().node_type {
                                     if elm.tag_name != "head" {
@@ -291,7 +291,7 @@ impl Parser {
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#the-after-head-insertion-mode
                     InsertionMode::AfterHead => match &token {
-                        Token::Character(c)
+                        HtmlToken::Character(c)
                             if *c == '\t'
                                 || *c == '\n'
                                 || *c == '\x0C'
@@ -300,10 +300,10 @@ impl Parser {
                         {
                             self.insert_tokens_char(*c);
                         }
-                        Token::Doctype { .. } => {
+                        HtmlToken::Doctype { .. } => {
                             eprintln!("parse error, ignored the token: {:?}", token);
                         }
-                        Token::StartTag {
+                        HtmlToken::StartTag {
                             tag_name,
                             attributes,
                             ..
@@ -325,16 +325,16 @@ impl Parser {
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inbody
                     InsertionMode::InBody => match &token {
-                        Token::Character(c) => match c {
+                        HtmlToken::Character(c) => match c {
                             '\u{0000}' => eprintln!("parse error, ignored the token: {:?}", token),
                             _ => {
                                 self.insert_tokens_char(*c);
                             }
                         },
-                        Token::Doctype { .. } => {
+                        HtmlToken::Doctype { .. } => {
                             eprintln!("parse error, ignored the token: {:?}", token)
                         }
-                        Token::StartTag {
+                        HtmlToken::StartTag {
                             tag_name,
                             attributes,
                             ..
@@ -432,7 +432,7 @@ impl Parser {
                                 unimplemented!("token: {:?}", token);
                             }
                         },
-                        Token::EndTag { tag_name, .. } => match tag_name.as_str() {
+                        HtmlToken::EndTag { tag_name, .. } => match tag_name.as_str() {
                             "body" => {
                                 self.insertion_mode = InsertionMode::AfterBody;
                             }
@@ -532,13 +532,13 @@ impl Parser {
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-incdata
                     InsertionMode::Text => match &token {
-                        Token::Character(c) => match c {
+                        HtmlToken::Character(c) => match c {
                             '\u{0000}' => unreachable!(),
                             _ => {
                                 self.insert_tokens_char(*c);
                             }
                         },
-                        Token::EndTag { tag_name, .. } if tag_name != "script" => {
+                        HtmlToken::EndTag { tag_name, .. } if tag_name != "script" => {
                             self.stack.pop();
                             self.insertion_mode = self.orig_insertion_mode.unwrap();
                         }
@@ -549,18 +549,18 @@ impl Parser {
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-afterbody
                     InsertionMode::AfterBody => match &token {
-                        Token::Character(c) => {
+                        HtmlToken::Character(c) => {
                             if let '\t' | '\n' | '\x0C' | '\r' | ' ' = c {
                                 self.insert_tokens_char(*c);
                             }
                         }
-                        Token::Doctype { .. } => {
+                        HtmlToken::Doctype { .. } => {
                             eprintln!("parse error, ignored the token: {:?}", token)
                         }
-                        Token::EndTag { tag_name, .. } if tag_name == "html" => {
+                        HtmlToken::EndTag { tag_name, .. } if tag_name == "html" => {
                             self.insertion_mode = InsertionMode::AfterAfterBody;
                         }
-                        Token::Eof => {
+                        HtmlToken::Eof => {
                             end_of_parsing = true;
                         }
                         _ => {
@@ -570,10 +570,10 @@ impl Parser {
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#the-after-after-body-insertion-mode
                     InsertionMode::AfterAfterBody => match &token {
-                        Token::Doctype { .. } => {
+                        HtmlToken::Doctype { .. } => {
                             eprintln!("parse error, ignored the token: {:?}", token);
                         }
-                        Token::Character(c)
+                        HtmlToken::Character(c)
                             if *c == '\t'
                                 || *c == '\n'
                                 || *c == '\x0C'
@@ -582,10 +582,10 @@ impl Parser {
                         {
                             self.insert_tokens_char(*c);
                         }
-                        Token::StartTag { tag_name, .. } if tag_name == "html" => {
+                        HtmlToken::StartTag { tag_name, .. } if tag_name == "html" => {
                             unimplemented!("token: {:?}", token)
                         }
-                        Token::Eof => {
+                        HtmlToken::Eof => {
                             end_of_parsing = true;
                         }
                         _ => {
@@ -646,7 +646,7 @@ impl Parser {
     }
 
     fn insert_element(&mut self, tag_name: &str, attributes: &[(String, String)]) {
-        let new_node = Rc::new(RefCell::new(Node::new(NodeType::Element(Element {
+        let new_node = Rc::new(RefCell::new(DomNode::new(NodeType::Element(Element {
             tag_name: tag_name.to_owned(),
             attributes: attributes.to_owned(),
         }))));
@@ -672,7 +672,7 @@ impl Parser {
         }
 
         if need_to_push_node {
-            let n = Rc::new(RefCell::new(Node::new(NodeType::Text(c.to_string()))));
+            let n = Rc::new(RefCell::new(DomNode::new(NodeType::Text(c.to_string()))));
             self.stack
                 .last()
                 .unwrap()
@@ -697,7 +697,7 @@ mod tests {
 
         let html = "<!DOCTYPE html>\n<html class=e>\n\t<head><title>Aliens?</title></head>\n\t<body>Why yes.</body>\n</html>";
         let tree =
-            DocumentTree::build(Parser::new(Tokenizer::new(&html)).parse().unwrap()).unwrap();
+            DocumentTree::build(HtmlParser::new(HtmlTokenizer::new(&html)).parse().unwrap()).unwrap();
         let mut dfs_iter = tree.get_dfs_iter();
 
         assert_eq!(
@@ -768,7 +768,7 @@ mod tests {
 
         let html = "<!DOCTYPE html>\n<html>\n\t<head><title>Lists</title></head>\n\t<body>\n\t\t<ul>\n\t\t\t<li>Item1\n\t\t\t\t<p class=\"foo\">Paragraph1\n\t\t\t<li>Item2</li>\n\t\t\t<li>Item3\n\t\t</ul>\n\t</body>\n</html>";
         let tree =
-            DocumentTree::build(Parser::new(Tokenizer::new(&html)).parse().unwrap()).unwrap();
+            DocumentTree::build(HtmlParser::new(HtmlTokenizer::new(&html)).parse().unwrap()).unwrap();
         let mut dfs_iter = tree.get_dfs_iter();
 
         assert_eq!(

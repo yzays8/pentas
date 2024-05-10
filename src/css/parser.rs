@@ -4,18 +4,18 @@ use anyhow::Result;
 
 use crate::css::cssom::{ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet};
 use crate::css::selector::SelectorParser;
-use crate::css::tokenizer::Token;
+use crate::css::tokenizer::CssToken;
 
 #[derive(Debug)]
-pub struct Parser {
+pub struct CssParser {
     need_reconsume: bool,
-    tokens: Vec<Token>,
+    tokens: Vec<CssToken>,
     current_pos: usize,
-    current_token: Option<Token>,
+    current_token: Option<CssToken>,
 }
 
-impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
+impl CssParser {
+    pub fn new(tokens: Vec<CssToken>) -> Self {
         Self {
             need_reconsume: false,
             tokens,
@@ -36,12 +36,12 @@ impl Parser {
 
         loop {
             match self.consume_token() {
-                Token::Whitespace => continue,
-                Token::Eof => return Ok(rules),
-                Token::Cdo | Token::Cdc => {
+                CssToken::Whitespace => continue,
+                CssToken::Eof => return Ok(rules),
+                CssToken::Cdo | CssToken::Cdc => {
                     unimplemented!();
                 }
-                Token::AtKeyword(_) => {
+                CssToken::AtKeyword(_) => {
                     unimplemented!();
                 }
                 _ => {
@@ -64,18 +64,18 @@ impl Parser {
 
         loop {
             match self.consume_token() {
-                Token::Eof => {
+                CssToken::Eof => {
                     eprintln!("parse error in consume_qualified_rule");
                     return Ok(None);
                 }
-                Token::OpenBrace => {
+                CssToken::OpenBrace => {
                     qualified_rule
                         .declarations
                         .extend(self.consume_list_of_declarations());
 
                     // Remove trailing whitespace tokens from the buffer, because
                     // the last whitespace tokens can't be parsed in the selector grammar.
-                    while let Some(ComponentValue::PreservedToken(Token::Whitespace)) =
+                    while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
                         selectors_buf.last()
                     {
                         selectors_buf.pop();
@@ -98,9 +98,9 @@ impl Parser {
     /// https://www.w3.org/TR/css-syntax-3/#consume-simple-block
     fn consume_simple_block(&mut self) -> ComponentValue {
         let ending_token = match self.current_token.as_ref().unwrap() {
-            Token::OpenBrace => Token::CloseBrace,
-            Token::OpenParenthesis => Token::CloseParenthesis,
-            Token::OpenSquareBracket => Token::CloseSquareBracket,
+            CssToken::OpenBrace => CssToken::CloseBrace,
+            CssToken::OpenParenthesis => CssToken::CloseParenthesis,
+            CssToken::OpenSquareBracket => CssToken::CloseSquareBracket,
             _ => {
                 unreachable!();
             }
@@ -113,7 +113,7 @@ impl Parser {
         loop {
             match self.consume_token() {
                 t if t == ending_token => return block,
-                Token::Eof => {
+                CssToken::Eof => {
                     eprintln!("parse error in consume_simple_block");
                     return block;
                 }
@@ -134,9 +134,9 @@ impl Parser {
         // Partially follows the consume simple block algorithm.
         // https://www.w3.org/TR/css-syntax-3/#consume-simple-block
         let ending_token = match self.current_token.as_ref().unwrap() {
-            Token::OpenBrace => Token::CloseBrace,
-            Token::OpenParenthesis => Token::CloseParenthesis,
-            Token::OpenSquareBracket => Token::CloseSquareBracket,
+            CssToken::OpenBrace => CssToken::CloseBrace,
+            CssToken::OpenParenthesis => CssToken::CloseParenthesis,
+            CssToken::OpenSquareBracket => CssToken::CloseSquareBracket,
             _ => {
                 unreachable!();
             }
@@ -145,16 +145,16 @@ impl Parser {
         loop {
             match self.consume_token() {
                 t if t == ending_token => return declarations,
-                Token::Whitespace | Token::Semicolon => continue,
-                Token::Eof => return declarations,
-                Token::AtKeyword(_) => {
+                CssToken::Whitespace | CssToken::Semicolon => continue,
+                CssToken::Eof => return declarations,
+                CssToken::AtKeyword(_) => {
                     unimplemented!();
                 }
-                Token::Ident(_) => {
+                CssToken::Ident(_) => {
                     // todo
                     let mut tmp_token_list = vec![self.current_token.clone().unwrap()];
-                    while (self.peek_token() != Token::Semicolon)
-                        && (self.peek_token() != Token::Eof)
+                    while (self.peek_token() != CssToken::Semicolon)
+                        && (self.peek_token() != CssToken::Eof)
                     {
                         tmp_token_list.push(
                             if let ComponentValue::PreservedToken(token) =
@@ -178,8 +178,8 @@ impl Parser {
                         self.current_token
                     );
                     self.need_reconsume = true;
-                    while (self.peek_token() != Token::Semicolon)
-                        && (self.peek_token() != Token::Eof)
+                    while (self.peek_token() != CssToken::Semicolon)
+                        && (self.peek_token() != CssToken::Eof)
                     {
                         self.consume_component_value();
                     }
@@ -189,8 +189,8 @@ impl Parser {
     }
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-declaration
-    fn consume_declaration(&mut self, mut tokens: VecDeque<Token>) -> Option<Declaration> {
-        let Some(Token::Ident(name)) = tokens.pop_front() else {
+    fn consume_declaration(&mut self, mut tokens: VecDeque<CssToken>) -> Option<Declaration> {
+        let Some(CssToken::Ident(name)) = tokens.pop_front() else {
             unreachable!();
         };
         let mut declaration = Declaration {
@@ -198,25 +198,27 @@ impl Parser {
             value: Vec::new(),
         };
 
-        while tokens.front() == Some(&Token::Whitespace) {
+        while tokens.front() == Some(&CssToken::Whitespace) {
             tokens.pop_front();
         }
-        if tokens.front() != Some(&Token::Colon) {
+        if tokens.front() != Some(&CssToken::Colon) {
             eprintln!("parse error in consume_declaration");
             return None;
         } else {
             tokens.pop_front();
         }
-        while tokens.front() == Some(&Token::Whitespace) {
+        while tokens.front() == Some(&CssToken::Whitespace) {
             tokens.pop_front();
         }
         // todo
-        while tokens.front().is_some() && (tokens.front() != Some(&Token::Eof)) {
+        while tokens.front().is_some() && (tokens.front() != Some(&CssToken::Eof)) {
             let t = tokens.pop_front().unwrap();
-            let c = if let Token::OpenParenthesis | Token::OpenSquareBracket | Token::OpenBrace = t
+            let c = if let CssToken::OpenParenthesis
+            | CssToken::OpenSquareBracket
+            | CssToken::OpenBrace = t
             {
                 unimplemented!();
-            } else if let Token::Function(_) = t {
+            } else if let CssToken::Function(_) = t {
                 unimplemented!();
             } else {
                 ComponentValue::PreservedToken(t)
@@ -226,9 +228,9 @@ impl Parser {
 
         if (declaration.value.len() >= 2)
             && declaration.value.get(declaration.value.len() - 2)
-                == Some(&ComponentValue::PreservedToken(Token::Delim('!')))
+                == Some(&ComponentValue::PreservedToken(CssToken::Delim('!')))
         {
-            if let Some(&ComponentValue::PreservedToken(Token::Ident(s))) =
+            if let Some(&ComponentValue::PreservedToken(CssToken::Ident(s))) =
                 declaration.value.last().as_ref()
             {
                 if s.eq_ignore_ascii_case("important") {
@@ -236,7 +238,9 @@ impl Parser {
                 }
             }
         }
-        while declaration.value.last() == Some(&ComponentValue::PreservedToken(Token::Whitespace)) {
+        while declaration.value.last()
+            == Some(&ComponentValue::PreservedToken(CssToken::Whitespace))
+        {
             declaration.value.pop();
         }
         Some(declaration)
@@ -245,9 +249,10 @@ impl Parser {
     /// https://www.w3.org/TR/css-syntax-3/#consume-a-component-value
     fn consume_component_value(&mut self) -> ComponentValue {
         let token = self.consume_token();
-        if let Token::OpenParenthesis | Token::OpenSquareBracket | Token::OpenBrace = token {
+        if let CssToken::OpenParenthesis | CssToken::OpenSquareBracket | CssToken::OpenBrace = token
+        {
             self.consume_simple_block()
-        } else if let Token::Function(_) = token {
+        } else if let CssToken::Function(_) = token {
             self.consume_function()
         } else {
             ComponentValue::PreservedToken(token)
@@ -256,7 +261,7 @@ impl Parser {
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-function
     fn consume_function(&mut self) -> ComponentValue {
-        let Token::Function(name) = self.current_token.clone().unwrap() else {
+        let CssToken::Function(name) = self.current_token.clone().unwrap() else {
             unreachable!();
         };
         let mut function = ComponentValue::Function {
@@ -265,8 +270,8 @@ impl Parser {
         };
         loop {
             match &self.consume_token() {
-                Token::CloseParenthesis => return function,
-                Token::Eof => {
+                CssToken::CloseParenthesis => return function,
+                CssToken::Eof => {
                     eprintln!("parse error in consume_function");
                     return function;
                 }
@@ -280,7 +285,7 @@ impl Parser {
         }
     }
 
-    fn consume_token(&mut self) -> Token {
+    fn consume_token(&mut self) -> CssToken {
         if self.need_reconsume {
             self.need_reconsume = false;
             self.current_token.clone().unwrap()
@@ -288,7 +293,7 @@ impl Parser {
             let token = if let Some(token) = self.tokens.get(self.current_pos) {
                 token
             } else {
-                return Token::Eof;
+                return CssToken::Eof;
             };
             self.current_token = Some(token.clone());
             self.current_pos += 1;
@@ -296,11 +301,11 @@ impl Parser {
         }
     }
 
-    fn peek_token(&self) -> Token {
+    fn peek_token(&self) -> CssToken {
         if let Some(token) = self.tokens.get(self.current_pos) {
             token.to_owned()
         } else {
-            Token::Eof
+            CssToken::Eof
         }
     }
 }
@@ -323,7 +328,7 @@ mod tests {
                 color: blue;
             }
         "#;
-        let mut parser = Parser::new(Tokenizer::new(css).tokenize().unwrap());
+        let mut parser = CssParser::new(CssTokenizer::new(css).tokenize().unwrap());
         let style_sheet = parser.parse().unwrap();
         let mut rules = style_sheet.rules.iter();
         assert_eq!(
@@ -336,19 +341,19 @@ mod tests {
                 declarations: vec![
                     Declaration {
                         name: "color".to_string(),
-                        value: vec![ComponentValue::PreservedToken(Token::Ident(
+                        value: vec![ComponentValue::PreservedToken(CssToken::Ident(
                             "red".to_string()
                         ))],
                     },
                     Declaration {
                         name: "grid-template-columns".to_string(),
                         value: vec![
-                            ComponentValue::PreservedToken(Token::Dimension(
+                            ComponentValue::PreservedToken(CssToken::Dimension(
                                 NumericType::Integer(1),
                                 "fr".to_string()
                             )),
-                            ComponentValue::PreservedToken(Token::Whitespace),
-                            ComponentValue::PreservedToken(Token::Dimension(
+                            ComponentValue::PreservedToken(CssToken::Whitespace),
+                            ComponentValue::PreservedToken(CssToken::Dimension(
                                 NumericType::Integer(2),
                                 "fr".to_string()
                             )),
@@ -370,7 +375,7 @@ mod tests {
                 font-size: 16px;
             }
         "#;
-        let mut parser = Parser::new(Tokenizer::new(css).tokenize().unwrap());
+        let mut parser = CssParser::new(CssTokenizer::new(css).tokenize().unwrap());
         let style_sheet = parser.parse().unwrap();
         let mut rules = style_sheet.rules.iter();
         assert_eq!(
@@ -392,7 +397,7 @@ mod tests {
                 ],
                 declarations: vec![Declaration {
                     name: "color".to_string(),
-                    value: vec![ComponentValue::PreservedToken(Token::Ident(
+                    value: vec![ComponentValue::PreservedToken(CssToken::Ident(
                         "red".to_string()
                     ))],
                 }],
@@ -435,13 +440,13 @@ mod tests {
                 declarations: vec![
                     Declaration {
                         name: "color".to_string(),
-                        value: vec![ComponentValue::PreservedToken(Token::Ident(
+                        value: vec![ComponentValue::PreservedToken(CssToken::Ident(
                             "blue".to_string()
                         ))],
                     },
                     Declaration {
                         name: "font-size".to_string(),
-                        value: vec![ComponentValue::PreservedToken(Token::Dimension(
+                        value: vec![ComponentValue::PreservedToken(CssToken::Dimension(
                             NumericType::Integer(16),
                             "px".to_string()
                         ))],

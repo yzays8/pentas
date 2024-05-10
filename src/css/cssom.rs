@@ -1,5 +1,5 @@
 use crate::css::selector::Selector;
-use crate::css::tokenizer::Token;
+use crate::css::tokenizer::CssToken;
 
 /// https://www.w3.org/TR/cssom-1/#cssstylesheet
 #[derive(Debug)]
@@ -42,13 +42,13 @@ pub struct Declaration {
 /// https://www.w3.org/TR/css-syntax-3/#component-value
 #[derive(Debug, PartialEq)]
 pub enum ComponentValue {
-    PreservedToken(Token),
+    PreservedToken(CssToken),
     Function {
         name: String,
         values: Vec<ComponentValue>,
     },
     SimpleBlock {
-        associated_token: Token,
+        associated_token: CssToken,
         values: Vec<ComponentValue>,
     },
 }

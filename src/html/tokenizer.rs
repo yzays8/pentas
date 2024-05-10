@@ -24,18 +24,18 @@ enum TokenizationState {
 }
 
 #[derive(Debug)]
-pub struct Tokenizer {
+pub struct HtmlTokenizer {
     state: TokenizationState,
     input: Vec<char>,
     current_pos: usize,
-    current_token: Option<Token>,
-    output: VecDeque<Token>,
+    current_token: Option<HtmlToken>,
+    output: VecDeque<HtmlToken>,
 }
 
 /// The output of the tokenization step is a series of zero or more of the following tokens:
 /// DOCTYPE, start tag, end tag, comment, character, end-of-file.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Token {
+pub enum HtmlToken {
     // When a DOCTYPE token is created, its name, public identifier, and system identifier
     // must be marked as missing (which is a distinct state from the empty string),
     // and the force-quirks flag must be set to off (its other state is on).
@@ -64,7 +64,7 @@ pub enum Token {
     Eof,
 }
 
-impl Tokenizer {
+impl HtmlTokenizer {
     pub fn new(input: &str) -> Self {
         Self {
             state: TokenizationState::Data,
@@ -93,7 +93,7 @@ impl Tokenizer {
         self.input.iter().skip(self.current_pos).take(len).collect()
     }
 
-    pub fn consume_token(&mut self) -> Token {
+    pub fn consume_token(&mut self) -> HtmlToken {
         // When a token is emitted, it must immediately be handled by the tree construction stage.
         if self.output.is_empty() {
             loop {
@@ -109,16 +109,16 @@ impl Tokenizer {
                             }
                             '\u{0000}' => {
                                 eprintln!("unexpected-null-character parse error");
-                                self.output.push_back(Token::Character('\u{FFFD}'));
+                                self.output.push_back(HtmlToken::Character('\u{FFFD}'));
                                 break;
                             }
                             _ => {
-                                self.output.push_back(Token::Character(c));
+                                self.output.push_back(HtmlToken::Character(c));
                                 break;
                             }
                         },
                         None => {
-                            self.output.push_back(Token::Eof);
+                            self.output.push_back(HtmlToken::Eof);
                             break;
                         }
                     },
@@ -133,7 +133,7 @@ impl Tokenizer {
                                 self.state = TokenizationState::EndTagOpen;
                             }
                             c if c.is_alphabetic() => {
-                                self.current_token = Some(Token::StartTag {
+                                self.current_token = Some(HtmlToken::StartTag {
                                     tag_name: String::new(),
                                     attributes: vec![],
                                     self_closing: false,
@@ -143,14 +143,14 @@ impl Tokenizer {
                             _ => {
                                 eprintln!("invalid-first-character-of-tag-name parse error");
                                 self.allow_reconsume(TokenizationState::Data);
-                                self.output.push_back(Token::Character('<'));
+                                self.output.push_back(HtmlToken::Character('<'));
                                 break;
                             }
                         },
                         None => {
                             eprintln!("eof-before-tag-name parse error");
-                            self.output.push_back(Token::Character('<'));
-                            self.output.push_back(Token::Eof);
+                            self.output.push_back(HtmlToken::Character('<'));
+                            self.output.push_back(HtmlToken::Eof);
                             break;
                         }
                     },
@@ -159,7 +159,7 @@ impl Tokenizer {
                     TokenizationState::EndTagOpen => match self.consume_input_char() {
                         Some(c) => match c {
                             c if c.is_alphabetic() => {
-                                self.current_token = Some(Token::EndTag {
+                                self.current_token = Some(HtmlToken::EndTag {
                                     tag_name: String::new(),
                                     attributes: vec![],
                                     self_closing: false,
@@ -172,15 +172,15 @@ impl Tokenizer {
                             }
                             _ => {
                                 eprintln!("invalid-first-character-of-tag-name parse error");
-                                self.current_token = Some(Token::Comment(String::new()));
+                                self.current_token = Some(HtmlToken::Comment(String::new()));
                                 self.allow_reconsume(TokenizationState::BogusComment);
                             }
                         },
                         None => {
                             eprintln!("eof-before-tag-name parse error");
-                            self.output.push_back(Token::Character('<'));
-                            self.output.push_back(Token::Character('/'));
-                            self.output.push_back(Token::Eof);
+                            self.output.push_back(HtmlToken::Character('<'));
+                            self.output.push_back(HtmlToken::Character('/'));
+                            self.output.push_back(HtmlToken::Eof);
                             break;
                         }
                     },
@@ -200,23 +200,26 @@ impl Tokenizer {
                                 break;
                             }
                             c if c.is_ascii_uppercase() => {
-                                if let Some(Token::StartTag { tag_name, .. })
-                                | Some(Token::EndTag { tag_name, .. }) = &mut self.current_token
+                                if let Some(HtmlToken::StartTag { tag_name, .. })
+                                | Some(HtmlToken::EndTag { tag_name, .. }) =
+                                    &mut self.current_token
                                 {
                                     tag_name.push(c.to_ascii_lowercase());
                                 }
                             }
                             '\u{0000}' => {
-                                if let Some(Token::StartTag { tag_name, .. })
-                                | Some(Token::EndTag { tag_name, .. }) = &mut self.current_token
+                                if let Some(HtmlToken::StartTag { tag_name, .. })
+                                | Some(HtmlToken::EndTag { tag_name, .. }) =
+                                    &mut self.current_token
                                 {
                                     eprintln!("unexpected-null-character parse error");
                                     tag_name.push('\u{FFFD}');
                                 }
                             }
                             _ => {
-                                if let Some(Token::StartTag { tag_name, .. })
-                                | Some(Token::EndTag { tag_name, .. }) = &mut self.current_token
+                                if let Some(HtmlToken::StartTag { tag_name, .. })
+                                | Some(HtmlToken::EndTag { tag_name, .. }) =
+                                    &mut self.current_token
                                 {
                                     tag_name.push(c);
                                 }
@@ -224,7 +227,7 @@ impl Tokenizer {
                         },
                         None => {
                             eprintln!("eof-in-tag parse error");
-                            self.output.push_back(Token::Eof);
+                            self.output.push_back(HtmlToken::Eof);
                             break;
                         }
                     },
@@ -243,16 +246,16 @@ impl Tokenizer {
                                     "unexpected-equals-sign-before-attribute-name parse error"
                                 );
 
-                                if let Some(Token::StartTag { attributes, .. })
-                                | Some(Token::EndTag { attributes, .. }) =
+                                if let Some(HtmlToken::StartTag { attributes, .. })
+                                | Some(HtmlToken::EndTag { attributes, .. }) =
                                     &mut self.current_token
                                 {
                                     attributes.push((c.to_string(), String::new()));
                                 }
                             }
                             _ => {
-                                if let Some(Token::StartTag { attributes, .. })
-                                | Some(Token::EndTag { attributes, .. }) =
+                                if let Some(HtmlToken::StartTag { attributes, .. })
+                                | Some(HtmlToken::EndTag { attributes, .. }) =
                                     &mut self.current_token
                                 {
                                     attributes.push((String::new(), String::new()));
@@ -276,8 +279,8 @@ impl Tokenizer {
                                 self.state = TokenizationState::BeforeAttributeValue;
                             }
                             c if c.is_ascii_uppercase() => match &mut self.current_token {
-                                Some(Token::StartTag { attributes, .. })
-                                | Some(Token::EndTag { attributes, .. }) => {
+                                Some(HtmlToken::StartTag { attributes, .. })
+                                | Some(HtmlToken::EndTag { attributes, .. }) => {
                                     attributes
                                         .last_mut()
                                         .unwrap()
@@ -289,8 +292,8 @@ impl Tokenizer {
                                 }
                             },
                             '\u{0000}' => {
-                                if let Some(Token::StartTag { attributes, .. })
-                                | Some(Token::EndTag { attributes, .. }) =
+                                if let Some(HtmlToken::StartTag { attributes, .. })
+                                | Some(HtmlToken::EndTag { attributes, .. }) =
                                     &mut self.current_token
                                 {
                                     eprintln!("unexpected-null-character parse error");
@@ -301,8 +304,8 @@ impl Tokenizer {
                                 if c == '"' || c == '\'' || c == '<' {
                                     eprintln!("invalid-character-in-attribute-name parse error");
                                 }
-                                if let Some(Token::StartTag { attributes, .. })
-                                | Some(Token::EndTag { attributes, .. }) =
+                                if let Some(HtmlToken::StartTag { attributes, .. })
+                                | Some(HtmlToken::EndTag { attributes, .. }) =
                                     &mut self.current_token
                                 {
                                     attributes.last_mut().unwrap().0.push(c);
@@ -332,8 +335,8 @@ impl Tokenizer {
                                 break;
                             }
                             _ => {
-                                if let Some(Token::StartTag { attributes, .. })
-                                | Some(Token::EndTag { attributes, .. }) =
+                                if let Some(HtmlToken::StartTag { attributes, .. })
+                                | Some(HtmlToken::EndTag { attributes, .. }) =
                                     &mut self.current_token
                                 {
                                     attributes.push((String::new(), String::new()));
@@ -343,7 +346,7 @@ impl Tokenizer {
                         },
                         None => {
                             eprintln!("eof-in-tag parse error");
-                            self.output.push_back(Token::Eof);
+                            self.output.push_back(HtmlToken::Eof);
                             break;
                         }
                     },
@@ -387,16 +390,16 @@ impl Tokenizer {
                                 }
                                 '\u{0000}' => {
                                     eprintln!("unexpected-null-character parse error");
-                                    if let Some(Token::StartTag { attributes, .. })
-                                    | Some(Token::EndTag { attributes, .. }) =
+                                    if let Some(HtmlToken::StartTag { attributes, .. })
+                                    | Some(HtmlToken::EndTag { attributes, .. }) =
                                         &mut self.current_token
                                     {
                                         attributes.last_mut().unwrap().1.push('\u{FFFD}');
                                     }
                                 }
                                 _ => {
-                                    if let Some(Token::StartTag { attributes, .. })
-                                    | Some(Token::EndTag { attributes, .. }) =
+                                    if let Some(HtmlToken::StartTag { attributes, .. })
+                                    | Some(HtmlToken::EndTag { attributes, .. }) =
                                         &mut self.current_token
                                     {
                                         attributes.last_mut().unwrap().1.push(c);
@@ -405,7 +408,7 @@ impl Tokenizer {
                             },
                             None => {
                                 eprintln!("eof-in-tag parse error");
-                                self.output.push_back(Token::Eof);
+                                self.output.push_back(HtmlToken::Eof);
                                 break;
                             }
                         }
@@ -423,16 +426,16 @@ impl Tokenizer {
                                 }
                                 '\u{0000}' => {
                                     eprintln!("unexpected-null-character parse error");
-                                    if let Some(Token::StartTag { attributes, .. })
-                                    | Some(Token::EndTag { attributes, .. }) =
+                                    if let Some(HtmlToken::StartTag { attributes, .. })
+                                    | Some(HtmlToken::EndTag { attributes, .. }) =
                                         &mut self.current_token
                                     {
                                         attributes.last_mut().unwrap().1.push('\u{FFFD}');
                                     }
                                 }
                                 _ => {
-                                    if let Some(Token::StartTag { attributes, .. })
-                                    | Some(Token::EndTag { attributes, .. }) =
+                                    if let Some(HtmlToken::StartTag { attributes, .. })
+                                    | Some(HtmlToken::EndTag { attributes, .. }) =
                                         &mut self.current_token
                                     {
                                         attributes.last_mut().unwrap().1.push(c);
@@ -441,7 +444,7 @@ impl Tokenizer {
                             },
                             None => {
                                 eprintln!("eof-in-tag parse error");
-                                self.output.push_back(Token::Eof);
+                                self.output.push_back(HtmlToken::Eof);
                                 break;
                             }
                         }
@@ -463,8 +466,8 @@ impl Tokenizer {
                             }
                             '\u{0000}' => {
                                 eprintln!("unexpected-null-character parse error");
-                                if let Some(Token::StartTag { attributes, .. })
-                                | Some(Token::EndTag { attributes, .. }) =
+                                if let Some(HtmlToken::StartTag { attributes, .. })
+                                | Some(HtmlToken::EndTag { attributes, .. }) =
                                     &mut self.current_token
                                 {
                                     attributes.last_mut().unwrap().1.push('\u{FFFD}');
@@ -474,8 +477,8 @@ impl Tokenizer {
                                 if c == '"' || c == '\'' || c == '<' || c == '=' || c == '`' {
                                     eprintln!("unexpected-character-in-unquoted-attribute-value parse error");
                                 }
-                                if let Some(Token::StartTag { attributes, .. })
-                                | Some(Token::EndTag { attributes, .. }) =
+                                if let Some(HtmlToken::StartTag { attributes, .. })
+                                | Some(HtmlToken::EndTag { attributes, .. }) =
                                     &mut self.current_token
                                 {
                                     attributes.last_mut().unwrap().1.push(c);
@@ -484,7 +487,7 @@ impl Tokenizer {
                         },
                         None => {
                             eprintln!("eof-in-tag parse error");
-                            self.output.push_back(Token::Eof);
+                            self.output.push_back(HtmlToken::Eof);
                             break;
                         }
                     },
@@ -511,7 +514,7 @@ impl Tokenizer {
                         },
                         None => {
                             eprintln!("eof-in-tag parse error");
-                            self.output.push_back(Token::Eof);
+                            self.output.push_back(HtmlToken::Eof);
                             break;
                         }
                     },
@@ -520,8 +523,8 @@ impl Tokenizer {
                     TokenizationState::SelfClosingStartTag => match self.consume_input_char() {
                         Some(c) => match c {
                             '>' => {
-                                if let Some(Token::StartTag { self_closing, .. })
-                                | Some(Token::EndTag { self_closing, .. }) =
+                                if let Some(HtmlToken::StartTag { self_closing, .. })
+                                | Some(HtmlToken::EndTag { self_closing, .. }) =
                                     &mut self.current_token
                                 {
                                     *self_closing = true;
@@ -537,7 +540,7 @@ impl Tokenizer {
                         },
                         None => {
                             eprintln!("eof-in-tag parse error");
-                            self.output.push_back(Token::Eof);
+                            self.output.push_back(HtmlToken::Eof);
                             break;
                         }
                     },
@@ -552,19 +555,19 @@ impl Tokenizer {
                             }
                             '\u{0000}' => {
                                 eprintln!("unexpected-null-character parse error");
-                                if let Some(Token::Comment(comment)) = &mut self.current_token {
+                                if let Some(HtmlToken::Comment(comment)) = &mut self.current_token {
                                     comment.push('\u{FFFD}');
                                 }
                             }
                             _ => {
-                                if let Some(Token::Comment(comment)) = &mut self.current_token {
+                                if let Some(HtmlToken::Comment(comment)) = &mut self.current_token {
                                     comment.push(c);
                                 }
                             }
                         },
                         None => {
                             self.output.push_back(self.current_token.clone().unwrap());
-                            self.output.push_back(Token::Eof);
+                            self.output.push_back(HtmlToken::Eof);
                             break;
                         }
                     },
@@ -580,7 +583,7 @@ impl Tokenizer {
                             unimplemented!();
                         } else {
                             eprintln!("incorrectly-opened-comment parse error");
-                            self.current_token = Some(Token::Comment(String::new()));
+                            self.current_token = Some(HtmlToken::Comment(String::new()));
                             self.state = TokenizationState::BogusComment;
                         }
                     }
@@ -601,14 +604,14 @@ impl Tokenizer {
                         },
                         None => {
                             eprintln!("eof-in-doctype parse error");
-                            self.current_token = Some(Token::Doctype {
+                            self.current_token = Some(HtmlToken::Doctype {
                                 name: None,
                                 public_identifier: None,
                                 system_identifier: None,
                                 force_quirks: true,
                             });
                             self.output.push_back(self.current_token.clone().unwrap());
-                            self.output.push_back(Token::Eof);
+                            self.output.push_back(HtmlToken::Eof);
                             break;
                         }
                     },
@@ -620,7 +623,7 @@ impl Tokenizer {
                                 continue;
                             }
                             c if c.is_ascii_uppercase() => {
-                                self.current_token = Some(Token::Doctype {
+                                self.current_token = Some(HtmlToken::Doctype {
                                     name: c.to_ascii_lowercase().to_string().into(),
                                     public_identifier: None,
                                     system_identifier: None,
@@ -630,7 +633,7 @@ impl Tokenizer {
                             }
                             '\u{0000}' => {
                                 eprintln!("unexpected-null-character parse error");
-                                self.current_token = Some(Token::Doctype {
+                                self.current_token = Some(HtmlToken::Doctype {
                                     name: '\u{FFFD}'.to_string().into(),
                                     public_identifier: None,
                                     system_identifier: None,
@@ -640,7 +643,7 @@ impl Tokenizer {
                             }
                             '>' => {
                                 eprintln!("missing-doctype-name parse error");
-                                self.current_token = Some(Token::Doctype {
+                                self.current_token = Some(HtmlToken::Doctype {
                                     name: None,
                                     public_identifier: None,
                                     system_identifier: None,
@@ -651,7 +654,7 @@ impl Tokenizer {
                                 break;
                             }
                             _ => {
-                                self.current_token = Some(Token::Doctype {
+                                self.current_token = Some(HtmlToken::Doctype {
                                     name: c.to_string().into(),
                                     public_identifier: None,
                                     system_identifier: None,
@@ -662,14 +665,14 @@ impl Tokenizer {
                         },
                         None => {
                             eprintln!("eof-in-doctype parse error");
-                            self.current_token = Some(Token::Doctype {
+                            self.current_token = Some(HtmlToken::Doctype {
                                 name: None,
                                 public_identifier: None,
                                 system_identifier: None,
                                 force_quirks: true,
                             });
                             self.output.push_back(self.current_token.clone().unwrap());
-                            self.output.push_back(Token::Eof);
+                            self.output.push_back(HtmlToken::Eof);
                             break;
                         }
                     },
@@ -686,7 +689,7 @@ impl Tokenizer {
                                 break;
                             }
                             c if c.is_ascii_uppercase() => match &mut self.current_token {
-                                Some(Token::Doctype { name, .. }) => {
+                                Some(HtmlToken::Doctype { name, .. }) => {
                                     if let Some(n) = name {
                                         n.push(c.to_ascii_lowercase());
                                     }
@@ -697,14 +700,14 @@ impl Tokenizer {
                             },
                             '\u{0000}' => {
                                 eprintln!("unexpected-null-character parse error");
-                                if let Some(Token::Doctype { name: Some(n), .. }) =
+                                if let Some(HtmlToken::Doctype { name: Some(n), .. }) =
                                     &mut self.current_token
                                 {
                                     n.push('\u{FFFD}');
                                 }
                             }
                             _ => {
-                                if let Some(Token::Doctype { name: Some(n), .. }) =
+                                if let Some(HtmlToken::Doctype { name: Some(n), .. }) =
                                     &mut self.current_token
                                 {
                                     n.push(c);
@@ -713,13 +716,13 @@ impl Tokenizer {
                         },
                         None => {
                             eprintln!("eof-in-doctype parse error");
-                            if let Some(Token::Doctype { force_quirks, .. }) =
+                            if let Some(HtmlToken::Doctype { force_quirks, .. }) =
                                 &mut self.current_token
                             {
                                 *force_quirks = true;
                             }
                             self.output.push_back(self.current_token.clone().unwrap());
-                            self.output.push_back(Token::Eof);
+                            self.output.push_back(HtmlToken::Eof);
                             break;
                         }
                     },
@@ -741,13 +744,13 @@ impl Tokenizer {
                         },
                         None => {
                             eprintln!("eof-in-doctype parse error");
-                            if let Some(Token::Doctype { force_quirks, .. }) =
+                            if let Some(HtmlToken::Doctype { force_quirks, .. }) =
                                 &mut self.current_token
                             {
                                 *force_quirks = true;
                             }
                             self.output.push_back(self.current_token.clone().unwrap());
-                            self.output.push_back(Token::Eof);
+                            self.output.push_back(HtmlToken::Eof);
                             break;
                         }
                     },
@@ -766,7 +769,7 @@ mod tests {
 
     #[test]
     fn test_consume_char() {
-        let mut tokenizer = Tokenizer::new("he llo, world!\n");
+        let mut tokenizer = HtmlTokenizer::new("he llo, world!\n");
         assert_eq!(tokenizer.consume_input_char(), Some('h'));
         assert_eq!(tokenizer.consume_input_char(), Some('e'));
         assert_eq!(tokenizer.consume_input_char(), Some(' '));
@@ -791,17 +794,17 @@ mod tests {
 
     #[test]
     fn test_peek_input_str() {
-        let tokenizer = Tokenizer::new("hello");
+        let tokenizer = HtmlTokenizer::new("hello");
         assert_eq!(tokenizer.peek_input_str(5), "hello");
         assert_eq!(tokenizer.peek_input_str(3), "hel");
     }
 
     #[test]
     fn test_consume_token1() {
-        let mut tokenizer = Tokenizer::new("<html></html>");
+        let mut tokenizer = HtmlTokenizer::new("<html></html>");
         assert_eq!(
             tokenizer.consume_token(),
-            Token::StartTag {
+            HtmlToken::StartTag {
                 tag_name: "html".to_string(),
                 attributes: vec![],
                 self_closing: false
@@ -809,21 +812,21 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::EndTag {
+            HtmlToken::EndTag {
                 tag_name: "html".to_string(),
                 attributes: vec![],
                 self_closing: false
             }
         );
-        assert_eq!(tokenizer.consume_token(), Token::Eof);
+        assert_eq!(tokenizer.consume_token(), HtmlToken::Eof);
     }
 
     #[test]
     fn test_consume_token2() {
-        let mut tokenizer = Tokenizer::new("<html><head><title></title></head></html>");
+        let mut tokenizer = HtmlTokenizer::new("<html><head><title></title></head></html>");
         assert_eq!(
             tokenizer.consume_token(),
-            Token::StartTag {
+            HtmlToken::StartTag {
                 tag_name: "html".to_string(),
                 attributes: vec![],
                 self_closing: false
@@ -831,7 +834,7 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::StartTag {
+            HtmlToken::StartTag {
                 tag_name: "head".to_string(),
                 attributes: vec![],
                 self_closing: false
@@ -839,7 +842,7 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::StartTag {
+            HtmlToken::StartTag {
                 tag_name: "title".to_string(),
                 attributes: vec![],
                 self_closing: false
@@ -847,7 +850,7 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::EndTag {
+            HtmlToken::EndTag {
                 tag_name: "title".to_string(),
                 attributes: vec![],
                 self_closing: false
@@ -855,7 +858,7 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::EndTag {
+            HtmlToken::EndTag {
                 tag_name: "head".to_string(),
                 attributes: vec![],
                 self_closing: false
@@ -863,22 +866,22 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::EndTag {
+            HtmlToken::EndTag {
                 tag_name: "html".to_string(),
                 attributes: vec![],
                 self_closing: false
             }
         );
-        assert_eq!(tokenizer.consume_token(), Token::Eof);
+        assert_eq!(tokenizer.consume_token(), HtmlToken::Eof);
     }
 
     #[test]
     fn test_consume_token3() {
         let html = "<!DOCTYPE html><html lang=\"en\"><head><title>Test</title></head><body><div id=\'main\'><br/></div></body></html>";
-        let mut tokenizer = Tokenizer::new(html);
+        let mut tokenizer = HtmlTokenizer::new(html);
         assert_eq!(
             tokenizer.consume_token(),
-            Token::Doctype {
+            HtmlToken::Doctype {
                 name: "html".to_string().into(),
                 public_identifier: None,
                 system_identifier: None,
@@ -887,7 +890,7 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::StartTag {
+            HtmlToken::StartTag {
                 tag_name: "html".to_string(),
                 attributes: vec![("lang".to_string(), "en".to_string())],
                 self_closing: false
@@ -895,7 +898,7 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::StartTag {
+            HtmlToken::StartTag {
                 tag_name: "head".to_string(),
                 attributes: vec![],
                 self_closing: false
@@ -903,19 +906,19 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::StartTag {
+            HtmlToken::StartTag {
                 tag_name: "title".to_string(),
                 attributes: vec![],
                 self_closing: false
             }
         );
-        assert_eq!(tokenizer.consume_token(), Token::Character('T'));
-        assert_eq!(tokenizer.consume_token(), Token::Character('e'));
-        assert_eq!(tokenizer.consume_token(), Token::Character('s'));
-        assert_eq!(tokenizer.consume_token(), Token::Character('t'));
+        assert_eq!(tokenizer.consume_token(), HtmlToken::Character('T'));
+        assert_eq!(tokenizer.consume_token(), HtmlToken::Character('e'));
+        assert_eq!(tokenizer.consume_token(), HtmlToken::Character('s'));
+        assert_eq!(tokenizer.consume_token(), HtmlToken::Character('t'));
         assert_eq!(
             tokenizer.consume_token(),
-            Token::EndTag {
+            HtmlToken::EndTag {
                 tag_name: "title".to_string(),
                 attributes: vec![],
                 self_closing: false
@@ -923,7 +926,7 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::EndTag {
+            HtmlToken::EndTag {
                 tag_name: "head".to_string(),
                 attributes: vec![],
                 self_closing: false
@@ -931,7 +934,7 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::StartTag {
+            HtmlToken::StartTag {
                 tag_name: "body".to_string(),
                 attributes: vec![],
                 self_closing: false
@@ -939,7 +942,7 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::StartTag {
+            HtmlToken::StartTag {
                 tag_name: "div".to_string(),
                 attributes: vec![("id".to_string(), "main".to_string())],
                 self_closing: false
@@ -947,7 +950,7 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::StartTag {
+            HtmlToken::StartTag {
                 tag_name: "br".to_string(),
                 attributes: vec![],
                 self_closing: true
@@ -955,7 +958,7 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::EndTag {
+            HtmlToken::EndTag {
                 tag_name: "div".to_string(),
                 attributes: vec![],
                 self_closing: false
@@ -963,7 +966,7 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::EndTag {
+            HtmlToken::EndTag {
                 tag_name: "body".to_string(),
                 attributes: vec![],
                 self_closing: false
@@ -971,12 +974,12 @@ mod tests {
         );
         assert_eq!(
             tokenizer.consume_token(),
-            Token::EndTag {
+            HtmlToken::EndTag {
                 tag_name: "html".to_string(),
                 attributes: vec![],
                 self_closing: false
             }
         );
-        assert_eq!(tokenizer.consume_token(), Token::Eof);
+        assert_eq!(tokenizer.consume_token(), HtmlToken::Eof);
     }
 }

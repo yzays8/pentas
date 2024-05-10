@@ -6,12 +6,12 @@ use anyhow::{bail, Result};
 
 /// https://dom.spec.whatwg.org/#node
 #[derive(Debug, PartialEq, Eq)]
-pub struct Node {
+pub struct DomNode {
     pub node_type: NodeType,
-    pub child_nodes: Vec<Rc<RefCell<Node>>>,
+    pub child_nodes: Vec<Rc<RefCell<DomNode>>>,
 }
 
-impl Node {
+impl DomNode {
     pub fn new(node_type: NodeType) -> Self {
         Self {
             node_type,
@@ -20,7 +20,7 @@ impl Node {
     }
 }
 
-impl fmt::Display for Node {
+impl fmt::Display for DomNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let NodeType::Element(elm) = &self.node_type {
             write!(f, "{:?}", elm)
@@ -49,11 +49,11 @@ pub struct Element {
 /// https://dom.spec.whatwg.org/#document-trees
 #[derive(Debug)]
 pub struct DocumentTree {
-    pub root: Rc<RefCell<Node>>,
+    pub root: Rc<RefCell<DomNode>>,
 }
 
 impl DocumentTree {
-    pub fn build(root: Rc<RefCell<Node>>) -> Result<Self> {
+    pub fn build(root: Rc<RefCell<DomNode>>) -> Result<Self> {
         if root.borrow().node_type != NodeType::Document {
             bail!("The root node of a document tree must be a document node.");
         }
@@ -61,9 +61,9 @@ impl DocumentTree {
     }
 
     #[allow(dead_code)]
-    pub fn get_dfs_iter(&self) -> impl Iterator<Item = Rc<RefCell<Node>>> {
+    pub fn get_dfs_iter(&self) -> impl Iterator<Item = Rc<RefCell<DomNode>>> {
         let mut stack = vec![Rc::clone(&self.root)];
-        std::iter::from_fn(move || -> Option<Rc<RefCell<Node>>> {
+        std::iter::from_fn(move || -> Option<Rc<RefCell<DomNode>>> {
             let current = stack.pop()?;
             stack.extend(current.borrow().child_nodes.iter().map(Rc::clone).rev());
             Some(Rc::clone(&current))
@@ -75,7 +75,7 @@ impl fmt::Display for DocumentTree {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fn print_node(
             node_tree: &mut String,
-            node: &Rc<RefCell<Node>>,
+            node: &Rc<RefCell<DomNode>>,
             current_depth: usize,
             is_last_child: bool,
             mut exclude_branches: Vec<usize>,
