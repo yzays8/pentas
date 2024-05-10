@@ -15,7 +15,7 @@ pub struct StyleSheet {
 #[derive(Debug, PartialEq)]
 pub enum Rule {
     QualifiedRule(QualifiedRule),
-    AtRule(AtRule),
+    // AtRule(AtRule),
 }
 
 /// https://www.w3.org/TR/css-syntax-3/#qualified-rule
@@ -25,9 +25,7 @@ pub type QualifiedRule = StyleRule;
 /// - https://www.w3.org/TR/cssom-1/#the-cssstylerule-interface
 #[derive(Debug, PartialEq)]
 pub struct StyleRule {
-    // https://www.w3.org/TR/selectors-3/#grouping
     pub selectors: Vec<Selector>,
-
     pub declarations: Vec<Declaration>,
 }
 
