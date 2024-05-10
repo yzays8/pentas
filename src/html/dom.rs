@@ -73,7 +73,7 @@ impl DocumentTree {
 
 impl fmt::Display for DocumentTree {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fn print_node(
+        fn construct_node_view(
             node_tree: &mut String,
             node: &Rc<RefCell<DomNode>>,
             current_depth: usize,
@@ -95,7 +95,7 @@ impl fmt::Display for DocumentTree {
             node_tree.push_str(&format!("{}{}\n", indent_and_branches, node.borrow()));
             let children_num = node.borrow().child_nodes.len();
             for (i, child) in node.borrow().child_nodes.iter().enumerate() {
-                print_node(
+                construct_node_view(
                     node_tree,
                     child,
                     current_depth + 1,
@@ -105,7 +105,7 @@ impl fmt::Display for DocumentTree {
             }
         }
         let mut node_tree = String::new();
-        print_node(&mut node_tree, &self.root, 0, true, vec![]);
+        construct_node_view(&mut node_tree, &self.root, 0, true, vec![]);
         node_tree.pop(); // Remove the last newline character
         write!(f, "{}", node_tree)
     }
