@@ -286,7 +286,6 @@ impl SelectorParser {
                 }
                 None => break,
                 t => {
-                    println!("{:#?}", self.input);
                     bail!("Unexpected token when parsing CSS selectors in parse_selectors_group: {:?}", t);
                 }
             }
