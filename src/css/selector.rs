@@ -1,9 +1,13 @@
+use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::ops::Deref;
+use std::rc::Rc;
 
 use anyhow::{bail, Ok, Result};
 
 use crate::css::cssom::ComponentValue;
 use crate::css::tokenizer::CssToken;
+use crate::html::dom::{DomNode, NodeType};
 
 /// - https://www.w3.org/TR/selectors-3/#simple-selectors
 /// - https://www.w3.org/TR/selectors-3/#grammar
@@ -25,6 +29,46 @@ pub enum SimpleSelector {
     // PseudoClass,
 }
 
+impl SimpleSelector {
+    pub fn matches(&self, dom_node: &Rc<RefCell<DomNode>>) -> bool {
+        let dom_node = dom_node.borrow();
+
+        match self {
+            SimpleSelector::Type {
+                namespace_prefix,
+                name,
+            } => {
+                if namespace_prefix.is_some() {
+                    unimplemented!();
+                }
+
+                if let NodeType::Element(elm) = &dom_node.node_type {
+                    elm.tag_name != "id" && elm.tag_name != "class" && elm.tag_name == *name
+                } else {
+                    false
+                }
+            }
+            SimpleSelector::Class(class_name) => {
+                if let NodeType::Element(elm) = &dom_node.node_type {
+                    elm.attributes
+                        .iter()
+                        .any(|(k, v)| k == "class" && v == class_name)
+                } else {
+                    false
+                }
+            }
+            SimpleSelector::Id(id) => {
+                if let NodeType::Element(elm) = &dom_node.node_type {
+                    elm.attributes.iter().any(|(k, v)| k == "id" && v == id)
+                } else {
+                    false
+                }
+            }
+            _ => unimplemented!(),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Combinator {
     Whitespace,
@@ -42,6 +86,165 @@ pub enum Selector {
     // but it must be a Simple selector because of the right associativity of the selector.
     // https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_selectors/Selector_structure#complex_selector
     Complex(Box<Selector>, Combinator, Box<Selector>),
+}
+
+impl Selector {
+    pub fn matches(&self, dom_node: &Rc<RefCell<DomNode>>) -> bool {
+        /// Returns the DOM node that the selector constructed in the current tree evaluates for the node backtracked from the target node,
+        /// and whether the selector matches the target node.
+        /// If the selector does not match the node, the whole selector tree does not match the node, so this function returns false with None.
+        fn matches_helper(
+            current_selector: &Selector,
+            target_dom_node: &Rc<RefCell<DomNode>>,
+        ) -> (Option<Rc<RefCell<DomNode>>>, bool) {
+            if let Selector::Simple(selectors) = current_selector {
+                // Simple, base-case
+                let success_match = selectors
+                    .iter()
+                    .any(|simple_selector| simple_selector.matches(target_dom_node));
+                if success_match {
+                    (Some(Rc::clone(target_dom_node)), true)
+                } else {
+                    (None, false)
+                }
+            } else {
+                // Complex
+                let (left, combinator, right) =
+                    if let Selector::Complex(left, combinator, right) = current_selector {
+                        let Selector::Simple(left) = left.deref() else {
+                            unreachable!();
+                        };
+                        (left, combinator, right)
+                    } else {
+                        unreachable!();
+                    };
+
+                let (right_node, success_match) = matches_helper(right, target_dom_node);
+                if !success_match {
+                    return (None, false);
+                }
+
+                // https://developer.mozilla.org/en-US/docs/Learn/CSS/Building_blocks/Selectors/Combinators
+                match combinator {
+                    // https://www.w3.org/TR/selectors-3/#descendant-combinators
+                    Combinator::Whitespace => {
+                        if right_node
+                            .as_ref()
+                            .unwrap()
+                            .borrow()
+                            .parent_node
+                            .as_ref()
+                            .is_none()
+                        {
+                            // html tag has no parent element.
+                            return (None, false);
+                        }
+                        let right_node_parent =
+                            Rc::clone(right_node.unwrap().borrow().parent_node.as_ref().unwrap());
+
+                        // Check whether the left selector exists in the ancestor of the right selector.
+                        let mut ancestor = right_node_parent;
+                        loop {
+                            for simple_selector in left {
+                                if simple_selector.matches(&ancestor) {
+                                    return (Some(ancestor), true);
+                                }
+                            }
+                            if ancestor.borrow().parent_node.as_ref().is_none() {
+                                break;
+                            }
+                            let parent = Rc::clone(ancestor.borrow().parent_node.as_ref().unwrap());
+                            ancestor = Rc::clone(&parent);
+                        }
+                        (None, false)
+                    }
+
+                    // https://www.w3.org/TR/selectors-3/#child-combinators
+                    Combinator::GreaterThan => {
+                        if right_node
+                            .as_ref()
+                            .unwrap()
+                            .borrow()
+                            .parent_node
+                            .as_ref()
+                            .is_none()
+                        {
+                            // html tag has no parent element.
+                            return (None, false);
+                        }
+                        let right_node_parent =
+                            Rc::clone(right_node.unwrap().borrow().parent_node.as_ref().unwrap());
+
+                        // Check that the left selector is a parent of the right selector.
+                        for simple_selector in left {
+                            if simple_selector.matches(&right_node_parent) {
+                                return (Some(right_node_parent), true);
+                            }
+                        }
+                        (None, false)
+                    }
+
+                    // https://www.w3.org/TR/selectors-3/#adjacent-sibling-combinators
+                    Combinator::Plus => {
+                        if right_node
+                            .as_ref()
+                            .unwrap()
+                            .borrow()
+                            .previous_sibling
+                            .is_none()
+                        {
+                            return (None, false);
+                        }
+                        let mut right_node_prev_sibling = Rc::clone(
+                            right_node
+                                .as_ref()
+                                .unwrap()
+                                .borrow()
+                                .previous_sibling
+                                .as_ref()
+                                .unwrap(),
+                        );
+
+                        loop {
+                            // Non-element nodes (e.g. text between elements) are ignored when considering adjacency of elements.
+                            if let NodeType::Element(_) = right_node_prev_sibling.borrow().node_type
+                            {
+                                for simple_selector in left {
+                                    if simple_selector.matches(&right_node_prev_sibling) {
+                                        return (Some(Rc::clone(&right_node_prev_sibling)), true);
+                                    }
+                                }
+                                return (None, false);
+                            }
+
+                            // Set the previous sibling of the previous sibling if previous sibling is not Element.
+                            if right_node_prev_sibling
+                                .as_ref()
+                                .borrow()
+                                .previous_sibling
+                                .is_none()
+                            {
+                                return (None, false);
+                            }
+                            let s = Rc::clone(
+                                right_node_prev_sibling
+                                    .as_ref()
+                                    .borrow()
+                                    .previous_sibling
+                                    .as_ref()
+                                    .unwrap(),
+                            );
+                            right_node_prev_sibling = Rc::clone(&s);
+                        }
+                    }
+
+                    _ => todo!(),
+                }
+            }
+        }
+
+        matches_helper(self, dom_node).1
+    }
 }
 
 #[derive(Debug)]

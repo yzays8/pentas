@@ -1,5 +1,9 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::css::selector::Selector;
 use crate::css::tokenizer::CssToken;
+use crate::html::dom::DomNode;
 
 /// https://www.w3.org/TR/cssom-1/#cssstylesheet
 #[derive(Debug)]
@@ -18,6 +22,15 @@ pub enum Rule {
     // AtRule(AtRule),
 }
 
+impl Rule {
+    pub fn matches(&self, dom_node: Rc<RefCell<DomNode>>) -> bool {
+        match self {
+            Rule::QualifiedRule(rule) => rule.matches(dom_node),
+            _ => unreachable!("Only QualifiedRule is supported."),
+        }
+    }
+}
+
 /// https://www.w3.org/TR/css-syntax-3/#qualified-rule
 pub type QualifiedRule = StyleRule;
 
@@ -27,6 +40,14 @@ pub type QualifiedRule = StyleRule;
 pub struct StyleRule {
     pub selectors: Vec<Selector>,
     pub declarations: Vec<Declaration>,
+}
+
+impl StyleRule {
+    pub fn matches(&self, dom_node: Rc<RefCell<DomNode>>) -> bool {
+        self.selectors
+            .iter()
+            .any(|selector| selector.matches(&dom_node))
+    }
 }
 
 /// - https://www.w3.org/TR/css-syntax-3/#declaration
