@@ -98,13 +98,13 @@ impl HtmlParser {
                                         .to_string(),
                                     });
                                 }
-                                let n = Rc::new(RefCell::new(DomNode::new(
-                                    NodeType::DocumentType(match name {
+                                DomNode::append_child(
+                                    &document_node,
+                                    DomNode::new(NodeType::DocumentType(match name {
                                         Some(name) => name.clone(),
                                         None => String::new(),
-                                    }),
-                                )));
-                                document_node.borrow_mut().child_nodes.push(Rc::clone(&n));
+                                    })),
+                                );
                                 self.insertion_mode = InsertionMode::BeforeHtml;
                             }
                             _ => {
@@ -134,25 +134,25 @@ impl HtmlParser {
                                 attributes,
                                 ..
                             } if tag_name == "html" => {
-                                let n = Rc::new(RefCell::new(DomNode::new(NodeType::Element(
-                                    Element {
+                                let n = DomNode::append_child(
+                                    &document_node,
+                                    DomNode::new(NodeType::Element(Element {
                                         tag_name: tag_name.clone(),
                                         attributes: attributes.clone(),
-                                    },
-                                ))));
-                                document_node.borrow_mut().child_nodes.push(Rc::clone(&n));
+                                    })),
+                                );
                                 self.stack.push(Rc::clone(&n));
                                 self.insertion_mode = InsertionMode::BeforeHead;
                             }
                             HtmlToken::EndTag { tag_name, .. } => {
                                 if let "head" | "body" | "html" | "br" = tag_name.as_str() {
-                                    let n = Rc::new(RefCell::new(DomNode::new(NodeType::Element(
-                                        Element {
+                                    let n = DomNode::append_child(
+                                        &document_node,
+                                        DomNode::new(NodeType::Element(Element {
                                             tag_name: "html".to_string(),
                                             attributes: Vec::new(),
-                                        },
-                                    ))));
-                                    document_node.borrow_mut().child_nodes.push(Rc::clone(&n));
+                                        })),
+                                    );
                                     self.stack.push(Rc::clone(&n));
                                     self.insertion_mode = InsertionMode::BeforeHead;
                                 } else {
@@ -160,13 +160,13 @@ impl HtmlParser {
                                 }
                             }
                             _ => {
-                                let n = Rc::new(RefCell::new(DomNode::new(NodeType::Element(
-                                    Element {
+                                let n = DomNode::append_child(
+                                    &document_node,
+                                    DomNode::new(NodeType::Element(Element {
                                         tag_name: "html".to_string(),
                                         attributes: Vec::new(),
-                                    },
-                                ))));
-                                document_node.borrow_mut().child_nodes.push(Rc::clone(&n));
+                                    })),
+                                );
                                 self.stack.push(Rc::clone(&n));
                                 self.insertion_mode = InsertionMode::BeforeHead;
                             }
@@ -237,18 +237,13 @@ impl HtmlParser {
                                 ..
                             } => match tag_name.as_str() {
                                 "meta" => {
-                                    let n = Rc::new(RefCell::new(DomNode::new(NodeType::Element(
-                                        Element {
+                                    DomNode::append_child(
+                                        self.stack.last().unwrap(),
+                                        DomNode::new(NodeType::Element(Element {
                                             tag_name: tag_name.clone(),
                                             attributes: attributes.clone(),
-                                        },
-                                    ))));
-                                    self.stack
-                                        .last()
-                                        .unwrap()
-                                        .borrow_mut()
-                                        .child_nodes
-                                        .push(Rc::clone(&n));
+                                        })),
+                                    );
                                     // Insert the element (including pushing it onto the stack of open elements) and pop it immediately,
                                     // so the content of the stack is not changed here.
                                 }
@@ -648,16 +643,13 @@ impl HtmlParser {
     }
 
     fn insert_element(&mut self, tag_name: &str, attributes: &[(String, String)]) {
-        let new_node = Rc::new(RefCell::new(DomNode::new(NodeType::Element(Element {
-            tag_name: tag_name.to_owned(),
-            attributes: attributes.to_owned(),
-        }))));
-        self.stack
-            .last()
-            .unwrap()
-            .borrow_mut()
-            .child_nodes
-            .push(Rc::clone(&new_node));
+        let new_node = DomNode::append_child(
+            self.stack.last().unwrap(),
+            DomNode::new(NodeType::Element(Element {
+                tag_name: tag_name.to_owned(),
+                attributes: attributes.to_owned(),
+            })),
+        );
         self.stack.push(Rc::clone(&new_node));
     }
 
@@ -674,13 +666,10 @@ impl HtmlParser {
         }
 
         if need_to_push_node {
-            let n = Rc::new(RefCell::new(DomNode::new(NodeType::Text(c.to_string()))));
-            self.stack
-                .last()
-                .unwrap()
-                .borrow_mut()
-                .child_nodes
-                .push(Rc::clone(&n));
+            DomNode::append_child(
+                self.stack.last().unwrap(),
+                DomNode::new(NodeType::Text(c.to_string())),
+            );
         }
     }
 }

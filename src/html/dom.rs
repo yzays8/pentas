@@ -9,6 +9,21 @@ use anyhow::{bail, Result};
 pub struct DomNode {
     pub node_type: NodeType,
     pub child_nodes: Vec<Rc<RefCell<DomNode>>>,
+    pub parent_node: Option<Rc<RefCell<DomNode>>>,
+    pub previous_sibling: Option<Rc<RefCell<DomNode>>>,
+    pub next_sibling: Option<Rc<RefCell<DomNode>>>,
+}
+
+impl Default for DomNode {
+    fn default() -> Self {
+        Self {
+            node_type: NodeType::Document,
+            child_nodes: Vec::new(),
+            parent_node: None,
+            previous_sibling: None,
+            next_sibling: None,
+        }
+    }
 }
 
 impl DomNode {
@@ -16,7 +31,23 @@ impl DomNode {
         Self {
             node_type,
             child_nodes: Vec::new(),
+            ..Default::default()
         }
+    }
+
+    pub fn append_child(node_ref: &Rc<RefCell<DomNode>>, child: Self) -> Rc<RefCell<DomNode>> {
+        let child = Rc::new(RefCell::new(child));
+        child.borrow_mut().parent_node = Some(Rc::clone(node_ref));
+        if node_ref.borrow().child_nodes.is_empty() {
+            child.borrow_mut().previous_sibling = None;
+            child.borrow_mut().next_sibling = None;
+        } else {
+            let last_child = Rc::clone(node_ref.borrow().child_nodes.last().unwrap());
+            child.borrow_mut().previous_sibling = Some(Rc::clone(&last_child));
+            last_child.borrow_mut().next_sibling = Some(Rc::clone(&child));
+        }
+        node_ref.borrow_mut().child_nodes.push(Rc::clone(&child));
+        child
     }
 }
 
