@@ -65,13 +65,7 @@ impl HtmlParser {
                     // https://html.spec.whatwg.org/multipage/parsing.html#the-initial-insertion-mode
                     InsertionMode::Initial => {
                         match &token {
-                            HtmlToken::Character(c)
-                                if *c == '\t'
-                                    || *c == '\n'
-                                    || *c == '\x0C'
-                                    || *c == '\r'
-                                    || *c == ' ' =>
-                            {
+                            HtmlToken::Character(c) if self.is_blank(*c) => {
                                 // Ignore the token
                             }
                             HtmlToken::Comment(_) => {
@@ -120,13 +114,7 @@ impl HtmlParser {
                             HtmlToken::Doctype { .. } => {
                                 eprintln!("parse error, ignored the token: {:?}", token);
                             }
-                            HtmlToken::Character(c)
-                                if *c == '\t'
-                                    || *c == '\n'
-                                    || *c == '\x0C'
-                                    || *c == '\r'
-                                    || *c == ' ' =>
-                            {
+                            HtmlToken::Character(c) if self.is_blank(*c) => {
                                 // Ignore the token
                             }
                             HtmlToken::StartTag {
@@ -176,13 +164,7 @@ impl HtmlParser {
                     // https://html.spec.whatwg.org/multipage/parsing.html#the-before-head-insertion-mode
                     InsertionMode::BeforeHead => {
                         match &token {
-                            HtmlToken::Character(c)
-                                if *c == '\t'
-                                    || *c == '\n'
-                                    || *c == '\x0C'
-                                    || *c == '\r'
-                                    || *c == ' ' =>
-                            {
+                            HtmlToken::Character(c) if self.is_blank(*c) => {
                                 // Ignore the token
                             }
                             HtmlToken::Doctype { .. } => {
@@ -219,13 +201,7 @@ impl HtmlParser {
                     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inhead
                     InsertionMode::InHead => {
                         match &token {
-                            HtmlToken::Character(c)
-                                if *c == '\t'
-                                    || *c == '\n'
-                                    || *c == '\x0C'
-                                    || *c == '\r'
-                                    || *c == ' ' =>
-                            {
+                            HtmlToken::Character(c) if self.is_blank(*c) => {
                                 // Ignore the token
                             }
                             HtmlToken::Doctype { .. } => {
@@ -288,13 +264,7 @@ impl HtmlParser {
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#the-after-head-insertion-mode
                     InsertionMode::AfterHead => match &token {
-                        HtmlToken::Character(c)
-                            if *c == '\t'
-                                || *c == '\n'
-                                || *c == '\x0C'
-                                || *c == '\r'
-                                || *c == ' ' =>
-                        {
+                        HtmlToken::Character(c) if self.is_blank(*c) => {
                             self.insert_tokens_char(*c);
                         }
                         HtmlToken::Doctype { .. } => {
@@ -547,7 +517,7 @@ impl HtmlParser {
                     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-afterbody
                     InsertionMode::AfterBody => match &token {
                         HtmlToken::Character(c) => {
-                            if let '\t' | '\n' | '\x0C' | '\r' | ' ' = c {
+                            if self.is_blank(*c) {
                                 self.insert_tokens_char(*c);
                             }
                         }
@@ -570,13 +540,7 @@ impl HtmlParser {
                         HtmlToken::Doctype { .. } => {
                             eprintln!("parse error, ignored the token: {:?}", token);
                         }
-                        HtmlToken::Character(c)
-                            if *c == '\t'
-                                || *c == '\n'
-                                || *c == '\x0C'
-                                || *c == '\r'
-                                || *c == ' ' =>
-                        {
+                        HtmlToken::Character(c) if self.is_blank(*c) => {
                             self.insert_tokens_char(*c);
                         }
                         HtmlToken::StartTag { tag_name, .. } if tag_name == "html" => {
@@ -602,6 +566,11 @@ impl HtmlParser {
         }
 
         Ok(document_node)
+    }
+
+    /// U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+    fn is_blank(&self, c: char) -> bool {
+        c == '\t' || c == '\n' || c == '\x0C' || c == '\r' || c == ' '
     }
 
     /// Get the tag name of the current element, if the current node is an element.
