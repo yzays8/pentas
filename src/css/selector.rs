@@ -238,7 +238,59 @@ impl Selector {
                         }
                     }
 
-                    _ => todo!(),
+                    // https://www.w3.org/TR/selectors-3/#general-sibling-combinators
+                    Combinator::Tilde => {
+                        if right_node
+                            .as_ref()
+                            .unwrap()
+                            .borrow()
+                            .previous_sibling
+                            .is_none()
+                        {
+                            return (None, false);
+                        }
+                        let mut right_node_prev_sibling = Rc::clone(
+                            right_node
+                                .as_ref()
+                                .unwrap()
+                                .borrow()
+                                .previous_sibling
+                                .as_ref()
+                                .unwrap(),
+                        );
+
+                        loop {
+                            // Non-element nodes (e.g. text between elements) are ignored when considering adjacency of elements.
+                            if let NodeType::Element(_) = right_node_prev_sibling.borrow().node_type
+                            {
+                                for simple_selector in left {
+                                    if simple_selector.matches(&right_node_prev_sibling) {
+                                        return (Some(Rc::clone(&right_node_prev_sibling)), true);
+                                    }
+                                }
+                                // If not matched, continue to the next sibling.
+                            }
+
+                            // Set the previous sibling of the previous sibling if previous sibling is not Element.
+                            if right_node_prev_sibling
+                                .as_ref()
+                                .borrow()
+                                .previous_sibling
+                                .is_none()
+                            {
+                                return (None, false);
+                            }
+                            let s = Rc::clone(
+                                right_node_prev_sibling
+                                    .as_ref()
+                                    .borrow()
+                                    .previous_sibling
+                                    .as_ref()
+                                    .unwrap(),
+                            );
+                            right_node_prev_sibling = Rc::clone(&s);
+                        }
+                    }
                 }
             }
         }
