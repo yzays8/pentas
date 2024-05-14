@@ -43,7 +43,7 @@ impl SimpleSelector {
                 }
 
                 if let NodeType::Element(elm) = &dom_node.node_type {
-                    elm.tag_name != "id" && elm.tag_name != "class" && elm.tag_name == *name
+                    elm.tag_name == *name
                 } else {
                     false
                 }
