@@ -297,6 +297,46 @@ impl Selector {
 
         matches_helper(self, dom_node).1
     }
+
+    /// - https://www.w3.org/TR/selectors-3/#specificity
+    /// - https://developer.mozilla.org/en-US/docs/Web/CSS/Specificity
+    pub fn calc_specificity(&self) -> u32 {
+        /// Returns `(a, b, c)`, where `a` is the number of ID selectors, `b` is the number of class selectors, attributes selectors, and pseudo-classes,
+        /// and `c` is the number of type selectors and pseudo-elements.
+        fn helper(
+            current_selector: &Selector,
+            current_specificity: (u32, u32, u32),
+        ) -> (u32, u32, u32) {
+            if let Selector::Simple(selectors) = current_selector {
+                let mut spec = current_specificity;
+                for simple_selector in selectors {
+                    match simple_selector {
+                        SimpleSelector::Type { .. } => spec.2 += 1,
+                        SimpleSelector::Universal(_) => {} // Ignore the universal selector.
+                        SimpleSelector::Attribute { .. } => spec.1 += 1,
+                        SimpleSelector::Class(_) => spec.1 += 1,
+                        SimpleSelector::Id(_) => spec.0 += 1,
+                        // todo: PseudoClass
+                    }
+                }
+                spec
+            } else {
+                let Selector::Complex(left, _, right) = current_selector else {
+                    unreachable!();
+                };
+                let right_spec = helper(right, current_specificity);
+                let left_spec = helper(left, current_specificity);
+                (
+                    left_spec.0 + right_spec.0,
+                    left_spec.1 + right_spec.1,
+                    left_spec.2 + right_spec.2,
+                )
+            }
+        }
+
+        let w = helper(self, (0, 0, 0));
+        w.0 * 100 + w.1 * 10 + w.2
+    }
 }
 
 #[derive(Debug)]
@@ -873,5 +913,110 @@ mod tests {
                 Selector::Simple(vec![SimpleSelector::Universal(Some("example".to_string()))])
             ]
         );
+    }
+
+    #[test]
+    fn test_calc_specificity() {
+        // *
+        let selector = Selector::Simple(vec![SimpleSelector::Universal(None)]);
+        assert_eq!(selector.calc_specificity(), 0);
+
+        // LI
+        let selector = Selector::Simple(vec![SimpleSelector::Type {
+            namespace_prefix: None,
+            name: "LI".to_string(),
+        }]);
+        assert_eq!(selector.calc_specificity(), 1);
+
+        // UL LI
+        let selector = Selector::Simple(vec![
+            SimpleSelector::Type {
+                namespace_prefix: None,
+                name: "UL".to_string(),
+            },
+            SimpleSelector::Type {
+                namespace_prefix: None,
+                name: "LI".to_string(),
+            },
+        ]);
+        assert_eq!(selector.calc_specificity(), 2);
+
+        // UL OL + LI
+        let selector = Selector::Complex(
+            Box::new(Selector::Simple(vec![SimpleSelector::Type {
+                namespace_prefix: None,
+                name: "UL".to_string(),
+            }])),
+            Combinator::Whitespace,
+            Box::new(Selector::Complex(
+                Box::new(Selector::Simple(vec![SimpleSelector::Type {
+                    namespace_prefix: None,
+                    name: "LI".to_string(),
+                }])),
+                Combinator::Plus,
+                Box::new(Selector::Simple(vec![SimpleSelector::Type {
+                    namespace_prefix: None,
+                    name: "LI".to_string(),
+                }])),
+            )),
+        );
+        assert_eq!(selector.calc_specificity(), 3);
+
+        // H1 + *[REL=up]
+        let selector = Selector::Complex(
+            Box::new(Selector::Simple(vec![SimpleSelector::Type {
+                namespace_prefix: None,
+                name: "H1".to_string(),
+            }])),
+            Combinator::Plus,
+            Box::new(Selector::Simple(vec![
+                SimpleSelector::Universal(None),
+                SimpleSelector::Attribute {
+                    namespace_prefix: None,
+                    name: "REL".to_string(),
+                    op: Some("=".to_string()),
+                    value: Some("up".to_string()),
+                },
+            ])),
+        );
+        assert_eq!(selector.calc_specificity(), 11);
+
+        // UL OL LI.red
+        let selector = Selector::Simple(vec![
+            SimpleSelector::Type {
+                namespace_prefix: None,
+                name: "UL".to_string(),
+            },
+            SimpleSelector::Type {
+                namespace_prefix: None,
+                name: "OL".to_string(),
+            },
+            SimpleSelector::Type {
+                namespace_prefix: None,
+                name: "LI".to_string(),
+            },
+            SimpleSelector::Class("red".to_string()),
+        ]);
+        assert_eq!(selector.calc_specificity(), 13);
+
+        // LI.red.level
+        let selector = Selector::Simple(vec![
+            SimpleSelector::Type {
+                namespace_prefix: None,
+                name: "LI".to_string(),
+            },
+            SimpleSelector::Class("red".to_string()),
+            SimpleSelector::Class("level".to_string()),
+        ]);
+        assert_eq!(selector.calc_specificity(), 21);
+
+        // #x34y
+        let selector = Selector::Simple(vec![SimpleSelector::Id("x34y".to_string())]);
+        assert_eq!(selector.calc_specificity(), 100);
+
+        // todo: Implement pseudo-class
+        // #s12:not(FOO)
+        // let selector = Selector::Simple(vec![SimpleSelector::Id("s12".to_string())]);
+        // assert_eq!(selector.calc_specificity(), 101);
     }
 }
