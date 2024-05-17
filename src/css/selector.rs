@@ -101,7 +101,7 @@ impl Selector {
                 // Simple, base-case
                 let success_match = selectors
                     .iter()
-                    .any(|simple_selector| simple_selector.matches(target_dom_node));
+                    .all(|simple_selector| simple_selector.matches(target_dom_node));
                 if success_match {
                     (Some(Rc::clone(target_dom_node)), true)
                 } else {
