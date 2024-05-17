@@ -23,10 +23,10 @@ pub enum Rule {
 }
 
 impl Rule {
-    pub fn matches(&self, dom_node: Rc<RefCell<DomNode>>) -> bool {
+    pub fn matches(&self, dom_node: Rc<RefCell<DomNode>>) -> (bool, Option<Vec<Selector>>) {
         match self {
             Rule::QualifiedRule(rule) => rule.matches(dom_node),
-            _ => unreachable!("Only QualifiedRule is supported."),
+            // Only QualifiedRule is supported for now.
         }
     }
 }
@@ -43,10 +43,20 @@ pub struct StyleRule {
 }
 
 impl StyleRule {
-    pub fn matches(&self, dom_node: Rc<RefCell<DomNode>>) -> bool {
-        self.selectors
-            .iter()
-            .any(|selector| selector.matches(&dom_node))
+    pub fn matches(&self, dom_node: Rc<RefCell<DomNode>>) -> (bool, Option<Vec<Selector>>) {
+        // The matched selectors can be multiple, separated by commas.
+        let mut matched_selectors = Vec::new();
+
+        for selector in &self.selectors {
+            if selector.matches(&dom_node) {
+                matched_selectors.push(selector.clone());
+            }
+        }
+        if !matched_selectors.is_empty() {
+            (true, Some(matched_selectors))
+        } else {
+            (false, None)
+        }
     }
 }
 
