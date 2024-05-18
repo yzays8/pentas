@@ -11,7 +11,7 @@ use crate::html::dom::{DomNode, NodeType};
 
 /// - https://www.w3.org/TR/selectors-3/#simple-selectors
 /// - https://www.w3.org/TR/selectors-3/#grammar
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SimpleSelector {
     Type {
         namespace_prefix: Option<String>,
@@ -69,7 +69,7 @@ impl SimpleSelector {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Combinator {
     Whitespace,
     GreaterThan,
@@ -78,7 +78,7 @@ pub enum Combinator {
 }
 
 /// https://www.w3.org/TR/selectors-3/#selector-syntax
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Selector {
     Simple(Vec<SimpleSelector>),
 

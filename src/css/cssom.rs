@@ -62,14 +62,14 @@ impl StyleRule {
 
 /// - https://www.w3.org/TR/css-syntax-3/#declaration
 /// - https://www.w3.org/TR/cssom-1/#css-declarations
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Declaration {
     pub name: String,
     pub value: Vec<ComponentValue>,
 }
 
 /// https://www.w3.org/TR/css-syntax-3/#component-value
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ComponentValue {
     PreservedToken(CssToken),
     Function {
