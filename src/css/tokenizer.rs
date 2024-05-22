@@ -704,4 +704,71 @@ mod tests {
         assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Eof);
         assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Eof);
     }
+
+    #[test]
+    fn test_consume_token5() {
+        let mut tokenizer = CssTokenizer::new(
+            r#"a[href^="https"][href$=".org"] {
+                color: green;
+            }"#,
+        );
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::Ident("a".to_string())
+        );
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::OpenSquareBracket
+        );
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::Ident("href".to_string())
+        );
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Delim('^'));
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Delim('='));
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::String("https".to_string())
+        );
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::CloseSquareBracket
+        );
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::OpenSquareBracket
+        );
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::Ident("href".to_string())
+        );
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Delim('$'));
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Delim('='));
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::String(".org".to_string())
+        );
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::CloseSquareBracket
+        );
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::OpenBrace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::Ident("color".to_string())
+        );
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Colon);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
+        assert_eq!(
+            tokenizer.consume_token().unwrap(),
+            CssToken::Ident("green".to_string())
+        );
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Semicolon);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Whitespace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::CloseBrace);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Eof);
+        assert_eq!(tokenizer.consume_token().unwrap(), CssToken::Eof);
+    }
 }

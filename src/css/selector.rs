@@ -594,12 +594,13 @@ impl SelectorParser {
     //   : IDENT
     //   ;
     fn parse_element_name(&mut self) -> Result<String> {
-        if let Some(ComponentValue::PreservedToken(CssToken::Ident(s))) = self.input.pop_front() {
+        let comp = self.input.pop_front();
+        if let Some(ComponentValue::PreservedToken(CssToken::Ident(s))) = comp {
             Ok(s)
         } else {
             bail!(
                 "Expected ident but found {:?} when parsing CSS selectors in parse_element_name",
-                self.input.front()
+                comp
             );
         }
     }
@@ -610,12 +611,13 @@ impl SelectorParser {
     #[allow(dead_code)]
     fn parse_universal(&mut self) -> Result<SimpleSelector> {
         let prefix = self.parse_namespace_prefix();
-        if self.input.pop_front() == Some(ComponentValue::PreservedToken(CssToken::Delim('*'))) {
+        let comp = self.input.pop_front();
+        if comp == Some(ComponentValue::PreservedToken(CssToken::Delim('*'))) {
             Ok(SimpleSelector::Universal(prefix))
         } else {
             bail!(
                 "Expected \"*\" but found {:?} when parsing CSS selectors in parse_universal",
-                self.input.front()
+                comp
             );
         }
     }
@@ -624,12 +626,13 @@ impl SelectorParser {
     //   : '.' IDENT
     //   ;
     fn parse_class(&mut self) -> Result<SimpleSelector> {
-        if self.input.pop_front() == Some(ComponentValue::PreservedToken(CssToken::Delim('.'))) {
+        let comp = self.input.pop_front();
+        if comp == Some(ComponentValue::PreservedToken(CssToken::Delim('.'))) {
             Ok(SimpleSelector::Class(self.parse_element_name()?))
         } else {
             bail!(
                 "Expected \".\" but found {:?} when parsing CSS selectors in parse_class",
-                self.input.front()
+                comp
             );
         }
     }
@@ -645,15 +648,16 @@ impl SelectorParser {
     //         ]? ']'
     //   ;
     fn parse_attrib(&mut self) -> Result<SimpleSelector> {
+        let comp = self.input.pop_front();
         if let Some(ComponentValue::SimpleBlock {
             associated_token: t,
             values,
-        }) = self.input.pop_front()
+        }) = comp.clone()
         {
             if t != CssToken::OpenSquareBracket {
                 bail!(
                     "Expected \"[\" but found {:?} when parsing CSS selectors in parse_attrib",
-                    self.input.front()
+                    comp
                 );
             }
 
@@ -695,34 +699,38 @@ impl SelectorParser {
                 _ => None,
             };
 
-            let Some(ComponentValue::PreservedToken(CssToken::Ident(name))) = values.pop_front()
-            else {
+            let comp = values.pop_front();
+            let Some(ComponentValue::PreservedToken(CssToken::Ident(name))) = comp else {
                 bail!(
                     "Expected ident but found {:?} when parsing CSS selectors in parse_attrib",
-                    values.front()
+                    comp
                 );
             };
             while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) = values.front() {
                 values.pop_front();
             }
 
-            match (values.front(), values.front()) {
-                (Some(ComponentValue::PreservedToken(CssToken::Delim(c1))), None)
-                | (
-                    Some(ComponentValue::PreservedToken(CssToken::Delim(c1))),
-                    Some(ComponentValue::PreservedToken(CssToken::Delim('='))),
-                ) => {
-                    let c1 = *c1;
-                    let op = if c1 == '=' {
+            match values.front() {
+                Some(ComponentValue::PreservedToken(CssToken::Delim(c))) => {
+                    let c = *c;
+                    let op = if c == '=' {
                         values.pop_front();
                         "=".to_string()
-                    } else if let '^' | '$' | '*' | '~' | '|' = c1 {
+                    } else if let '^' | '$' | '*' | '~' | '|' = c {
                         values.pop_front();
-                        values.pop_front();
-                        format!("{}=", c1)
+                        if let Some(ComponentValue::PreservedToken(CssToken::Delim('='))) =
+                            values.front()
+                        {
+                            values.pop_front();
+                            format!("{}=", c)
+                        } else {
+                            bail!(
+                                "Expected \"=\" but found {:?} when parsing CSS selectors in parse_attrib",
+                                values.front())
+                        }
                     } else {
                         bail!(
-                            "Unexpected token when parsing CSS selectors in parse_attrib: {:?}",
+                            "Expected \"=\", \"^=\", \"$=\", \"*=\", \"~=\", \"|=\" but found {:?} when parsing CSS selectors in parse_attrib",
                             values.front()
                         );
                     };
@@ -733,12 +741,14 @@ impl SelectorParser {
                         values.pop_front();
                     }
 
-                    let value = match values.pop_front() {
-                        Some(ComponentValue::PreservedToken(CssToken::Ident(s))) => Some(s),
-                        Some(ComponentValue::PreservedToken(CssToken::String(s))) => Some(s),
-                        _ => {
-                            bail!("Expected ident or string but found {:?} when parsing CSS selectors in parse_attrib", values.front());
-                        }
+                    let comp = values.pop_front();
+                    let value = if let Some(ComponentValue::PreservedToken(CssToken::Ident(s)))
+                    | Some(ComponentValue::PreservedToken(CssToken::String(s))) =
+                        comp
+                    {
+                        Some(s)
+                    } else {
+                        bail!("Expected ident or string but found {:?} when parsing CSS selectors in parse_attrib", comp);
                     };
 
                     while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
@@ -754,7 +764,7 @@ impl SelectorParser {
                         value,
                     })
                 }
-                (None, None) => Ok(SimpleSelector::Attribute {
+                None => Ok(SimpleSelector::Attribute {
                     namespace_prefix: prefix,
                     name,
                     op: None,
@@ -768,7 +778,7 @@ impl SelectorParser {
         } else {
             bail!(
                 "Expected simple block but found {:?} when parsing CSS selectors in parse_attrib",
-                self.input.front()
+                comp
             );
         }
     }
@@ -914,6 +924,55 @@ mod tests {
                 ),
                 Selector::Simple(vec![SimpleSelector::Universal(Some("example".to_string()))])
             ]
+        );
+    }
+
+    #[test]
+    fn test_parse_selector4() {
+        // a[href^="https"][href$=".org"]
+
+        let input = vec![
+            ComponentValue::PreservedToken(CssToken::Ident("a".to_string())),
+            ComponentValue::SimpleBlock {
+                associated_token: CssToken::OpenSquareBracket,
+                values: vec![
+                    ComponentValue::PreservedToken(CssToken::Ident("href".to_string())),
+                    ComponentValue::PreservedToken(CssToken::Delim('^')),
+                    ComponentValue::PreservedToken(CssToken::Delim('=')),
+                    ComponentValue::PreservedToken(CssToken::String("https".to_string())),
+                ],
+            },
+            ComponentValue::SimpleBlock {
+                associated_token: CssToken::OpenSquareBracket,
+                values: vec![
+                    ComponentValue::PreservedToken(CssToken::Ident("href".to_string())),
+                    ComponentValue::PreservedToken(CssToken::Delim('$')),
+                    ComponentValue::PreservedToken(CssToken::Delim('=')),
+                    ComponentValue::PreservedToken(CssToken::String(".org".to_string())),
+                ],
+            },
+        ];
+        let mut parser = SelectorParser::new(input);
+        assert_eq!(
+            parser.parse_selectors_group().unwrap(),
+            vec![Selector::Simple(vec![
+                SimpleSelector::Type {
+                    namespace_prefix: None,
+                    name: "a".to_string(),
+                },
+                SimpleSelector::Attribute {
+                    namespace_prefix: None,
+                    name: "href".to_string(),
+                    op: Some("^=".to_string()),
+                    value: Some("https".to_string()),
+                },
+                SimpleSelector::Attribute {
+                    namespace_prefix: None,
+                    name: "href".to_string(),
+                    op: Some("$=".to_string()),
+                    value: Some(".org".to_string()),
+                },
+            ])]
         );
     }
 
