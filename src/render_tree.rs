@@ -2,13 +2,15 @@ use std::fmt;
 use std::rc::Rc;
 use std::{cell::RefCell, collections::HashMap};
 
+use anyhow::{Context, Ok, Result};
+
 use crate::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
 use crate::css::selector::Selector;
 use crate::css::tokenizer::{CssToken, NumericType};
 use crate::html::dom::DocumentTree;
 use crate::html::dom::{DomNode, NodeType};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SpecifiedValue {
     String(String),
     Integer(i32),
@@ -28,11 +30,11 @@ pub struct RenderNode {
 
 impl RenderNode {
     /// https://www.w3.org/TR/css-cascade-3/#value-stages
-    pub fn new(
+    pub fn build(
         node: Rc<RefCell<DomNode>>,
         style_sheet: &StyleSheet,
         parent_style: Option<SpecifiedValues>,
-    ) -> Self {
+    ) -> Option<Self> {
         let style = if let NodeType::Element(_) = &node.borrow().node_type {
             let declared_values = filter(Rc::clone(&node), style_sheet);
             let cascaded_values = cascade(declared_values);
@@ -41,22 +43,24 @@ impl RenderNode {
             HashMap::new()
         };
 
-        Self {
+        // All elements with a value of none for the display property and their descendants are not rendered.
+        // https://developer.mozilla.org/en-US/docs/Web/CSS/display#none
+        if style.get("display") == Some(&SpecifiedValue::String("none".to_string())) {
+            return None;
+        }
+
+        Some(Self {
             node: Rc::clone(&node),
             style: style.clone(),
             child_nodes: node
                 .borrow()
                 .child_nodes
                 .iter()
-                .map(|child| {
-                    Rc::new(RefCell::new(Self::new(
-                        Rc::clone(child),
-                        style_sheet,
-                        Some(style.clone()),
-                    )))
-                })
+                // Skip the children that are not rendered
+                .filter_map(|child| Self::build(Rc::clone(child), style_sheet, Some(style.clone())))
+                .map(|child| Rc::new(RefCell::new(child)))
                 .collect::<Vec<_>>(),
-        }
+        })
     }
 }
 
@@ -223,14 +227,13 @@ pub struct RenderTree {
 }
 
 impl RenderTree {
-    pub fn new(document_tree: DocumentTree, style_sheet: StyleSheet) -> Self {
-        Self {
-            root: Rc::new(RefCell::new(RenderNode::new(
-                Rc::clone(&document_tree.root),
-                &style_sheet,
-                None,
-            ))),
-        }
+    pub fn build(document_tree: DocumentTree, style_sheet: StyleSheet) -> Result<Self> {
+        Ok(Self {
+            root: Rc::new(RefCell::new(
+                RenderNode::build(Rc::clone(&document_tree.root), &style_sheet, None)
+                    .context("Failed to build the render tree.")?,
+            )),
+        })
     }
 }
 

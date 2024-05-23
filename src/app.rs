@@ -20,7 +20,7 @@ pub fn run() -> Result<()> {
                 DocumentTree::build(HtmlParser::new(HtmlTokenizer::new(&html)).parse()?)?;
             let style_sheet = CssParser::new(CssTokenizer::new(&css).tokenize()?).parse()?;
 
-            println!("{}", RenderTree::new(doc_tree, style_sheet));
+            println!("{}", RenderTree::build(doc_tree, style_sheet)?);
         }
         (Some(html), None) => {
             let html = std::fs::read_to_string(html)?;
