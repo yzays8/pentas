@@ -152,7 +152,18 @@ pub fn default(
         }
     }
 
-    // todo: Set initial values for the properties that are not specified
+    // Set the initial values
+    // https://www.w3.org/TR/CSS2/propidx.html
+    // todo: Add more properties
+    style_values
+        .entry("background-color".to_string())
+        .or_insert(SpecifiedValue::String("transparent".to_string()));
+    style_values
+        .entry("display".to_string())
+        .or_insert(SpecifiedValue::String("inline".to_string()));
+    style_values
+        .entry("font-size".to_string())
+        .or_insert(SpecifiedValue::String("medium".to_string()));
 
     style_values
 }
