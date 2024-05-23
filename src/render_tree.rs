@@ -146,11 +146,64 @@ pub fn default(
     // Inherit the parent style
     if let Some(parent_style) = parent_style {
         for (name, value) in parent_style {
-            style_values.entry(name).or_insert(value);
+            if is_inherited_property(name.as_str()) {
+                style_values.entry(name).or_insert(value);
+            }
         }
     }
 
+    // todo: Set initial values for the properties that are not specified
+
     style_values
+}
+
+/// https://www.w3.org/TR/CSS2/propidx.html
+fn is_inherited_property(name: &str) -> bool {
+    matches!(
+        name,
+        "azimuth"
+            | "border-collapse"
+            | "border-spacing"
+            | "caption-side"
+            | "color"
+            | "cursor"
+            | "direction"
+            | "elevation"
+            | "empty-cells"
+            | "font-family"
+            | "font-size"
+            | "font-style"
+            | "font-variant"
+            | "font-weight"
+            | "font"
+            | "letter-spacing"
+            | "line-height"
+            | "list-style-image"
+            | "list-style-position"
+            | "list-style-type"
+            | "list-style"
+            | "orphans"
+            | "pitch-range"
+            | "pitch"
+            | "quotes"
+            | "richness"
+            | "speak-header"
+            | "speak-numeral"
+            | "speak-punctuation"
+            | "speak"
+            | "speech-rate"
+            | "stress"
+            | "text-align"
+            | "text-indent"
+            | "text-transform"
+            | "visibility"
+            | "voice-family"
+            | "volume"
+            | "white-space"
+            | "widows"
+            | "word-spacing"
+            | "z-index"
+    )
 }
 
 #[derive(Debug)]
