@@ -5,7 +5,7 @@ use anyhow::{bail, Result};
 use thiserror::Error;
 
 use crate::html::dom::{DocumentTree, DomNode, Element, NodeType};
-use crate::html::tokenizer::{HtmlToken, HtmlTokenizer};
+use crate::html::tokenizer::{HtmlToken, HtmlTokenizer, TokenizationState};
 
 #[derive(Error, Debug)]
 #[error("{message} (in the HTML tree construction stage)\nCurrent HTML token: {current_token:?}\nCurrent DOM tree:\n{current_tree}")]
@@ -226,6 +226,13 @@ impl HtmlParser {
                                 "title" => {
                                     // Quite simplified
                                     self.insert_element(tag_name, attributes);
+                                    self.orig_insertion_mode = Some(InsertionMode::InHead);
+                                    self.insertion_mode = InsertionMode::Text;
+                                }
+                                "style" => {
+                                    // https://html.spec.whatwg.org/multipage/parsing.html#generic-raw-text-element-parsing-algorithm
+                                    self.insert_element(tag_name, attributes);
+                                    self.tokenizer.change_state(TokenizationState::RawText);
                                     self.orig_insertion_mode = Some(InsertionMode::InHead);
                                     self.insertion_mode = InsertionMode::Text;
                                 }

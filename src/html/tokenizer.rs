@@ -1,11 +1,15 @@
 use std::collections::VecDeque;
 
 #[derive(Debug, PartialEq, Eq)]
-enum TokenizationState {
+pub enum TokenizationState {
     Data,
+    RawText,
     TagOpen,
     EndTagOpen,
     TagName,
+    RawTextLessThanSign,
+    RawTextEndTagOpen,
+    RawTextEndTagName,
     BeforeAttributeName,
     AttributeName,
     AfterAttributeName,
@@ -30,6 +34,9 @@ pub struct HtmlTokenizer {
     current_pos: usize,
     current_token: Option<HtmlToken>,
     output: VecDeque<HtmlToken>,
+
+    // https://html.spec.whatwg.org/multipage/parsing.html#temporary-buffer
+    temp_buf: Vec<char>,
 }
 
 /// The output of the tokenization step is a series of zero or more of the following tokens:
@@ -72,6 +79,7 @@ impl HtmlTokenizer {
             current_pos: 0,
             current_token: None,
             output: VecDeque::new(),
+            temp_buf: Vec::new(),
         }
     }
 
@@ -93,6 +101,10 @@ impl HtmlTokenizer {
         self.input.iter().skip(self.current_pos).take(len).collect()
     }
 
+    pub fn change_state(&mut self, new_state: TokenizationState) {
+        self.state = new_state;
+    }
+
     pub fn consume_token(&mut self) -> HtmlToken {
         // When a token is emitted, it must immediately be handled by the tree construction stage.
         if self.output.is_empty() {
@@ -106,6 +118,28 @@ impl HtmlTokenizer {
                             }
                             '<' => {
                                 self.state = TokenizationState::TagOpen;
+                            }
+                            '\u{0000}' => {
+                                eprintln!("unexpected-null-character parse error");
+                                self.output.push_back(HtmlToken::Character('\u{FFFD}'));
+                                break;
+                            }
+                            _ => {
+                                self.output.push_back(HtmlToken::Character(c));
+                                break;
+                            }
+                        },
+                        None => {
+                            self.output.push_back(HtmlToken::Eof);
+                            break;
+                        }
+                    },
+
+                    // https://html.spec.whatwg.org/multipage/parsing.html#rawtext-state
+                    TokenizationState::RawText => match self.consume_input_char() {
+                        Some(c) => match c {
+                            '<' => {
+                                self.state = TokenizationState::RawTextLessThanSign;
                             }
                             '\u{0000}' => {
                                 eprintln!("unexpected-null-character parse error");
@@ -229,6 +263,78 @@ impl HtmlTokenizer {
                             eprintln!("eof-in-tag parse error");
                             self.output.push_back(HtmlToken::Eof);
                             break;
+                        }
+                    },
+
+                    // https://html.spec.whatwg.org/multipage/parsing.html#rawtext-less-than-sign-state
+                    TokenizationState::RawTextLessThanSign => match self.consume_input_char() {
+                        Some('/') => {
+                            self.temp_buf.clear();
+                            self.state = TokenizationState::RawTextEndTagOpen;
+                        }
+                        _ => {
+                            self.allow_reconsume(TokenizationState::RawText);
+                        }
+                    },
+
+                    // https://html.spec.whatwg.org/multipage/parsing.html#rawtext-end-tag-open-state
+                    TokenizationState::RawTextEndTagOpen => match self.consume_input_char() {
+                        Some(c) if c.is_ascii_alphabetic() => {
+                            self.current_token = Some(HtmlToken::EndTag {
+                                tag_name: String::new(),
+                                attributes: vec![],
+                                self_closing: false,
+                            });
+                            self.allow_reconsume(TokenizationState::RawTextEndTagName);
+                        }
+                        _ => {
+                            self.output.push_back(HtmlToken::Character('<'));
+                            self.output.push_back(HtmlToken::Character('/'));
+                            self.allow_reconsume(TokenizationState::RawText);
+                        }
+                    },
+
+                    // https://html.spec.whatwg.org/multipage/parsing.html#rawtext-end-tag-name-state
+                    TokenizationState::RawTextEndTagName => match self.consume_input_char() {
+                        Some(c) => match c {
+                            '\t' | '\n' | '\x0C' | ' ' => {
+                                // todo: check if the current end tag token's tag name is an appropriate end tag name
+                                self.state = TokenizationState::BeforeAttributeName;
+                            }
+                            '/' => {
+                                // todo: check if the current end tag token's tag name is an appropriate end tag name
+                                self.state = TokenizationState::SelfClosingStartTag;
+                            }
+                            '>' => {
+                                // todo: check if the current end tag token's tag name is an appropriate end tag name
+                                self.state = TokenizationState::Data;
+                                self.output.push_back(self.current_token.clone().unwrap());
+                                break;
+                            }
+                            c if c.is_ascii() => {
+                                if let Some(HtmlToken::EndTag { tag_name, .. }) =
+                                    &mut self.current_token
+                                {
+                                    tag_name.push(c.to_ascii_lowercase());
+                                }
+                                self.temp_buf.push(c);
+                            }
+                            _ => {
+                                self.output.push_back(HtmlToken::Character('<'));
+                                self.output.push_back(HtmlToken::Character('/'));
+                                for c in &self.temp_buf {
+                                    self.output.push_back(HtmlToken::Character(*c));
+                                }
+                                self.allow_reconsume(TokenizationState::RawText);
+                            }
+                        },
+                        _ => {
+                            self.output.push_back(HtmlToken::Character('<'));
+                            self.output.push_back(HtmlToken::Character('/'));
+                            for c in &self.temp_buf {
+                                self.output.push_back(HtmlToken::Character(*c));
+                            }
+                            self.allow_reconsume(TokenizationState::RawText);
                         }
                     },
 
