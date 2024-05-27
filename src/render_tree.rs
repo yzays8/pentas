@@ -32,11 +32,11 @@ impl RenderNode {
     /// https://www.w3.org/TR/css-cascade-3/#value-stages
     pub fn build(
         node: Rc<RefCell<DomNode>>,
-        style_sheet: &StyleSheet,
+        style_sheets: &Vec<StyleSheet>,
         parent_style: Option<SpecifiedValues>,
     ) -> Option<Self> {
         let style = if let NodeType::Element(_) = &node.borrow().node_type {
-            let declared_values = filter(Rc::clone(&node), style_sheet);
+            let declared_values = filter(Rc::clone(&node), style_sheets);
             let cascaded_values = cascade(declared_values);
             default(cascaded_values, parent_style)
         } else {
@@ -57,7 +57,9 @@ impl RenderNode {
                 .child_nodes
                 .iter()
                 // Skip the children that are not rendered
-                .filter_map(|child| Self::build(Rc::clone(child), style_sheet, Some(style.clone())))
+                .filter_map(|child| {
+                    Self::build(Rc::clone(child), style_sheets, Some(style.clone()))
+                })
                 .map(|child| Rc::new(RefCell::new(child)))
                 .collect::<Vec<_>>(),
         })
@@ -78,17 +80,22 @@ impl fmt::Display for RenderNode {
 /// https://www.w3.org/TR/css-cascade-3/#filtering
 pub fn filter(
     node: Rc<RefCell<DomNode>>,
-    style_sheet: &StyleSheet,
+    style_sheets: &[StyleSheet],
 ) -> Vec<(Selector, Vec<Declaration>)> {
     let mut declared_values = Vec::new();
-    style_sheet.rules.iter().for_each(|rule| {
-        let matched = rule.matches(Rc::clone(&node));
-        if matched.0 {
-            let Rule::QualifiedRule(qualified_rule) = rule;
-            for selector in matched.1.unwrap() {
-                declared_values.push((selector, qualified_rule.declarations.clone()));
+
+    // As for the order of appearance in the subsequent cascading stage, the declarations from style sheets independently
+    // linked by the originating document are treated as if they were concatenated in linking order, as determined by the host document language.
+    style_sheets.iter().for_each(|style_sheet| {
+        style_sheet.rules.iter().for_each(|rule| {
+            let matched = rule.matches(Rc::clone(&node));
+            if matched.0 {
+                let Rule::QualifiedRule(qualified_rule) = rule;
+                for selector in matched.1.unwrap() {
+                    declared_values.push((selector, qualified_rule.declarations.clone()));
+                }
             }
-        }
+        });
     });
 
     declared_values
@@ -227,10 +234,10 @@ pub struct RenderTree {
 }
 
 impl RenderTree {
-    pub fn build(document_tree: DocumentTree, style_sheet: StyleSheet) -> Result<Self> {
+    pub fn build(document_tree: DocumentTree, style_sheets: Vec<StyleSheet>) -> Result<Self> {
         Ok(Self {
             root: Rc::new(RefCell::new(
-                RenderNode::build(Rc::clone(&document_tree.root), &style_sheet, None)
+                RenderNode::build(Rc::clone(&document_tree.root), &style_sheets, None)
                     .context("Failed to build the render tree.")?,
             )),
         })

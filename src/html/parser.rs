@@ -1,9 +1,13 @@
+use core::panic;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Ok, Result};
 use thiserror::Error;
 
+use crate::css::cssom::StyleSheet;
+use crate::css::parser::CssParser;
+use crate::css::tokenizer::CssTokenizer;
 use crate::html::dom::{DocumentTree, DomNode, Element, NodeType};
 use crate::html::tokenizer::{HtmlToken, HtmlTokenizer, TokenizationState};
 
@@ -29,6 +33,7 @@ enum InsertionMode {
     AfterAfterBody,
 }
 
+/// https://html.spec.whatwg.org/multipage/parsing.html#overview-of-the-parsing-model
 #[derive(Debug)]
 pub struct HtmlParser {
     insertion_mode: InsertionMode,
@@ -50,10 +55,17 @@ impl HtmlParser {
         }
     }
 
-    /// https://html.spec.whatwg.org/multipage/parsing.html#overview-of-the-parsing-model
-    pub fn parse(&mut self) -> Result<Rc<RefCell<DomNode>>> {
+    /// Returns a Document object node and its associated list of CSS style sheets.
+    pub fn parse(&mut self) -> Result<(Rc<RefCell<DomNode>>, Vec<StyleSheet>)> {
         // The output of the whole parsing (tree construction) is a Document object.
         let document_node = Rc::new(RefCell::new(DomNode::new(NodeType::Document)));
+
+        // The document has an associated list of zero or more CSS style sheets.
+        // This is an ordered list that contains:
+        // 1. Any CSS style sheets created from HTTP Link headers, in header order
+        // 2. Any CSS style sheets associated with the DocumentOrShadowRoot, in tree order
+        // https://drafts.csswg.org/cssom/#documentorshadowroot-document-or-shadow-root-css-style-sheets
+        let mut style_sheets = Vec::new();
 
         let mut end_of_parsing = false;
         while !end_of_parsing {
@@ -513,7 +525,16 @@ impl HtmlParser {
                             }
                         },
                         HtmlToken::EndTag { tag_name, .. } if tag_name != "script" => {
-                            self.stack.pop();
+                            let node = self.stack.pop().unwrap();
+
+                            // The user agent must run the update a style block algorithm whenever any of the following conditions occur:
+                            // - The element is popped off the stack of open elements of an HTML parser or XML parser.
+                            // - The element is not on the stack of open elements of an HTML parser or XML parser, and it becomes connected or disconnected.
+                            // - The element's children changed steps run.
+                            // https://html.spec.whatwg.org/multipage/semantics.html#the-style-element
+                            if tag_name == "style" {
+                                self.update_style_block(node, &mut style_sheets)?;
+                            }
                             self.insertion_mode = self.orig_insertion_mode.unwrap();
                         }
                         _ => {
@@ -572,7 +593,7 @@ impl HtmlParser {
             }
         }
 
-        Ok(document_node)
+        Ok((document_node, style_sheets))
     }
 
     /// U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
@@ -648,6 +669,21 @@ impl HtmlParser {
             );
         }
     }
+
+    /// https://html.spec.whatwg.org/multipage/semantics.html#update-a-style-block
+    fn update_style_block(
+        &mut self,
+        node: Rc<RefCell<DomNode>>,
+        style_sheets: &mut Vec<StyleSheet>,
+    ) -> Result<()> {
+        // When the UA should parse the CSS for the new stylesheet is not clearly defined:
+        // https://github.com/whatwg/html/issues/2997
+        if let NodeType::Text(css) = &node.borrow().child_nodes.last().unwrap().borrow().node_type {
+            let style_sheet = CssParser::new(CssTokenizer::new(css).tokenize()?).parse()?;
+            style_sheets.push(style_sheet);
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -663,8 +699,13 @@ mod tests {
         // </html>
 
         let html = "<!DOCTYPE html>\n<html class=e>\n\t<head><title>Aliens?</title></head>\n\t<body>Why yes.</body>\n</html>";
-        let tree = DocumentTree::build(HtmlParser::new(HtmlTokenizer::new(&html)).parse().unwrap())
-            .unwrap();
+        let tree = DocumentTree::build(
+            HtmlParser::new(HtmlTokenizer::new(&html))
+                .parse()
+                .unwrap()
+                .0,
+        )
+        .unwrap();
         let mut dfs_iter = tree.get_dfs_iter();
 
         assert_eq!(
@@ -734,8 +775,13 @@ mod tests {
         // </html>
 
         let html = "<!DOCTYPE html>\n<html>\n\t<head><title>Lists</title></head>\n\t<body>\n\t\t<ul>\n\t\t\t<li>Item1\n\t\t\t\t<p class=\"foo\">Paragraph1\n\t\t\t<li>Item2</li>\n\t\t\t<li>Item3\n\t\t</ul>\n\t</body>\n</html>";
-        let tree = DocumentTree::build(HtmlParser::new(HtmlTokenizer::new(&html)).parse().unwrap())
-            .unwrap();
+        let tree = DocumentTree::build(
+            HtmlParser::new(HtmlTokenizer::new(&html))
+                .parse()
+                .unwrap()
+                .0,
+        )
+        .unwrap();
         let mut dfs_iter = tree.get_dfs_iter();
 
         assert_eq!(

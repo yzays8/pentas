@@ -16,18 +16,22 @@ pub fn run() -> Result<()> {
         (Some(html), Some(css)) => {
             let html = std::fs::read_to_string(html)?;
             let css = std::fs::read_to_string(css)?;
-            let doc_tree =
-                DocumentTree::build(HtmlParser::new(HtmlTokenizer::new(&html)).parse()?)?;
-            let style_sheet = CssParser::new(CssTokenizer::new(&css).tokenize()?).parse()?;
+            let doc_css = HtmlParser::new(HtmlTokenizer::new(&html)).parse()?;
+            let doc_tree = DocumentTree::build(doc_css.0)?;
+            let style_sheets = if doc_css.1.is_empty() {
+                vec![CssParser::new(CssTokenizer::new(&css).tokenize()?).parse()?]
+            } else {
+                doc_css.1
+            };
 
-            println!("{}", RenderTree::build(doc_tree, style_sheet)?);
+            println!("{}", RenderTree::build(doc_tree, style_sheets)?);
         }
         (Some(html), None) => {
             let html = std::fs::read_to_string(html)?;
 
             println!(
                 "{}",
-                DocumentTree::build(HtmlParser::new(HtmlTokenizer::new(&html)).parse()?)?
+                DocumentTree::build(HtmlParser::new(HtmlTokenizer::new(&html)).parse()?.0)?
             );
         }
         (None, Some(css)) => {
