@@ -916,16 +916,17 @@ mod tests {
         assert_eq!(selector.calc_specificity(), 1);
 
         // UL LI
-        let selector = Selector::Simple(vec![
-            SimpleSelector::Type {
+        let selector = Selector::Complex(
+            Box::new(Selector::Simple(vec![SimpleSelector::Type {
                 namespace_prefix: None,
                 name: "UL".to_string(),
-            },
-            SimpleSelector::Type {
+            }])),
+            Combinator::Whitespace,
+            Box::new(Selector::Simple(vec![SimpleSelector::Type {
                 namespace_prefix: None,
                 name: "LI".to_string(),
-            },
-        ]);
+            }])),
+        );
         assert_eq!(selector.calc_specificity(), 2);
 
         // UL OL + LI
@@ -969,21 +970,27 @@ mod tests {
         assert_eq!(selector.calc_specificity(), 11);
 
         // UL OL LI.red
-        let selector = Selector::Simple(vec![
-            SimpleSelector::Type {
+        let selector = Selector::Complex(
+            Box::new(Selector::Simple(vec![SimpleSelector::Type {
                 namespace_prefix: None,
                 name: "UL".to_string(),
-            },
-            SimpleSelector::Type {
-                namespace_prefix: None,
-                name: "OL".to_string(),
-            },
-            SimpleSelector::Type {
-                namespace_prefix: None,
-                name: "LI".to_string(),
-            },
-            SimpleSelector::Class("red".to_string()),
-        ]);
+            }])),
+            Combinator::Whitespace,
+            Box::new(Selector::Complex(
+                Box::new(Selector::Simple(vec![SimpleSelector::Type {
+                    namespace_prefix: None,
+                    name: "OL".to_string(),
+                }])),
+                Combinator::Whitespace,
+                Box::new(Selector::Simple(vec![
+                    SimpleSelector::Type {
+                        namespace_prefix: None,
+                        name: "LI".to_string(),
+                    },
+                    SimpleSelector::Class("red".to_string()),
+                ])),
+            )),
+        );
         assert_eq!(selector.calc_specificity(), 13);
 
         // LI.red.level
