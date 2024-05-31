@@ -7,14 +7,15 @@ use anyhow::{Context, Ok, Result};
 use crate::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
 use crate::css::selector::Selector;
 use crate::css::tokenizer::{CssToken, NumericType};
-use crate::html::dom::DocumentTree;
-use crate::html::dom::{DomNode, NodeType};
+use crate::html::dom::{DocumentTree, DomNode, NodeType};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum SpecifiedValue {
-    String(String),
-    Integer(i32),
-    Float(f32),
+    Keyword(String),
+    Number(NumericType),
+    Percentage(f32),
+    Dimension(NumericType, String),
+    Function(String, Vec<SpecifiedValue>),
 }
 
 type SpecifiedValues = HashMap<String, SpecifiedValue>;
@@ -45,7 +46,7 @@ impl RenderNode {
 
         // All elements with a value of none for the display property and their descendants are not rendered.
         // https://developer.mozilla.org/en-US/docs/Web/CSS/display#none
-        if style.get("display") == Some(&SpecifiedValue::String("none".to_string())) {
+        if style.get("display") == Some(&SpecifiedValue::Keyword("none".to_string())) {
             return None;
         }
 
@@ -137,17 +138,50 @@ pub fn default(
     for declaration in declarations {
         for name_and_value in declaration {
             style_values.entry(name_and_value.name).or_insert_with(|| {
+                // todo: Support multiple values
                 match name_and_value.value.first().cloned().unwrap() {
                     // todo: More accurate handling of the values
                     ComponentValue::PreservedToken(token) => match token {
-                        CssToken::Ident(ident) => SpecifiedValue::String(ident),
-                        CssToken::String(string) => SpecifiedValue::String(string),
-                        CssToken::Number(number) => match number {
-                            NumericType::Integer(int) => SpecifiedValue::Integer(int),
-                            NumericType::Number(float) => SpecifiedValue::Float(float),
-                        },
+                        CssToken::Ident(ident) => SpecifiedValue::Keyword(ident),
+                        CssToken::String(string) => SpecifiedValue::Keyword(string),
+                        CssToken::Number(number) => SpecifiedValue::Number(number),
+                        CssToken::Percentage(percentage) => SpecifiedValue::Percentage(percentage),
+                        CssToken::Dimension(number, unit) => {
+                            SpecifiedValue::Dimension(number, unit)
+                        }
                         _ => todo!(),
                     },
+                    ComponentValue::Function { name, values } => SpecifiedValue::Function(
+                        name,
+                        values
+                            .iter()
+                            .filter(|value| {
+                                **value != ComponentValue::PreservedToken(CssToken::Whitespace)
+                                    && **value != ComponentValue::PreservedToken(CssToken::Comma)
+                            })
+                            .map(|value| match value {
+                                ComponentValue::PreservedToken(token) => match token {
+                                    CssToken::Ident(ident) => {
+                                        SpecifiedValue::Keyword(ident.clone())
+                                    }
+                                    CssToken::String(string) => {
+                                        SpecifiedValue::Keyword(string.clone())
+                                    }
+                                    CssToken::Number(number) => {
+                                        SpecifiedValue::Number(number.clone())
+                                    }
+                                    CssToken::Percentage(percentage) => {
+                                        SpecifiedValue::Percentage(*percentage)
+                                    }
+                                    CssToken::Dimension(number, unit) => {
+                                        SpecifiedValue::Dimension(number.clone(), unit.clone())
+                                    }
+                                    _ => unreachable!(),
+                                },
+                                _ => unimplemented!(),
+                            })
+                            .collect(),
+                    ),
                     _ => unimplemented!(),
                 }
             });
@@ -168,13 +202,13 @@ pub fn default(
     // todo: Add more properties
     style_values
         .entry("background-color".to_string())
-        .or_insert(SpecifiedValue::String("transparent".to_string()));
+        .or_insert(SpecifiedValue::Keyword("transparent".to_string()));
     style_values
         .entry("display".to_string())
-        .or_insert(SpecifiedValue::String("inline".to_string()));
+        .or_insert(SpecifiedValue::Keyword("inline".to_string()));
     style_values
         .entry("font-size".to_string())
-        .or_insert(SpecifiedValue::String("medium".to_string()));
+        .or_insert(SpecifiedValue::Keyword("medium".to_string()));
 
     style_values
 }
