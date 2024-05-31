@@ -9,17 +9,6 @@ use crate::css::selector::Selector;
 use crate::css::tokenizer::{CssToken, NumericType};
 use crate::html::dom::{DocumentTree, DomNode, NodeType};
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum SpecifiedValue {
-    Keyword(String),
-    Number(NumericType),
-    Percentage(f32),
-    Dimension(NumericType, String),
-    Function(String, Vec<SpecifiedValue>),
-}
-
-type SpecifiedValues = HashMap<String, SpecifiedValue>;
-
 #[derive(Debug)]
 pub struct RenderNode {
     node: Rc<RefCell<DomNode>>,
@@ -30,23 +19,23 @@ pub struct RenderNode {
 }
 
 impl RenderNode {
-    /// https://www.w3.org/TR/css-cascade-3/#value-stages
     pub fn build(
         node: Rc<RefCell<DomNode>>,
         style_sheets: &Vec<StyleSheet>,
         parent_style: Option<SpecifiedValues>,
     ) -> Option<Self> {
         let style = if let NodeType::Element(_) = &node.borrow().node_type {
-            let declared_values = filter(Rc::clone(&node), style_sheets);
-            let cascaded_values = cascade(declared_values);
-            default(cascaded_values, parent_style)
+            // https://www.w3.org/TR/css-cascade-3/#value-stages
+            filter(Rc::clone(&node), style_sheets)
+                .cascade()
+                .default(parent_style)
         } else {
-            HashMap::new()
+            SpecifiedValues::new(HashMap::new())
         };
 
         // All elements with a value of none for the display property and their descendants are not rendered.
         // https://developer.mozilla.org/en-US/docs/Web/CSS/display#none
-        if style.get("display") == Some(&SpecifiedValue::Keyword("none".to_string())) {
+        if style.values.get("display") == Some(&SpecifiedValue::Keyword("none".to_string())) {
             return None;
         }
 
@@ -79,10 +68,7 @@ impl fmt::Display for RenderNode {
 
 /// Returns all declared values that match the node.
 /// https://www.w3.org/TR/css-cascade-3/#filtering
-pub fn filter(
-    node: Rc<RefCell<DomNode>>,
-    style_sheets: &[StyleSheet],
-) -> Vec<(Selector, Vec<Declaration>)> {
+pub fn filter(node: Rc<RefCell<DomNode>>, style_sheets: &[StyleSheet]) -> DeclaredValues {
     let mut declared_values = Vec::new();
 
     // As for the order of appearance in the subsequent cascading stage, the declarations from style sheets independently
@@ -99,118 +85,169 @@ pub fn filter(
         });
     });
 
-    declared_values
+    DeclaredValues::new(declared_values)
 }
 
-/// Returns the declared values sorted by precedence in descending order.
-/// https://www.w3.org/TR/css-cascade-3/#cascading
-pub fn cascade(declared_values: Vec<(Selector, Vec<Declaration>)>) -> Vec<Vec<Declaration>> {
-    // Vec<(index, declaration, specificity)>
-    let mut sorted_list = declared_values
-        .iter()
-        .enumerate()
-        .map(|(index, (selector, declarations))| {
-            (index, declarations.clone(), selector.calc_specificity())
-        })
-        .collect::<Vec<_>>();
-
-    // Sort by specificity and then by index.
-    // If the specificity is the same, the order of the declarations in the stylesheet is preserved (the last declared style gets precedence).
-    // Note: The higher the specificity or index, the higher the priority, so this must be sorted in descending order.
-    sorted_list.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| b.0.cmp(&a.0)));
-
-    sorted_list
-        .into_iter()
-        .map(|(_, declarations, _)| declarations)
-        .collect()
+#[derive(Debug)]
+pub struct DeclaredValues {
+    pub values: Vec<(Selector, Vec<Declaration>)>,
 }
 
-/// Returns the table of the name and value pairs for the properties.
-/// https://www.w3.org/TR/css-cascade-3/#defaulting
-pub fn default(
-    declarations: Vec<Vec<Declaration>>,
-    parent_style: Option<SpecifiedValues>,
-) -> SpecifiedValues {
-    let mut style_values = HashMap::new();
-
-    // The higher priority declarations are placed at the beginning of the hash table,
-    // and the lower priority declarations with the same name are ignored.
-    for declaration in declarations {
-        for name_and_value in declaration {
-            style_values.entry(name_and_value.name).or_insert_with(|| {
-                // todo: Support multiple values
-                match name_and_value.value.first().cloned().unwrap() {
-                    // todo: More accurate handling of the values
-                    ComponentValue::PreservedToken(token) => match token {
-                        CssToken::Ident(ident) => SpecifiedValue::Keyword(ident),
-                        CssToken::String(string) => SpecifiedValue::Keyword(string),
-                        CssToken::Number(number) => SpecifiedValue::Number(number),
-                        CssToken::Percentage(percentage) => SpecifiedValue::Percentage(percentage),
-                        CssToken::Dimension(number, unit) => {
-                            SpecifiedValue::Dimension(number, unit)
-                        }
-                        _ => todo!(),
-                    },
-                    ComponentValue::Function { name, values } => SpecifiedValue::Function(
-                        name,
-                        values
-                            .iter()
-                            .filter(|value| {
-                                **value != ComponentValue::PreservedToken(CssToken::Whitespace)
-                                    && **value != ComponentValue::PreservedToken(CssToken::Comma)
-                            })
-                            .map(|value| match value {
-                                ComponentValue::PreservedToken(token) => match token {
-                                    CssToken::Ident(ident) => {
-                                        SpecifiedValue::Keyword(ident.clone())
-                                    }
-                                    CssToken::String(string) => {
-                                        SpecifiedValue::Keyword(string.clone())
-                                    }
-                                    CssToken::Number(number) => {
-                                        SpecifiedValue::Number(number.clone())
-                                    }
-                                    CssToken::Percentage(percentage) => {
-                                        SpecifiedValue::Percentage(*percentage)
-                                    }
-                                    CssToken::Dimension(number, unit) => {
-                                        SpecifiedValue::Dimension(number.clone(), unit.clone())
-                                    }
-                                    _ => unreachable!(),
-                                },
-                                _ => unimplemented!(),
-                            })
-                            .collect(),
-                    ),
-                    _ => unimplemented!(),
-                }
-            });
-        }
+impl DeclaredValues {
+    pub fn new(values: Vec<(Selector, Vec<Declaration>)>) -> Self {
+        Self { values }
     }
 
-    // Inherit the parent style
-    if let Some(parent_style) = parent_style {
-        for (name, value) in parent_style {
-            if is_inherited_property(name.as_str()) {
-                style_values.entry(name).or_insert(value);
+    /// Returns the declared values sorted by precedence in descending order.
+    /// https://www.w3.org/TR/css-cascade-3/#cascading
+    fn cascade(&self) -> CascadedValues {
+        // Vec<(index, declaration, specificity)>
+        let mut sorted_list = self
+            .values
+            .iter()
+            .enumerate()
+            .map(|(index, (selector, declarations))| {
+                (index, declarations.clone(), selector.calc_specificity())
+            })
+            .collect::<Vec<_>>();
+
+        // Sort by specificity and then by index.
+        // If the specificity is the same, the order of the declarations in the stylesheet is preserved (the last declared style gets precedence).
+        // Note: The higher the specificity or index, the higher the priority, so this must be sorted in descending order.
+        sorted_list.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| b.0.cmp(&a.0)));
+
+        CascadedValues::new(
+            sorted_list
+                .into_iter()
+                .map(|(_, declarations, _)| declarations)
+                .collect(),
+        )
+    }
+}
+
+#[derive(Debug)]
+pub struct CascadedValues {
+    pub values: Vec<Vec<Declaration>>,
+}
+
+impl CascadedValues {
+    pub fn new(values: Vec<Vec<Declaration>>) -> Self {
+        Self { values }
+    }
+
+    /// Returns the table of the name and value pairs for the properties.
+    /// https://www.w3.org/TR/css-cascade-3/#defaulting
+    fn default(&self, parent_style: Option<SpecifiedValues>) -> SpecifiedValues {
+        let mut style_values = HashMap::new();
+
+        // The higher priority declarations are placed at the beginning of the hash table,
+        // and the lower priority declarations with the same name are ignored.
+        for declaration in &self.values {
+            for name_and_value in declaration {
+                style_values
+                    .entry(name_and_value.name.clone())
+                    .or_insert_with(|| {
+                        // todo: Support multiple values
+                        match name_and_value.value.first().cloned().unwrap() {
+                            // todo: More accurate handling of the values
+                            ComponentValue::PreservedToken(token) => match token {
+                                CssToken::Ident(ident) => SpecifiedValue::Keyword(ident),
+                                CssToken::String(string) => SpecifiedValue::Keyword(string),
+                                CssToken::Number(number) => SpecifiedValue::Number(number),
+                                CssToken::Percentage(percentage) => {
+                                    SpecifiedValue::Percentage(percentage)
+                                }
+                                CssToken::Dimension(number, unit) => {
+                                    SpecifiedValue::Dimension(number, unit)
+                                }
+                                _ => todo!(),
+                            },
+                            ComponentValue::Function { name, values } => SpecifiedValue::Function(
+                                name,
+                                values
+                                    .iter()
+                                    .filter(|value| {
+                                        **value
+                                            != ComponentValue::PreservedToken(CssToken::Whitespace)
+                                            && **value
+                                                != ComponentValue::PreservedToken(CssToken::Comma)
+                                    })
+                                    .map(|value| match value {
+                                        ComponentValue::PreservedToken(token) => match token {
+                                            CssToken::Ident(ident) => {
+                                                SpecifiedValue::Keyword(ident.clone())
+                                            }
+                                            CssToken::String(string) => {
+                                                SpecifiedValue::Keyword(string.clone())
+                                            }
+                                            CssToken::Number(number) => {
+                                                SpecifiedValue::Number(number.clone())
+                                            }
+                                            CssToken::Percentage(percentage) => {
+                                                SpecifiedValue::Percentage(*percentage)
+                                            }
+                                            CssToken::Dimension(number, unit) => {
+                                                SpecifiedValue::Dimension(
+                                                    number.clone(),
+                                                    unit.clone(),
+                                                )
+                                            }
+                                            _ => unreachable!(),
+                                        },
+                                        _ => unimplemented!(),
+                                    })
+                                    .collect(),
+                            ),
+                            _ => unimplemented!(),
+                        }
+                    });
             }
         }
+
+        // Inherit the parent style
+        if let Some(parent_style) = parent_style {
+            for (name, value) in parent_style.values {
+                if is_inherited_property(name.as_str()) {
+                    style_values.entry(name).or_insert(value);
+                }
+            }
+        }
+
+        // Set the initial values
+        // https://www.w3.org/TR/CSS2/propidx.html
+        // todo: Add more properties
+        style_values
+            .entry("background-color".to_string())
+            .or_insert(SpecifiedValue::Keyword("transparent".to_string()));
+        style_values
+            .entry("display".to_string())
+            .or_insert(SpecifiedValue::Keyword("inline".to_string()));
+        style_values
+            .entry("font-size".to_string())
+            .or_insert(SpecifiedValue::Keyword("medium".to_string()));
+
+        SpecifiedValues::new(style_values)
     }
+}
 
-    // Set the initial values
-    // https://www.w3.org/TR/CSS2/propidx.html
-    // todo: Add more properties
-    style_values
-        .entry("background-color".to_string())
-        .or_insert(SpecifiedValue::Keyword("transparent".to_string()));
-    style_values
-        .entry("display".to_string())
-        .or_insert(SpecifiedValue::Keyword("inline".to_string()));
-    style_values
-        .entry("font-size".to_string())
-        .or_insert(SpecifiedValue::Keyword("medium".to_string()));
+#[derive(Clone, Debug, PartialEq)]
+pub enum SpecifiedValue {
+    Keyword(String),
+    Number(NumericType),
+    Percentage(f32),
+    Dimension(NumericType, String),
+    Function(String, Vec<SpecifiedValue>),
+}
 
-    style_values
+#[derive(Clone, Debug)]
+pub struct SpecifiedValues {
+    pub values: HashMap<String, SpecifiedValue>,
+}
+
+impl SpecifiedValues {
+    pub fn new(values: HashMap<String, SpecifiedValue>) -> Self {
+        Self { values }
+    }
 }
 
 /// https://www.w3.org/TR/CSS2/propidx.html
