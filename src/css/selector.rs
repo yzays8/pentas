@@ -52,7 +52,8 @@ impl SimpleSelector {
                 if let NodeType::Element(elm) = &dom_node.node_type {
                     elm.attributes
                         .iter()
-                        .any(|(k, v)| k == "class" && v == class_name)
+                        // e.g) p.class2 matches <p class="class1 class2 class3">
+                        .any(|(k, v)| k == "class" && v.split(' ').any(|c| c == class_name))
                 } else {
                     false
                 }
