@@ -2,7 +2,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::{cell::RefCell, collections::HashMap};
 
-use anyhow::{Context, Ok, Result};
+use anyhow::{bail, Context, Ok, Result};
 
 use crate::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
 use crate::css::selector::Selector;
@@ -12,9 +12,7 @@ use crate::html::dom::{DocumentTree, DomNode, NodeType};
 #[derive(Debug)]
 pub struct RenderNode {
     node: Rc<RefCell<DomNode>>,
-    // todo: This should be the computed values:
-    // https://www.w3.org/TR/css-cascade-3/#computed
-    style: SpecifiedValues,
+    style: ComputedValues,
     child_nodes: Vec<Rc<RefCell<RenderNode>>>,
 }
 
@@ -23,9 +21,11 @@ impl RenderNode {
         node: Rc<RefCell<DomNode>>,
         style_sheets: &Vec<StyleSheet>,
         parent_style: Option<SpecifiedValues>,
-    ) -> Option<Self> {
+    ) -> Result<Option<Self>> {
         let style = if let NodeType::Element(_) = &node.borrow().node_type {
             // https://www.w3.org/TR/css-cascade-3/#value-stages
+            // How the values are converted:
+            // https://www.w3.org/TR/css-cascade-3/#stages-examples
             filter(Rc::clone(&node), style_sheets)
                 .cascade()
                 .default(parent_style)
@@ -35,31 +35,38 @@ impl RenderNode {
 
         // All elements with a value of none for the display property and their descendants are not rendered.
         // https://developer.mozilla.org/en-US/docs/Web/CSS/display#none
-        if style.values.get("display") == Some(&SpecifiedValue::Keyword("none".to_string())) {
-            return None;
+        if style.values.get("display").is_some_and(|value| {
+            value.contains(&ComponentValue::PreservedToken(CssToken::Ident(
+                "none".to_string(),
+            )))
+        }) {
+            return Ok(None);
         }
 
-        Some(Self {
+        let child_nodes = node
+            .borrow()
+            .child_nodes
+            .iter()
+            .map(|child| Self::build(Rc::clone(child), style_sheets, Some(style.clone())))
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            // Skip the children that are not rendered
+            .filter(|child| child.is_some())
+            .map(|child| Rc::new(RefCell::new(child.unwrap())))
+            .collect::<Vec<_>>();
+
+        Ok(Some(Self {
             node: Rc::clone(&node),
-            style: style.clone(),
-            child_nodes: node
-                .borrow()
-                .child_nodes
-                .iter()
-                // Skip the children that are not rendered
-                .filter_map(|child| {
-                    Self::build(Rc::clone(child), style_sheets, Some(style.clone()))
-                })
-                .map(|child| Rc::new(RefCell::new(child)))
-                .collect::<Vec<_>>(),
-        })
+            style: style.compute()?,
+            child_nodes,
+        }))
     }
 }
 
 impl fmt::Display for RenderNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let NodeType::Element(elm) = &self.node.borrow().node_type {
-            write!(f, "{:?}: Specified {:?}", elm, self.style)
+            write!(f, "{:?}: Computed( {})", elm, self.style)
         } else {
             write!(f, "{:?}", self.node.borrow().node_type)
         }
@@ -146,61 +153,7 @@ impl CascadedValues {
             for name_and_value in declaration {
                 style_values
                     .entry(name_and_value.name.clone())
-                    .or_insert_with(|| {
-                        // todo: Support multiple values
-                        match name_and_value.value.first().cloned().unwrap() {
-                            // todo: More accurate handling of the values
-                            ComponentValue::PreservedToken(token) => match token {
-                                CssToken::Ident(ident) => SpecifiedValue::Keyword(ident),
-                                CssToken::String(string) => SpecifiedValue::Keyword(string),
-                                CssToken::Number(number) => SpecifiedValue::Number(number),
-                                CssToken::Percentage(percentage) => {
-                                    SpecifiedValue::Percentage(percentage)
-                                }
-                                CssToken::Dimension(number, unit) => {
-                                    SpecifiedValue::Dimension(number, unit)
-                                }
-                                _ => todo!(),
-                            },
-                            ComponentValue::Function { name, values } => SpecifiedValue::Function(
-                                name,
-                                values
-                                    .iter()
-                                    .filter(|value| {
-                                        **value
-                                            != ComponentValue::PreservedToken(CssToken::Whitespace)
-                                            && **value
-                                                != ComponentValue::PreservedToken(CssToken::Comma)
-                                    })
-                                    .map(|value| match value {
-                                        ComponentValue::PreservedToken(token) => match token {
-                                            CssToken::Ident(ident) => {
-                                                SpecifiedValue::Keyword(ident.clone())
-                                            }
-                                            CssToken::String(string) => {
-                                                SpecifiedValue::Keyword(string.clone())
-                                            }
-                                            CssToken::Number(number) => {
-                                                SpecifiedValue::Number(number.clone())
-                                            }
-                                            CssToken::Percentage(percentage) => {
-                                                SpecifiedValue::Percentage(*percentage)
-                                            }
-                                            CssToken::Dimension(number, unit) => {
-                                                SpecifiedValue::Dimension(
-                                                    number.clone(),
-                                                    unit.clone(),
-                                                )
-                                            }
-                                            _ => unreachable!(),
-                                        },
-                                        _ => unimplemented!(),
-                                    })
-                                    .collect(),
-                            ),
-                            _ => unimplemented!(),
-                        }
-                    });
+                    .or_insert_with(|| name_and_value.value.clone());
             }
         }
 
@@ -216,37 +169,295 @@ impl CascadedValues {
         // Set the initial values
         // https://www.w3.org/TR/CSS2/propidx.html
         // todo: Add more properties
-        style_values
-            .entry("background-color".to_string())
-            .or_insert(SpecifiedValue::Keyword("transparent".to_string()));
+        // style_values
+        //     .entry("background-color".to_string())
+        //     .or_insert(vec![ComponentValue::PreservedToken(CssToken::Ident(
+        //         "transparent".to_string(),
+        //     ))]);
         style_values
             .entry("display".to_string())
-            .or_insert(SpecifiedValue::Keyword("inline".to_string()));
-        style_values
-            .entry("font-size".to_string())
-            .or_insert(SpecifiedValue::Keyword("medium".to_string()));
+            .or_insert(vec![ComponentValue::PreservedToken(CssToken::Ident(
+                "inline".to_string(),
+            ))]);
+        style_values.entry("font-size".to_string()).or_insert(vec![
+            ComponentValue::PreservedToken(CssToken::Ident("medium".to_string())),
+        ]);
 
         SpecifiedValues::new(style_values)
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum SpecifiedValue {
-    Keyword(String),
-    Number(NumericType),
-    Percentage(f32),
-    Dimension(NumericType, String),
-    Function(String, Vec<SpecifiedValue>),
-}
-
 #[derive(Clone, Debug)]
 pub struct SpecifiedValues {
-    pub values: HashMap<String, SpecifiedValue>,
+    pub values: HashMap<String, Vec<ComponentValue>>,
 }
 
 impl SpecifiedValues {
-    pub fn new(values: HashMap<String, SpecifiedValue>) -> Self {
+    pub fn new(values: HashMap<String, Vec<ComponentValue>>) -> Self {
         Self { values }
+    }
+
+    /// https://www.w3.org/TR/css-cascade-3/#computed
+    fn compute(&self) -> Result<ComputedValues> {
+        let mut computed_values = ComputedValues::new(HashMap::new());
+
+        for (name, value) in &self.values {
+            match name.as_str() {
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/background-color
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/color
+                "background-color" | "color" => {
+                    if value.len() != 1 {
+                        bail!("The {} property must have exactly one value.", name);
+                    }
+                    let value = value.first().unwrap();
+                    computed_values.values.insert(
+                        name.to_string(),
+                        match value {
+                            ComponentValue::PreservedToken(token) => match token {
+                                CssToken::Ident(color) => match color.as_str() {
+                                    "black" => ComputedValue::Color(0, 0, 0),
+                                    "gray" => ComputedValue::Color(128, 128, 128),
+                                    "white" => ComputedValue::Color(255, 255, 255),
+                                    "red" => ComputedValue::Color(255, 0, 0),
+                                    "purple" => ComputedValue::Color(128, 0, 128),
+                                    "green" => ComputedValue::Color(0, 128, 0),
+                                    "yellowgreen" => ComputedValue::Color(154, 205, 50),
+                                    "yellow" => ComputedValue::Color(255, 255, 0),
+                                    "blue" => ComputedValue::Color(0, 0, 255),
+                                    "aqua" => ComputedValue::Color(0, 255, 255),
+                                    "orange" => ComputedValue::Color(255, 165, 0),
+                                    "brown" => ComputedValue::Color(165, 42, 42),
+                                    _ => unimplemented!(),
+                                },
+                                _ => unimplemented!(),
+                            },
+                            ComponentValue::Function { name, values } => {
+                                let args = values
+                                    .iter()
+                                    .filter(|value| {
+                                        **value
+                                            != ComponentValue::PreservedToken(CssToken::Whitespace)
+                                            && **value
+                                                != ComponentValue::PreservedToken(CssToken::Comma)
+                                    })
+                                    .collect::<Vec<_>>();
+                                match name.as_str() {
+                                    "rgb" => {
+                                        let r = match args.first().unwrap() {
+                                            ComponentValue::PreservedToken(token) => match token {
+                                                CssToken::Number(number) => match number {
+                                                    NumericType::Integer(integer) => *integer as u8,
+                                                    NumericType::Number(float) => *float as u8,
+                                                },
+                                                _ => unimplemented!(),
+                                            },
+                                            _ => unimplemented!(),
+                                        };
+                                        let g = match args.get(1).unwrap() {
+                                            ComponentValue::PreservedToken(token) => match token {
+                                                CssToken::Number(number) => match number {
+                                                    NumericType::Integer(integer) => *integer as u8,
+                                                    NumericType::Number(float) => *float as u8,
+                                                },
+                                                _ => unimplemented!(),
+                                            },
+                                            _ => unimplemented!(),
+                                        };
+                                        let b = match args.get(2).unwrap() {
+                                            ComponentValue::PreservedToken(token) => match token {
+                                                CssToken::Number(number) => match number {
+                                                    NumericType::Integer(integer) => *integer as u8,
+                                                    NumericType::Number(float) => *float as u8,
+                                                },
+                                                _ => unimplemented!(),
+                                            },
+                                            _ => unimplemented!(),
+                                        };
+                                        ComputedValue::Color(r, g, b)
+                                    }
+                                    _ => unimplemented!(),
+                                }
+                            }
+                            _ => unimplemented!(),
+                        },
+                    );
+                }
+
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/font-size
+                "font-size" => {
+                    if value.len() != 1 {
+                        bail!("The font-size property must have exactly one value.");
+                    }
+                    let value = value.first().unwrap();
+                    match value {
+                        ComponentValue::PreservedToken(token) => match &token {
+                            CssToken::Ident(size) => match size.as_str() {
+                                "xx-small" | "x-small" | "small" | "medium" | "large"
+                                | "x-large" | "xx-large" => {
+                                    computed_values.values.insert(
+                                        name.to_string(),
+                                        ComputedValue::String(size.to_string()),
+                                    );
+                                }
+                                _ => {
+                                    bail!("Unexpected value for the font-size property: {:?}", size)
+                                }
+                            },
+                            CssToken::Number(number) => match number {
+                                NumericType::Integer(integer) => {
+                                    computed_values.values.insert(
+                                        name.to_string(),
+                                        ComputedValue::Length(*integer as f32, "px".to_string()),
+                                    );
+                                }
+                                NumericType::Number(float) => {
+                                    computed_values.values.insert(
+                                        name.to_string(),
+                                        ComputedValue::Length(*float, "px".to_string()),
+                                    );
+                                }
+                            },
+                            _ => unimplemented!(),
+                        },
+                        _ => unimplemented!(),
+                    }
+                }
+
+                // https://drafts.csswg.org/css-display/#the-display-properties
+                "display" => {
+                    if value.len() != 1 {
+                        unimplemented!();
+                    }
+                    let value = value.first().unwrap();
+                    computed_values.values.insert(
+                        name.to_string(),
+                        match value {
+                            ComponentValue::PreservedToken(token) => match &token {
+                                CssToken::Ident(keyword) => ComputedValue::String(keyword.clone()),
+                                _ => unimplemented!(),
+                            },
+                            _ => bail!("Unexpected value for the display property: {:?}", value),
+                        },
+                    );
+                }
+
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/width
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/height
+                "width" | "height" => {
+                    if value.len() != 1 {
+                        bail!("The {} property must have exactly one value.", name);
+                    }
+                    let value = value.first().unwrap();
+                    computed_values.values.insert(
+                        name.to_string(),
+                        match value {
+                            ComponentValue::PreservedToken(token) => match &token {
+                                CssToken::Ident(keyword) => match keyword.as_str() {
+                                    "auto" => ComputedValue::String(keyword.clone()),
+                                    _ => unimplemented!(),
+                                },
+                                CssToken::Number(number) => match number {
+                                    NumericType::Integer(integer) => {
+                                        ComputedValue::Length(*integer as f32, "px".to_string())
+                                    }
+                                    NumericType::Number(float) => {
+                                        ComputedValue::Length(*float, "px".to_string())
+                                    }
+                                },
+                                CssToken::Percentage(percentage) => {
+                                    ComputedValue::Percentage(*percentage)
+                                }
+                                CssToken::Dimension(value, unit) => match unit.as_str() {
+                                    "px" => match value {
+                                        NumericType::Integer(integer) => {
+                                            ComputedValue::Length(*integer as f32, "px".to_string())
+                                        }
+                                        NumericType::Number(float) => {
+                                            ComputedValue::Length(*float, "px".to_string())
+                                        }
+                                    },
+                                    _ => unimplemented!(),
+                                },
+                                _ => unimplemented!(),
+                            },
+                            _ => unimplemented!(),
+                        },
+                    );
+                }
+
+                _ => unimplemented!(),
+            }
+        }
+
+        Ok(computed_values)
+    }
+}
+
+/// https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Types
+#[derive(Debug)]
+pub enum ComputedValue {
+    String(String),
+    Percentage(f32),
+    Length(f32, String),
+    Color(u8, u8, u8),
+}
+
+impl fmt::Display for ComputedValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ComputedValue::String(keyword) => write!(f, "{}", keyword),
+            ComputedValue::Percentage(percentage) => write!(f, "{}%", percentage),
+            ComputedValue::Length(length, unit) => write!(f, "{}{}", length, unit),
+            ComputedValue::Color(r, g, b) => {
+                if let Some(color_name) = get_color_name(ComputedValue::Color(*r, *g, *b)) {
+                    write!(f, "#{:02x}{:02x}{:02x} ({})", r, g, b, color_name)
+                } else {
+                    write!(f, "#{:02x}{:02x}{:02x}", r, g, b)
+                }
+            }
+        }
+    }
+}
+
+fn get_color_name(val: ComputedValue) -> Option<String> {
+    match val {
+        ComputedValue::Color(r, g, b) => Some(match (r, g, b) {
+            (0, 0, 0) => "black".to_string(),
+            (128, 128, 128) => "gray".to_string(),
+            (255, 255, 255) => "white".to_string(),
+            (255, 0, 0) => "red".to_string(),
+            (128, 0, 128) => "purple".to_string(),
+            (0, 128, 0) => "green".to_string(),
+            (154, 205, 50) => "yellowgreen".to_string(),
+            (255, 255, 0) => "yellow".to_string(),
+            (0, 0, 255) => "blue".to_string(),
+            (0, 255, 255) => "aqua".to_string(),
+            (255, 165, 0) => "orange".to_string(),
+            (165, 42, 42) => "brown".to_string(),
+            _ => return None,
+        }),
+        _ => None,
+    }
+}
+
+#[derive(Debug)]
+pub struct ComputedValues {
+    values: HashMap<String, ComputedValue>,
+}
+
+impl ComputedValues {
+    pub fn new(values: HashMap<String, ComputedValue>) -> Self {
+        Self { values }
+    }
+}
+
+impl fmt::Display for ComputedValues {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut style_str = String::new();
+        for (name, value) in &self.values {
+            style_str.push_str(&format!("{}: {}; ", name, value));
+        }
+        write!(f, "{}", style_str)
     }
 }
 
@@ -308,7 +519,7 @@ impl RenderTree {
     pub fn build(document_tree: DocumentTree, style_sheets: Vec<StyleSheet>) -> Result<Self> {
         Ok(Self {
             root: Rc::new(RefCell::new(
-                RenderNode::build(Rc::clone(&document_tree.root), &style_sheets, None)
+                RenderNode::build(Rc::clone(&document_tree.root), &style_sheets, None)?
                     .context("Failed to build the render tree.")?,
             )),
         })
