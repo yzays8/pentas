@@ -317,14 +317,16 @@ impl SelectorParser {
     //   ;
     fn parse_selector(&mut self) -> Result<Selector> {
         let simple = Selector::Simple(self.parse_simple_selector_seq()?);
-        if let Some(combinator) = self.parse_combinator() {
-            Ok(Selector::Complex(
+        match self.input.front() {
+            Some(ComponentValue::PreservedToken(CssToken::Delim('+')))
+            | Some(ComponentValue::PreservedToken(CssToken::Delim('>')))
+            | Some(ComponentValue::PreservedToken(CssToken::Delim('~')))
+            | Some(ComponentValue::PreservedToken(CssToken::Whitespace)) => Ok(Selector::Complex(
                 Box::new(simple),
-                combinator,
+                self.parse_combinator()?,
                 Box::new(self.parse_selector()?),
-            ))
-        } else {
-            Ok(simple)
+            )),
+            _ => Ok(simple),
         }
     }
 
@@ -332,48 +334,37 @@ impl SelectorParser {
     //   /* combinators can be surrounded by whitespace */
     //   : PLUS S* | GREATER S* | TILDE S* | S+
     //   ;
-    fn parse_combinator(&mut self) -> Option<Combinator> {
+    fn parse_combinator(&mut self) -> Result<Combinator> {
         let mut is_detected_space = false;
         while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) = self.input.front() {
             self.input.pop_front();
             is_detected_space = true;
         }
 
-        match self.input.front() {
-            Some(ComponentValue::PreservedToken(CssToken::Delim('+'))) => {
-                self.input.pop_front();
-                while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
+        if let Some(ComponentValue::PreservedToken(CssToken::Delim(c))) = self.input.front() {
+            let combinator = match c {
+                '+' => Combinator::Plus,
+                '>' => Combinator::GreaterThan,
+                '~' => Combinator::Tilde,
+                _ => bail!(
+                    "Expected \"+\", \">\", \"~\" but found {:?} when parsing CSS selectors in parse_combinator",
                     self.input.front()
-                {
-                    self.input.pop_front();
-                }
-                Some(Combinator::Plus)
-            }
-            Some(ComponentValue::PreservedToken(CssToken::Delim('>'))) => {
+                )
+            };
+            self.input.pop_front();
+            while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
+                self.input.front()
+            {
                 self.input.pop_front();
-                while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
-                    self.input.front()
-                {
-                    self.input.pop_front();
-                }
-                Some(Combinator::GreaterThan)
             }
-            Some(ComponentValue::PreservedToken(CssToken::Delim('~'))) => {
-                self.input.pop_front();
-                while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
-                    self.input.front()
-                {
-                    self.input.pop_front();
-                }
-                Some(Combinator::Tilde)
-            }
-            _ => {
-                if is_detected_space {
-                    Some(Combinator::Whitespace)
-                } else {
-                    None
-                }
-            }
+            Ok(combinator)
+        } else if is_detected_space {
+            Ok(Combinator::Whitespace)
+        } else {
+            bail!(
+                "Expected \"+\", \">\", \"~\", or whitespace but found {:?} when parsing CSS selectors in parse_combinator",
+                self.input.front()
+            );
         }
     }
 
@@ -423,17 +414,38 @@ impl SelectorParser {
         // If the tokens don't match [ HASH | class | attrib | pseudo | negation ]+, selector_seq is left empty.
         // Check that the tokens match [ type_selector | universal ] [ HASH | class | attrib | pseudo | negation ]*
         if selector_seq.is_empty() {
-            let prefix = self.parse_namespace_prefix();
-            if self.input.front() == Some(&ComponentValue::PreservedToken(CssToken::Delim('*'))) {
-                // universal
-                self.input.pop_front();
-                selector_seq.push(SimpleSelector::Universal(prefix));
-            } else {
-                // type_selector
-                selector_seq.push(SimpleSelector::Type {
-                    namespace_prefix: prefix,
-                    name: self.parse_element_name()?,
-                });
+            match (self.input.front(), self.input.get(1), self.input.get(2)) {
+                (
+                    Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
+                    | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
+                    Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+                    Some(ComponentValue::PreservedToken(CssToken::Ident(_))),
+                ) => selector_seq.push(self.parse_type_selector()?),
+                (
+                    Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
+                    | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
+                    Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+                    Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
+                ) => selector_seq.push(self.parse_universal()?),
+                (
+                    Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+                    Some(ComponentValue::PreservedToken(CssToken::Ident(_))),
+                    _,
+                ) => selector_seq.push(self.parse_type_selector()?),
+                (
+                    Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+                    Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
+                    _,
+                ) => selector_seq.push(self.parse_universal()?),
+                (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _, _) => {
+                    selector_seq.push(self.parse_type_selector()?)
+                }
+                (Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), _, _) => {
+                    selector_seq.push(self.parse_universal()?)
+                }
+                _ => bail!(
+                    "Expected type selector or universal selector but found {:?} when parsing CSS selectors in parse_simple_selector_seq",
+                    self.input.front())
             }
 
             match self.input.front() {
@@ -475,22 +487,36 @@ impl SelectorParser {
     // type_selector
     //   : [ namespace_prefix ]? element_name
     //   ;
-    #[allow(dead_code)]
     fn parse_type_selector(&mut self) -> Result<SimpleSelector> {
-        Ok(SimpleSelector::Type {
-            namespace_prefix: self.parse_namespace_prefix(),
-            name: self.parse_element_name()?,
-        })
+        match (self.input.front(), self.input.get(1)) {
+            (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
+            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
+                | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
+                Ok(SimpleSelector::Type {
+                    namespace_prefix: Some(self.parse_namespace_prefix()?),
+                    name: self.parse_element_name()?,
+                })
+            }
+            (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _) => {
+                Ok(SimpleSelector::Type {
+                    namespace_prefix: None,
+                    name: self.parse_element_name()?,
+                })
+            }
+            _ => bail!(
+                "Expected namespace prefix or element name but found {:?} when parsing CSS selectors in parse_type_selector",
+                self.input.front())
+        }
     }
 
     // namespace_prefix
     //   : [ IDENT | '*' ]? '|'
     //   ;
-    fn parse_namespace_prefix(&mut self) -> Option<String> {
+    fn parse_namespace_prefix(&mut self) -> Result<String> {
         match self.input.front() {
             Some(ComponentValue::PreservedToken(CssToken::Delim('|'))) => {
                 self.input.pop_front();
-                Some("".to_string())
+                Ok("".to_string())
             }
             Some(ComponentValue::PreservedToken(CssToken::Ident(s))) => {
                 if self.input.get(1) == Some(&ComponentValue::PreservedToken(CssToken::Delim('|')))
@@ -498,9 +524,11 @@ impl SelectorParser {
                     let s = s.clone();
                     self.input.pop_front();
                     self.input.pop_front();
-                    Some(s)
+                    Ok(s)
                 } else {
-                    None
+                    bail!(
+                        "Expected \"|\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
+                        self.input.front());
                 }
             }
             Some(ComponentValue::PreservedToken(CssToken::Delim('*'))) => {
@@ -508,12 +536,16 @@ impl SelectorParser {
                 {
                     self.input.pop_front();
                     self.input.pop_front();
-                    Some("*".to_string())
+                    Ok("*".to_string())
                 } else {
-                    None
+                    bail!(
+                        "Expected \"|\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
+                        self.input.front());
                 }
             }
-            _ => None,
+            _ => bail!(
+                "Expected \"|\", ident, or \"*\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
+                self.input.front())
         }
     }
 
@@ -535,17 +567,22 @@ impl SelectorParser {
     // universal
     //   : [ namespace_prefix ]? '*'
     //   ;
-    #[allow(dead_code)]
     fn parse_universal(&mut self) -> Result<SimpleSelector> {
-        let prefix = self.parse_namespace_prefix();
-        let comp = self.input.pop_front();
-        if comp == Some(ComponentValue::PreservedToken(CssToken::Delim('*'))) {
-            Ok(SimpleSelector::Universal(prefix))
-        } else {
-            bail!(
-                "Expected \"*\" but found {:?} when parsing CSS selectors in parse_universal",
-                comp
-            );
+        match (self.input.front(), self.input.get(1)) {
+            (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
+            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
+                | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
+                let prefix = self.parse_namespace_prefix()?;
+                self.input.pop_front();
+                Ok(SimpleSelector::Universal(Some(prefix)))
+            }
+            (Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), _) => {
+                self.input.pop_front();
+                Ok(SimpleSelector::Universal(None))
+            }
+            _ => bail!(
+                "Expected namespace prefix or \"*\" but found {:?} when parsing CSS selectors in parse_universal",
+                self.input.front())
         }
     }
 
@@ -554,7 +591,7 @@ impl SelectorParser {
     //   ;
     fn parse_class(&mut self) -> Result<SimpleSelector> {
         let comp = self.input.pop_front();
-        if comp == Some(ComponentValue::PreservedToken(CssToken::Delim('.'))) {
+        if let Some(ComponentValue::PreservedToken(CssToken::Delim('.'))) = comp {
             Ok(SimpleSelector::Class(self.parse_element_name()?))
         } else {
             bail!(
