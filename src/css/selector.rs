@@ -612,138 +612,123 @@ impl SelectorParser {
     //         ]? ']'
     //   ;
     fn parse_attrib(&mut self) -> Result<SimpleSelector> {
-        let comp = self.input.pop_front();
         if let Some(ComponentValue::SimpleBlock {
             associated_token: t,
             values,
-        }) = comp.clone()
+        }) = self.input.front()
         {
-            if t != CssToken::OpenSquareBracket {
+            if t != &CssToken::OpenSquareBracket {
                 bail!(
                     "Expected \"[\" but found {:?} when parsing CSS selectors in parse_attrib",
-                    comp
+                    t
                 );
             }
 
-            let mut values: VecDeque<ComponentValue> = VecDeque::from(values);
-
-            while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) = values.front() {
-                values.pop_front();
-            }
-
-            // Parse prefix
-            let prefix = match self.input.front() {
-                Some(ComponentValue::PreservedToken(CssToken::Delim('|'))) => {
-                    self.input.pop_front();
-                    Some("".to_string())
-                }
-                Some(ComponentValue::PreservedToken(CssToken::Ident(s))) => {
-                    if self.input.get(1)
-                        == Some(&ComponentValue::PreservedToken(CssToken::Delim('|')))
-                    {
-                        let s = s.clone();
-                        self.input.pop_front();
-                        self.input.pop_front();
-                        Some(s)
-                    } else {
-                        None
-                    }
-                }
-                Some(ComponentValue::PreservedToken(CssToken::Delim('*'))) => {
-                    if self.input.get(1)
-                        == Some(&ComponentValue::PreservedToken(CssToken::Delim('|')))
-                    {
-                        self.input.pop_front();
-                        self.input.pop_front();
-                        Some("*".to_string())
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            };
-
-            let comp = values.pop_front();
-            let Some(ComponentValue::PreservedToken(CssToken::Ident(name))) = comp else {
-                bail!(
-                    "Expected ident but found {:?} when parsing CSS selectors in parse_attrib",
-                    comp
-                );
-            };
-            while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) = values.front() {
-                values.pop_front();
-            }
-
-            match values.front() {
-                Some(ComponentValue::PreservedToken(CssToken::Delim(c))) => {
-                    let c = *c;
-                    let op = if c == '=' {
-                        values.pop_front();
-                        "=".to_string()
-                    } else if let '^' | '$' | '*' | '~' | '|' = c {
-                        values.pop_front();
-                        if let Some(ComponentValue::PreservedToken(CssToken::Delim('='))) =
-                            values.front()
-                        {
-                            values.pop_front();
-                            format!("{}=", c)
-                        } else {
-                            bail!(
-                                "Expected \"=\" but found {:?} when parsing CSS selectors in parse_attrib",
-                                values.front())
-                        }
-                    } else {
-                        bail!(
-                            "Expected \"=\", \"^=\", \"$=\", \"*=\", \"~=\", \"|=\" but found {:?} when parsing CSS selectors in parse_attrib",
-                            values.front()
-                        );
-                    };
-
-                    while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
-                        values.front()
-                    {
-                        values.pop_front();
-                    }
-
-                    let comp = values.pop_front();
-                    let value = if let Some(ComponentValue::PreservedToken(CssToken::Ident(s)))
-                    | Some(ComponentValue::PreservedToken(CssToken::String(s))) =
-                        comp
-                    {
-                        Some(s)
-                    } else {
-                        bail!("Expected ident or string but found {:?} when parsing CSS selectors in parse_attrib", comp);
-                    };
-
-                    while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
-                        values.front()
-                    {
-                        values.pop_front();
-                    }
-
-                    Ok(SimpleSelector::Attribute {
-                        namespace_prefix: prefix,
-                        name,
-                        op: Some(op),
-                        value,
-                    })
-                }
-                None => Ok(SimpleSelector::Attribute {
-                    namespace_prefix: prefix,
-                    name,
-                    op: None,
-                    value: None,
-                }),
-                _ => bail!(
-                    "Unexpected token when parsing CSS selectors in parse_attrib: {:?}",
-                    values.front()
-                ),
+            // Expand values in the simple block to the front of the input.
+            let values = values.clone().into_iter().rev();
+            self.input.pop_front();
+            for value in values {
+                self.input.push_front(value);
             }
         } else {
             bail!(
                 "Expected simple block but found {:?} when parsing CSS selectors in parse_attrib",
+                self.input.front()
+            );
+        }
+
+        while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) = self.input.front() {
+            self.input.pop_front();
+        }
+
+        let prefix = match (self.input.front(), self.input.get(1)) {
+            (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
+            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
+                | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
+                Some(self.parse_namespace_prefix()?)
+            }
+            (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _) => {
+                None
+            }
+            _ => bail!(
+                "Expected namespace prefix or ident but found {:?} when parsing CSS selectors in parse_attrib",
+                self.input.front(),)
+        };
+
+        let comp = self.input.pop_front();
+        let Some(ComponentValue::PreservedToken(CssToken::Ident(name))) = comp else {
+            bail!(
+                "Expected ident but found {:?} when parsing CSS selectors in parse_attrib",
                 comp
             );
+        };
+        while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) = self.input.front() {
+            self.input.pop_front();
+        }
+
+        match self.input.front() {
+            Some(ComponentValue::PreservedToken(CssToken::Delim(c))) => {
+                let c = *c;
+                let op = if c == '=' {
+                    self.input.pop_front();
+                    "=".to_string()
+                } else if let '^' | '$' | '*' | '~' | '|' = c {
+                    self.input.pop_front();
+                    if let Some(ComponentValue::PreservedToken(CssToken::Delim('='))) =
+                        self.input.front()
+                    {
+                        self.input.pop_front();
+                        format!("{}=", c)
+                    } else {
+                        bail!(
+                            "Expected \"=\" but found {:?} when parsing CSS selectors in parse_attrib",
+                            self.input.front())
+                    }
+                } else {
+                    bail!(
+                        "Expected \"=\", \"^=\", \"$=\", \"*=\", \"~=\", \"|=\" but found {:?} when parsing CSS selectors in parse_attrib",
+                        self.input.front()
+                    );
+                };
+
+                while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
+                    self.input.front()
+                {
+                    self.input.pop_front();
+                }
+
+                let comp = self.input.pop_front();
+                let value = if let Some(ComponentValue::PreservedToken(CssToken::Ident(s)))
+                | Some(ComponentValue::PreservedToken(CssToken::String(s))) = comp
+                {
+                    Some(s)
+                } else {
+                    bail!("Expected ident or string but found {:?} when parsing CSS selectors in parse_attrib", comp);
+                };
+
+                while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
+                    self.input.front()
+                {
+                    self.input.pop_front();
+                }
+
+                Ok(SimpleSelector::Attribute {
+                    namespace_prefix: prefix,
+                    name,
+                    op: Some(op),
+                    value,
+                })
+            }
+            None => Ok(SimpleSelector::Attribute {
+                namespace_prefix: prefix,
+                name,
+                op: None,
+                value: None,
+            }),
+            _ => bail!(
+                "Unexpected token when parsing CSS selectors in parse_attrib: {:?}",
+                self.input.front()
+            ),
         }
     }
 }
