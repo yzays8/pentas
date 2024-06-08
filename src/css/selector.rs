@@ -830,7 +830,7 @@ mod tests {
 
     #[test]
     fn test_parse_selector3() {
-        // h1[title="hello"] > .myclass + p, example|*
+        // h1[title="hello"] > .myclass + p, example|*, *, *|*, *|example
 
         let input = vec![
             ComponentValue::PreservedToken(CssToken::Ident("h1".to_string())),
@@ -856,6 +856,19 @@ mod tests {
             ComponentValue::PreservedToken(CssToken::Ident("example".to_string())),
             ComponentValue::PreservedToken(CssToken::Delim('|')),
             ComponentValue::PreservedToken(CssToken::Delim('*')),
+            ComponentValue::PreservedToken(CssToken::Comma),
+            ComponentValue::PreservedToken(CssToken::Whitespace),
+            ComponentValue::PreservedToken(CssToken::Delim('*')),
+            ComponentValue::PreservedToken(CssToken::Comma),
+            ComponentValue::PreservedToken(CssToken::Whitespace),
+            ComponentValue::PreservedToken(CssToken::Delim('*')),
+            ComponentValue::PreservedToken(CssToken::Delim('|')),
+            ComponentValue::PreservedToken(CssToken::Delim('*')),
+            ComponentValue::PreservedToken(CssToken::Comma),
+            ComponentValue::PreservedToken(CssToken::Whitespace),
+            ComponentValue::PreservedToken(CssToken::Delim('*')),
+            ComponentValue::PreservedToken(CssToken::Delim('|')),
+            ComponentValue::PreservedToken(CssToken::Ident("example".to_string())),
         ];
         let mut parser = SelectorParser::new(input);
         assert_eq!(
@@ -886,7 +899,13 @@ mod tests {
                         }]))
                     ))
                 ),
-                Selector::Simple(vec![SimpleSelector::Universal(Some("example".to_string()))])
+                Selector::Simple(vec![SimpleSelector::Universal(Some("example".to_string()))]),
+                Selector::Simple(vec![SimpleSelector::Universal(None)]),
+                Selector::Simple(vec![SimpleSelector::Universal(Some("*".to_string()))]),
+                Selector::Simple(vec![SimpleSelector::Type {
+                    namespace_prefix: Some("*".to_string()),
+                    name: "example".to_string(),
+                }]),
             ]
         );
     }
@@ -936,6 +955,34 @@ mod tests {
                     op: Some("$=".to_string()),
                     value: Some(".org".to_string()),
                 },
+            ])]
+        );
+    }
+
+    #[test]
+    fn test_parse_selector5() {
+        // p.class1.class2.class3
+
+        let input = vec![
+            ComponentValue::PreservedToken(CssToken::Ident("p".to_string())),
+            ComponentValue::PreservedToken(CssToken::Delim('.')),
+            ComponentValue::PreservedToken(CssToken::Ident("class1".to_string())),
+            ComponentValue::PreservedToken(CssToken::Delim('.')),
+            ComponentValue::PreservedToken(CssToken::Ident("class2".to_string())),
+            ComponentValue::PreservedToken(CssToken::Delim('.')),
+            ComponentValue::PreservedToken(CssToken::Ident("class3".to_string())),
+        ];
+        let mut parser = SelectorParser::new(input);
+        assert_eq!(
+            parser.parse_selectors_group().unwrap(),
+            vec![Selector::Simple(vec![
+                SimpleSelector::Type {
+                    namespace_prefix: None,
+                    name: "p".to_string(),
+                },
+                SimpleSelector::Class("class1".to_string()),
+                SimpleSelector::Class("class2".to_string()),
+                SimpleSelector::Class("class3".to_string()),
             ])]
         );
     }
