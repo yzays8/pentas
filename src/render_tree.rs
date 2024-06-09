@@ -82,10 +82,10 @@ pub fn filter(node: Rc<RefCell<DomNode>>, style_sheets: &[StyleSheet]) -> Declar
     // linked by the originating document are treated as if they were concatenated in linking order, as determined by the host document language.
     style_sheets.iter().for_each(|style_sheet| {
         style_sheet.rules.iter().for_each(|rule| {
-            let matched = rule.matches(Rc::clone(&node));
-            if matched.0 {
+            let selectors = rule.get_matched_selectors(Rc::clone(&node));
+            if selectors.is_some() {
                 let Rule::QualifiedRule(qualified_rule) = rule;
-                for selector in matched.1.unwrap() {
+                for selector in selectors.unwrap() {
                     declared_values.push((selector, qualified_rule.declarations.clone()));
                 }
             }
