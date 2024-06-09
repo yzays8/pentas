@@ -30,7 +30,6 @@ impl DomNode {
     pub fn new(node_type: NodeType) -> Self {
         Self {
             node_type,
-            child_nodes: Vec::new(),
             ..Default::default()
         }
     }
