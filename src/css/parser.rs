@@ -25,9 +25,7 @@ impl CssParser {
     }
 
     pub fn parse(&mut self) -> Result<StyleSheet> {
-        Ok(StyleSheet {
-            rules: self.consume_list_of_rules()?,
-        })
+        Ok(StyleSheet::new(self.consume_list_of_rules()?))
     }
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-list-of-rules

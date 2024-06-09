@@ -13,6 +13,12 @@ pub struct StyleSheet {
     // pub owner_rule: Option<Rule>,
 }
 
+impl StyleSheet {
+    pub fn new(rules: Vec<Rule>) -> Self {
+        Self { rules }
+    }
+}
+
 /// A CSS document is a series of style rules and at-rules.
 /// - https://www.w3.org/TR/css-syntax-3/#syntax-description
 /// - https://www.w3.org/TR/cssom-1/#cssrule
