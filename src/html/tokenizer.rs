@@ -166,7 +166,7 @@ impl HtmlTokenizer {
                             '/' => {
                                 self.state = TokenizationState::EndTagOpen;
                             }
-                            c if c.is_alphabetic() => {
+                            c if c.is_ascii_alphabetic() => {
                                 self.current_token = Some(HtmlToken::StartTag {
                                     tag_name: String::new(),
                                     attributes: vec![],
@@ -192,7 +192,7 @@ impl HtmlTokenizer {
                     // https://html.spec.whatwg.org/multipage/parsing.html#end-tag-open-state
                     TokenizationState::EndTagOpen => match self.consume_input_char() {
                         Some(c) => match c {
-                            c if c.is_alphabetic() => {
+                            c if c.is_ascii_alphabetic() => {
                                 self.current_token = Some(HtmlToken::EndTag {
                                     tag_name: String::new(),
                                     attributes: vec![],
