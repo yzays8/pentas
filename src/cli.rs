@@ -6,6 +6,9 @@ pub struct Args {
     #[arg(long, help = "The HTML file to parse")]
     pub html: Option<String>,
 
-    #[arg(long, help = "The CSS file to parse")]
+    #[arg(long, conflicts_with = "html", help = "The CSS file to parse")]
     pub css: Option<String>,
+
+    #[arg(long, help = "Only parse the HTML and print the document tree")]
+    pub parse_only: bool,
 }
