@@ -378,7 +378,38 @@ impl SelectorParser {
 
         let mut selector_seq = Vec::new();
 
-        // Check that the tokens match [ HASH | class | attrib | pseudo | negation ]+
+        match (self.input.front(), self.input.get(1), self.input.get(2)) {
+            (
+                Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
+                | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
+                Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+                Some(ComponentValue::PreservedToken(CssToken::Ident(_))),
+            )
+            | (
+                Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+                Some(ComponentValue::PreservedToken(CssToken::Ident(_))),
+                _,
+            ) => selector_seq.push(self.parse_type_selector()?),
+            (
+                Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
+                | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
+                Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+                Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
+            )
+            | (
+                Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+                Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
+                _,
+            ) => selector_seq.push(self.parse_universal()?),
+            (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _, _) => {
+                selector_seq.push(self.parse_type_selector()?)
+            }
+            (Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), _, _) => {
+                selector_seq.push(self.parse_universal()?)
+            }
+            _ => {}
+        }
+
         match self.input.front() {
             Some(ComponentValue::PreservedToken(CssToken::Hash(..))) => {
                 while let Some(ComponentValue::PreservedToken(CssToken::Hash(s, ..))) =
@@ -411,74 +442,11 @@ impl SelectorParser {
             _ => {}
         }
 
-        // If the tokens don't match [ HASH | class | attrib | pseudo | negation ]+, selector_seq is left empty.
-        // Check that the tokens match [ type_selector | universal ] [ HASH | class | attrib | pseudo | negation ]*
         if selector_seq.is_empty() {
-            match (self.input.front(), self.input.get(1), self.input.get(2)) {
-                (
-                    Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
-                    | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
-                    Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
-                    Some(ComponentValue::PreservedToken(CssToken::Ident(_))),
-                ) => selector_seq.push(self.parse_type_selector()?),
-                (
-                    Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
-                    | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
-                    Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
-                    Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
-                ) => selector_seq.push(self.parse_universal()?),
-                (
-                    Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
-                    Some(ComponentValue::PreservedToken(CssToken::Ident(_))),
-                    _,
-                ) => selector_seq.push(self.parse_type_selector()?),
-                (
-                    Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
-                    Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
-                    _,
-                ) => selector_seq.push(self.parse_universal()?),
-                (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _, _) => {
-                    selector_seq.push(self.parse_type_selector()?)
-                }
-                (Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), _, _) => {
-                    selector_seq.push(self.parse_universal()?)
-                }
-                _ => bail!(
-                    "Expected type selector or universal selector but found {:?} when parsing CSS selectors in parse_simple_selector_seq",
-                    self.input.front())
-            }
-
-            match self.input.front() {
-                Some(ComponentValue::PreservedToken(CssToken::Hash(..))) => {
-                    while let Some(ComponentValue::PreservedToken(CssToken::Hash(s, ..))) =
-                        self.input.front()
-                    {
-                        let s = s.clone();
-                        self.input.pop_front();
-                        selector_seq.push(SimpleSelector::Id(s.to_string()));
-                    }
-                }
-                Some(ComponentValue::PreservedToken(CssToken::Delim('.'))) => {
-                    while let Some(ComponentValue::PreservedToken(CssToken::Delim('.'))) =
-                        self.input.front()
-                    {
-                        selector_seq.push(self.parse_class()?);
-                    }
-                }
-                Some(ComponentValue::SimpleBlock { .. }) => {
-                    while let Some(ComponentValue::SimpleBlock {
-                        associated_token: t,
-                        ..
-                    }) = self.input.front()
-                    {
-                        if t != &CssToken::OpenSquareBracket {
-                            bail!("Expected \"[\" but found {:?} when parsing CSS selectors in parse_simple_selector_seq", self.input.front());
-                        }
-                        selector_seq.push(self.parse_attrib()?);
-                    }
-                }
-                _ => {}
-            }
+            bail!(
+                "Expected type selector, universal selector, hash, class, attribute, pseudo, or negation but found {:?} when parsing CSS selectors in parse_simple_selector_seq",
+                self.input.front()
+            );
         }
 
         Ok(selector_seq)
