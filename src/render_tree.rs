@@ -7,7 +7,7 @@ use anyhow::{bail, Context, Ok, Result};
 use crate::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
 use crate::css::selector::Selector;
 use crate::css::tokenizer::{CssToken, NumericType};
-use crate::html::dom::{DocumentTree, DomNode, NodeType};
+use crate::html::dom::{DocumentTree, DomNode, Element, NodeType};
 
 #[derive(Debug)]
 pub struct RenderNode {
@@ -22,6 +22,13 @@ impl RenderNode {
         style_sheets: &Vec<StyleSheet>,
         parent_style: Option<SpecifiedValues>,
     ) -> Result<Option<Self>> {
+        // Omit the script and meta elements from the render tree.
+        if let NodeType::Element(Element { tag_name, .. }) = &node.borrow().node_type {
+            if let "script" | "meta" = tag_name.as_str() {
+                return Ok(None);
+            }
+        }
+
         let style = if let NodeType::Element(_) = &node.borrow().node_type {
             // https://www.w3.org/TR/css-cascade-3/#value-stages
             // How the values are converted:
