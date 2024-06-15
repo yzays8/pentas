@@ -299,7 +299,7 @@ impl SelectorParser {
                     while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
                         self.input.front()
                     {
-                        self.input.pop_front();
+                        self.consume();
                     }
                     selectors.push(self.parse_selector()?);
                 }
@@ -337,35 +337,35 @@ impl SelectorParser {
     fn parse_combinator(&mut self) -> Result<Combinator> {
         let mut is_detected_space = false;
         while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) = self.input.front() {
-            self.input.pop_front();
+            self.consume();
             is_detected_space = true;
         }
 
         match self.input.front() {
             Some(ComponentValue::PreservedToken(CssToken::Delim('+'))) => {
-                self.input.pop_front();
+                self.consume();
                 while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
                     self.input.front()
                 {
-                    self.input.pop_front();
+                    self.consume();
                 }
                 Ok(Combinator::Plus)
             }
             Some(ComponentValue::PreservedToken(CssToken::Delim('>'))) => {
-                self.input.pop_front();
+                self.consume();
                 while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
                     self.input.front()
                 {
-                    self.input.pop_front();
+                    self.consume();
                 }
                 Ok(Combinator::GreaterThan)
             }
             Some(ComponentValue::PreservedToken(CssToken::Delim('~'))) => {
-                self.input.pop_front();
+                self.consume();
                 while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
                     self.input.front()
                 {
-                    self.input.pop_front();
+                    self.consume();
                 }
                 Ok(Combinator::Tilde)
             }
@@ -429,7 +429,7 @@ impl SelectorParser {
                     self.input.front()
                 {
                     let s = s.clone();
-                    self.input.pop_front();
+                    self.consume();
                     selector_seq.push(SimpleSelector::Id(s.to_string()));
                 }
             }
@@ -496,15 +496,15 @@ impl SelectorParser {
     fn parse_namespace_prefix(&mut self) -> Result<String> {
         match self.input.front() {
             Some(ComponentValue::PreservedToken(CssToken::Delim('|'))) => {
-                self.input.pop_front();
+                self.consume();
                 Ok("".to_string())
             }
             Some(ComponentValue::PreservedToken(CssToken::Ident(s))) => {
                 if self.input.get(1) == Some(&ComponentValue::PreservedToken(CssToken::Delim('|')))
                 {
                     let s = s.clone();
-                    self.input.pop_front();
-                    self.input.pop_front();
+                    self.consume();
+                    self.consume();
                     Ok(s)
                 } else {
                     bail!(
@@ -515,8 +515,8 @@ impl SelectorParser {
             Some(ComponentValue::PreservedToken(CssToken::Delim('*'))) => {
                 if self.input.get(1) == Some(&ComponentValue::PreservedToken(CssToken::Delim('|')))
                 {
-                    self.input.pop_front();
-                    self.input.pop_front();
+                    self.consume();
+                    self.consume();
                     Ok("*".to_string())
                 } else {
                     bail!(
@@ -534,7 +534,7 @@ impl SelectorParser {
     //   : IDENT
     //   ;
     fn parse_element_name(&mut self) -> Result<String> {
-        let comp = self.input.pop_front();
+        let comp = self.consume();
         if let Some(ComponentValue::PreservedToken(CssToken::Ident(s))) = comp {
             Ok(s)
         } else {
@@ -554,11 +554,11 @@ impl SelectorParser {
             | (Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
                 | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
                 let prefix = self.parse_namespace_prefix()?;
-                self.input.pop_front();
+                self.consume();
                 Ok(SimpleSelector::Universal(Some(prefix)))
             }
             (Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), _) => {
-                self.input.pop_front();
+                self.consume();
                 Ok(SimpleSelector::Universal(None))
             }
             _ => bail!(
@@ -571,7 +571,7 @@ impl SelectorParser {
     //   : '.' IDENT
     //   ;
     fn parse_class(&mut self) -> Result<SimpleSelector> {
-        let comp = self.input.pop_front();
+        let comp = self.consume();
         if let Some(ComponentValue::PreservedToken(CssToken::Delim('.'))) = comp {
             Ok(SimpleSelector::Class(self.parse_element_name()?))
         } else {
@@ -607,7 +607,7 @@ impl SelectorParser {
 
             // Expand values in the simple block to the front of the input.
             let values = values.clone().into_iter().rev();
-            self.input.pop_front();
+            self.consume();
             for value in values {
                 self.input.push_front(value);
             }
@@ -619,7 +619,7 @@ impl SelectorParser {
         }
 
         while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) = self.input.front() {
-            self.input.pop_front();
+            self.consume();
         }
 
         let prefix = match (self.input.front(), self.input.get(1)) {
@@ -636,7 +636,7 @@ impl SelectorParser {
                 self.input.front(),)
         };
 
-        let comp = self.input.pop_front();
+        let comp = self.consume();
         let Some(ComponentValue::PreservedToken(CssToken::Ident(name))) = comp else {
             bail!(
                 "Expected ident but found {:?} when parsing CSS selectors in parse_attrib",
@@ -644,21 +644,21 @@ impl SelectorParser {
             );
         };
         while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) = self.input.front() {
-            self.input.pop_front();
+            self.consume();
         }
 
         match self.input.front() {
             Some(ComponentValue::PreservedToken(CssToken::Delim(c))) => {
                 let c = *c;
                 let op = if c == '=' {
-                    self.input.pop_front();
+                    self.consume();
                     "=".to_string()
                 } else if let '^' | '$' | '*' | '~' | '|' = c {
-                    self.input.pop_front();
+                    self.consume();
                     if let Some(ComponentValue::PreservedToken(CssToken::Delim('='))) =
                         self.input.front()
                     {
-                        self.input.pop_front();
+                        self.consume();
                         format!("{}=", c)
                     } else {
                         bail!(
@@ -675,10 +675,10 @@ impl SelectorParser {
                 while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
                     self.input.front()
                 {
-                    self.input.pop_front();
+                    self.consume();
                 }
 
-                let comp = self.input.pop_front();
+                let comp = self.consume();
                 let value = if let Some(ComponentValue::PreservedToken(CssToken::Ident(s)))
                 | Some(ComponentValue::PreservedToken(CssToken::String(s))) = comp
                 {
@@ -690,7 +690,7 @@ impl SelectorParser {
                 while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
                     self.input.front()
                 {
-                    self.input.pop_front();
+                    self.consume();
                 }
 
                 Ok(SimpleSelector::Attribute {
