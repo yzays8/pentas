@@ -341,30 +341,43 @@ impl SelectorParser {
             is_detected_space = true;
         }
 
-        if let Some(ComponentValue::PreservedToken(CssToken::Delim(c))) = self.input.front() {
-            let combinator = match c {
-                '+' => Combinator::Plus,
-                '>' => Combinator::GreaterThan,
-                '~' => Combinator::Tilde,
-                _ => bail!(
-                    "Expected \"+\", \">\", \"~\" but found {:?} when parsing CSS selectors in parse_combinator",
-                    self.input.front()
-                )
-            };
-            self.input.pop_front();
-            while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
-                self.input.front()
-            {
+        match self.input.front() {
+            Some(ComponentValue::PreservedToken(CssToken::Delim('+'))) => {
                 self.input.pop_front();
+                while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
+                    self.input.front()
+                {
+                    self.input.pop_front();
+                }
+                Ok(Combinator::Plus)
             }
-            Ok(combinator)
-        } else if is_detected_space {
-            Ok(Combinator::Whitespace)
-        } else {
-            bail!(
-                "Expected \"+\", \">\", \"~\", or whitespace but found {:?} when parsing CSS selectors in parse_combinator",
-                self.input.front()
-            );
+            Some(ComponentValue::PreservedToken(CssToken::Delim('>'))) => {
+                self.input.pop_front();
+                while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
+                    self.input.front()
+                {
+                    self.input.pop_front();
+                }
+                Ok(Combinator::GreaterThan)
+            }
+            Some(ComponentValue::PreservedToken(CssToken::Delim('~'))) => {
+                self.input.pop_front();
+                while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
+                    self.input.front()
+                {
+                    self.input.pop_front();
+                }
+                Ok(Combinator::Tilde)
+            }
+            _ => {
+                if is_detected_space {
+                    Ok(Combinator::Whitespace)
+                } else {
+                    bail!(
+                    "Expected \"+\", \">\", \"~\", or whitespace but found {:?} when parsing CSS selectors in parse_combinator",
+                    self.input.front())
+                }
+            }
         }
     }
 
