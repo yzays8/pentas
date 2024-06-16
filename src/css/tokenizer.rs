@@ -10,7 +10,7 @@ pub enum CssToken {
     AtKeyword(String),
     Hash(String, HashType),
     String(String),
-    // BadString,
+    BadString,
     Url(String),
     BadUrl,
     Delim(char),
@@ -254,14 +254,15 @@ impl CssTokenizer {
                     }
                     '\n' => {
                         eprintln!("parse error: newline in consume_string_token");
-                        unimplemented!();
+                        self.current_pos -= 1;
+                        return CssToken::BadString;
                     }
                     '\\' => {
                         if self.peek_char().is_some() {
                             if self.peek_char().unwrap() == '\n' {
                                 self.consume_char();
                             } else {
-                                unimplemented!();
+                                string.push(self.consume_escaped_char());
                             }
                         }
                     }
