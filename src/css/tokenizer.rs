@@ -10,9 +10,9 @@ pub enum CssToken {
     AtKeyword(String),
     Hash(String, HashType),
     String(String),
-    // BadString(String),
-    // Url(String),
-    // BadUrl(String),
+    // BadString,
+    Url(String),
+    BadUrl,
     Delim(char),
     Number(NumericType),
     Percentage(f32),
@@ -321,12 +321,85 @@ impl CssTokenizer {
         let string = self.consume_ident_sequence();
         if string.eq_ignore_ascii_case("url") && self.peek_input_char() == Some('(') {
             self.consume_input_char();
-            unimplemented!();
+            while self
+                .peek_input_str(2)
+                .iter()
+                .all(|c| c.is_some_and(|c| self.is_whitespace(c)))
+            {
+                self.consume_input_char();
+            }
+            match self.peek_input_str(2)[..] {
+                [Some('"'), _]
+                | [Some('\''), _]
+                | [Some(' '), Some('"')]
+                | [Some(' '), Some('\'')] => CssToken::Function(string),
+                _ => self.consume_url_token(),
+            }
         } else if self.peek_input_char() == Some('(') {
             self.consume_input_char();
             CssToken::Function(string)
         } else {
             CssToken::Ident(string)
+        }
+    }
+
+    /// https://www.w3.org/TR/css-syntax-3/#consume-url-token
+    fn consume_url_token(&mut self) -> CssToken {
+        let mut url = String::new();
+        while self
+            .peek_input_char()
+            .is_some_and(|c| self.is_whitespace(c))
+        {
+            self.consume_input_char();
+        }
+        loop {
+            match self.consume_input_char() {
+                Some(')') => return CssToken::Url(url),
+                Some('"')
+                | Some('\'')
+                | Some('(')
+                | Some('\u{0000}'..='\u{0008}')
+                | Some('\u{000B}')
+                | Some('\u{000E}'..='\u{001F}')
+                | Some('\u{007F}') => {
+                    eprintln!("parse error: invalid character in consume_url_token");
+                    self.consume_remnants_of_bad_url();
+                    return CssToken::BadUrl;
+                }
+                Some('\\') => {
+                    if self.are_valid_escape(None) {
+                        url.push(self.consume_escaped_char());
+                    } else {
+                        eprintln!("parse error: invalid escape in consume_url_token");
+                        self.consume_remnants_of_bad_url();
+                        return CssToken::BadUrl;
+                    }
+                }
+                c if c.is_some_and(|c| self.is_whitespace(c)) => {
+                    while self
+                        .peek_input_char()
+                        .is_some_and(|c| self.is_whitespace(c))
+                    {
+                        self.consume_input_char();
+                    }
+                    if self.peek_input_char().is_none() {
+                        eprintln!("parse error: EOF in consume_url_token");
+                    }
+                    if let Some(')') | None = self.peek_input_char() {
+                        self.consume_input_char();
+                        return CssToken::Url(url);
+                    }
+                    self.consume_remnants_of_bad_url();
+                    return CssToken::BadUrl;
+                }
+                None => {
+                    eprintln!("parse error: EOF in consume_url_token");
+                    return CssToken::Url(url);
+                }
+                _ => {
+                    url.push(self.current_char.unwrap());
+                }
+            }
         }
     }
 
@@ -421,6 +494,19 @@ impl CssTokenizer {
         }
     }
 
+    /// https://www.w3.org/TR/css-syntax-3/#consume-remnants-of-bad-url
+    fn consume_remnants_of_bad_url(&mut self) {
+        loop {
+            match self.consume_input_char() {
+                Some(')') | None => return,
+                _ if self.are_valid_escape(None) => {
+                    self.consume_escaped_char();
+                }
+                Some(_) => {}
+            }
+        }
+    }
+
     /// https://www.w3.org/TR/css-syntax-3/#check-if-two-code-points-are-a-valid-escape
     fn are_valid_escape(&self, chars: Option<Vec<Option<char>>>) -> bool {
         let two_chars = if let Some(chars) = chars {
@@ -501,6 +587,11 @@ impl CssTokenizer {
             },
             _ => false,
         }
+    }
+
+    /// https://w3.org/TR/css-syntax-3/#whitespace
+    fn is_whitespace(&self, c: char) -> bool {
+        matches!(c, '\n' | '\t' | ' ')
     }
 }
 
