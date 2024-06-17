@@ -8,8 +8,7 @@ use crate::css::tokenizer::CssToken;
 
 #[derive(Debug)]
 pub struct CssParser {
-    need_reconsume: bool,
-    tokens: Vec<CssToken>,
+    input: Vec<CssToken>,
     current_pos: usize,
     current_token: Option<CssToken>,
 }
@@ -17,8 +16,7 @@ pub struct CssParser {
 impl CssParser {
     pub fn new(tokens: Vec<CssToken>) -> Self {
         Self {
-            need_reconsume: false,
-            tokens,
+            input: tokens,
             current_pos: 0,
             current_token: None,
         }
@@ -26,6 +24,33 @@ impl CssParser {
 
     pub fn parse(&mut self) -> Result<StyleSheet> {
         Ok(StyleSheet::new(self.consume_list_of_rules()?))
+    }
+
+    /// Returns the next token in the input stream and advances the current position.
+    fn consume_token(&mut self) -> CssToken {
+        let token = if let Some(token) = self.input.get(self.current_pos) {
+            token
+        } else {
+            return CssToken::Eof;
+        };
+        self.current_token = Some(token.clone());
+        self.current_pos += 1;
+        token.to_owned()
+    }
+
+    /// Returns the next token in the input stream without consuming it.
+    fn peek_token(&self) -> CssToken {
+        if let Some(token) = self.input.get(self.current_pos) {
+            token.to_owned()
+        } else {
+            CssToken::Eof
+        }
+    }
+
+    /// The next time an algorithm instructs you to consume the next input token,
+    /// instead do nothing (retain the current input token unchanged).
+    fn recomsume(&mut self) {
+        self.current_pos -= 1;
     }
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-list-of-rules
@@ -43,7 +68,7 @@ impl CssParser {
                     unimplemented!();
                 }
                 _ => {
-                    self.need_reconsume = true;
+                    self.recomsume();
                     rules.push(Rule::QualifiedRule(self.consume_qualified_rule()?.unwrap()));
                 }
             }
@@ -86,7 +111,7 @@ impl CssParser {
                     return Ok(Some(qualified_rule));
                 }
                 _ => {
-                    self.need_reconsume = true;
+                    self.recomsume();
                     selectors_buf.push(self.consume_component_value(None));
                 }
             }
@@ -146,7 +171,7 @@ impl CssParser {
                         return block;
                     }
                     _ => {
-                        self.need_reconsume = true;
+                        self.recomsume();
                         if let ComponentValue::SimpleBlock { values, .. } = &mut block {
                             values.push(self.consume_component_value(None));
                         }
@@ -174,7 +199,7 @@ impl CssParser {
         loop {
             match self.consume_token() {
                 t if t == ending_token => return declarations,
-                CssToken::Whitespace | CssToken::Semicolon => continue,
+                CssToken::Whitespace | CssToken::Semicolon => {}
                 CssToken::Eof => return declarations,
                 CssToken::AtKeyword(_) => {
                     unimplemented!();
@@ -200,7 +225,7 @@ impl CssParser {
                         "parse error in consume_list_of_declarations: {:?}",
                         self.current_token
                     );
-                    self.need_reconsume = true;
+                    self.recomsume();
                     while (self.peek_token() != CssToken::Semicolon)
                         && (self.peek_token() != CssToken::Eof)
                     {
@@ -354,37 +379,13 @@ impl CssParser {
                         return function;
                     }
                     _ => {
-                        self.need_reconsume = true;
+                        self.recomsume();
                         if let ComponentValue::Function { values, .. } = &mut function {
                             values.push(self.consume_component_value(None));
                         }
                     }
                 }
             }
-        }
-    }
-
-    fn consume_token(&mut self) -> CssToken {
-        if self.need_reconsume {
-            self.need_reconsume = false;
-            self.current_token.clone().unwrap()
-        } else {
-            let token = if let Some(token) = self.tokens.get(self.current_pos) {
-                token
-            } else {
-                return CssToken::Eof;
-            };
-            self.current_token = Some(token.clone());
-            self.current_pos += 1;
-            token.to_owned()
-        }
-    }
-
-    fn peek_token(&self) -> CssToken {
-        if let Some(token) = self.tokens.get(self.current_pos) {
-            token.to_owned()
-        } else {
-            CssToken::Eof
         }
     }
 }
