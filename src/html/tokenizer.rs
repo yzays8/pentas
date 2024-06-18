@@ -57,12 +57,12 @@ pub enum HtmlToken {
     // unset, and its attributes list must be empty.
     StartTag {
         tag_name: String,
-        attributes: Vec<(String, String)>, // (name, value)
+        attributes: Vec<(String, String)>, // Vec<(name, value)>
         self_closing: bool,
     },
     EndTag {
         tag_name: String,
-        attributes: Vec<(String, String)>, // (name, value)
+        attributes: Vec<(String, String)>, // Vec<(name, value)>
         self_closing: bool,
     },
 
@@ -85,22 +85,26 @@ impl HtmlTokenizer {
 
     /// When a state says to reconsume a matched character in a specified state, that means to switch to that state,
     /// but when it attempts to consume the next input character, provide it with the current input character instead.
+    /// https://html.spec.whatwg.org/multipage/parsing.html#reconsume
     fn allow_reconsume(&mut self, move_to: TokenizationState) {
         self.state = move_to;
         self.current_pos -= 1;
     }
 
-    fn consume_input_char(&mut self) -> Option<char> {
-        self.input.get(self.current_pos).map(|c| {
-            self.current_pos += 1;
-            *c
-        })
+    /// Returns the next character in the input stream.
+    fn consume_char(&mut self) -> Option<char> {
+        let c = self.input.get(self.current_pos).copied();
+        self.current_pos += 1;
+        c
     }
 
-    fn peek_input_str(&self, len: usize) -> String {
+    /// Returns the next `len` characters from the input stream without consuming them.
+    /// Even if the input stream is shorter than `len`, it will return the characters it can.
+    fn peek_str(&self, len: usize) -> String {
         self.input.iter().skip(self.current_pos).take(len).collect()
     }
 
+    /// This function is called by the HTML parser.
     pub fn change_state(&mut self, new_state: TokenizationState) {
         self.state = new_state;
     }
@@ -111,7 +115,7 @@ impl HtmlTokenizer {
             loop {
                 match self.state {
                     // https://html.spec.whatwg.org/multipage/parsing.html#data-state
-                    TokenizationState::Data => match self.consume_input_char() {
+                    TokenizationState::Data => match self.consume_char() {
                         Some(c) => match c {
                             '&' => {
                                 unimplemented!();
@@ -136,7 +140,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#rawtext-state
-                    TokenizationState::RawText => match self.consume_input_char() {
+                    TokenizationState::RawText => match self.consume_char() {
                         Some(c) => match c {
                             '<' => {
                                 self.state = TokenizationState::RawTextLessThanSign;
@@ -158,7 +162,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#tag-open-state
-                    TokenizationState::TagOpen => match self.consume_input_char() {
+                    TokenizationState::TagOpen => match self.consume_char() {
                         Some(c) => match c {
                             '!' => {
                                 self.state = TokenizationState::MarkupDeclarationOpen;
@@ -190,7 +194,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#end-tag-open-state
-                    TokenizationState::EndTagOpen => match self.consume_input_char() {
+                    TokenizationState::EndTagOpen => match self.consume_char() {
                         Some(c) => match c {
                             c if c.is_ascii_alphabetic() => {
                                 self.current_token = Some(HtmlToken::EndTag {
@@ -220,7 +224,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#tag-name-state
-                    TokenizationState::TagName => match self.consume_input_char() {
+                    TokenizationState::TagName => match self.consume_char() {
                         Some(c) => match c {
                             '\t' | '\n' | '\x0C' | ' ' => {
                                 self.state = TokenizationState::BeforeAttributeName;
@@ -267,7 +271,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#rawtext-less-than-sign-state
-                    TokenizationState::RawTextLessThanSign => match self.consume_input_char() {
+                    TokenizationState::RawTextLessThanSign => match self.consume_char() {
                         Some('/') => {
                             self.temp_buf.clear();
                             self.state = TokenizationState::RawTextEndTagOpen;
@@ -278,7 +282,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#rawtext-end-tag-open-state
-                    TokenizationState::RawTextEndTagOpen => match self.consume_input_char() {
+                    TokenizationState::RawTextEndTagOpen => match self.consume_char() {
                         Some(c) if c.is_ascii_alphabetic() => {
                             self.current_token = Some(HtmlToken::EndTag {
                                 tag_name: String::new(),
@@ -295,39 +299,29 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#rawtext-end-tag-name-state
-                    TokenizationState::RawTextEndTagName => match self.consume_input_char() {
-                        Some(c) => match c {
-                            '\t' | '\n' | '\x0C' | ' ' => {
-                                // todo: check if the current end tag token's tag name is an appropriate end tag name
-                                self.state = TokenizationState::BeforeAttributeName;
+                    TokenizationState::RawTextEndTagName => match self.consume_char() {
+                        Some('\t' | '\n' | '\x0C' | ' ') => {
+                            // todo: check if the current end tag token's tag name is an appropriate end tag name
+                            self.state = TokenizationState::BeforeAttributeName;
+                        }
+                        Some('/') => {
+                            // todo: check if the current end tag token's tag name is an appropriate end tag name
+                            self.state = TokenizationState::SelfClosingStartTag;
+                        }
+                        Some('>') => {
+                            // todo: check if the current end tag token's tag name is an appropriate end tag name
+                            self.state = TokenizationState::Data;
+                            self.output.push_back(self.current_token.clone().unwrap());
+                            break;
+                        }
+                        Some(c) if c.is_ascii() => {
+                            if let Some(HtmlToken::EndTag { tag_name, .. }) =
+                                &mut self.current_token
+                            {
+                                tag_name.push(c.to_ascii_lowercase());
                             }
-                            '/' => {
-                                // todo: check if the current end tag token's tag name is an appropriate end tag name
-                                self.state = TokenizationState::SelfClosingStartTag;
-                            }
-                            '>' => {
-                                // todo: check if the current end tag token's tag name is an appropriate end tag name
-                                self.state = TokenizationState::Data;
-                                self.output.push_back(self.current_token.clone().unwrap());
-                                break;
-                            }
-                            c if c.is_ascii() => {
-                                if let Some(HtmlToken::EndTag { tag_name, .. }) =
-                                    &mut self.current_token
-                                {
-                                    tag_name.push(c.to_ascii_lowercase());
-                                }
-                                self.temp_buf.push(c);
-                            }
-                            _ => {
-                                self.output.push_back(HtmlToken::Character('<'));
-                                self.output.push_back(HtmlToken::Character('/'));
-                                for c in &self.temp_buf {
-                                    self.output.push_back(HtmlToken::Character(*c));
-                                }
-                                self.allow_reconsume(TokenizationState::RawText);
-                            }
-                        },
+                            self.temp_buf.push(c);
+                        }
                         _ => {
                             self.output.push_back(HtmlToken::Character('<'));
                             self.output.push_back(HtmlToken::Character('/'));
@@ -339,7 +333,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#before-attribute-name-state
-                    TokenizationState::BeforeAttributeName => match self.consume_input_char() {
+                    TokenizationState::BeforeAttributeName => match self.consume_char() {
                         Some(c) => match c {
                             '\t' | '\n' | '\x0C' | ' ' => {
                                 continue;
@@ -375,7 +369,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#attribute-name-state
-                    TokenizationState::AttributeName => match self.consume_input_char() {
+                    TokenizationState::AttributeName => match self.consume_char() {
                         // todo: UA needs to check if current attribute's name is already in the attributes list before leaving this state
                         Some(c) => match c {
                             '\t' | '\n' | '\x0C' | ' ' | '/' | '>' => {
@@ -424,7 +418,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#after-attribute-name-state
-                    TokenizationState::AfterAttributeName => match self.consume_input_char() {
+                    TokenizationState::AfterAttributeName => match self.consume_char() {
                         Some(c) => match c {
                             '\t' | '\n' | '\x0C' | ' ' => {
                                 continue;
@@ -458,106 +452,97 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#before-attribute-value-state
-                    TokenizationState::BeforeAttributeValue => match self.consume_input_char() {
-                        Some(c) => match c {
-                            '\t' | '\n' | '\x0C' | ' ' => {
-                                continue;
-                            }
-                            '"' => {
-                                self.state = TokenizationState::AttributeValueDoubleQuoted;
-                            }
-                            '\'' => {
-                                self.state = TokenizationState::AttributeValueSingleQuoted;
-                            }
-                            '>' => {
-                                eprintln!("missing-attribute-value parse error");
-                                self.state = TokenizationState::Data;
-                                self.output.push_back(self.current_token.clone().unwrap());
-                                break;
-                            }
-                            _ => {
-                                self.allow_reconsume(TokenizationState::AttributeValueUnquoted);
-                            }
-                        },
+                    TokenizationState::BeforeAttributeValue => match self.consume_char() {
+                        Some('\t' | '\n' | '\x0C' | ' ') => {
+                            continue;
+                        }
+                        Some('"') => {
+                            self.state = TokenizationState::AttributeValueDoubleQuoted;
+                        }
+                        Some('\'') => {
+                            self.state = TokenizationState::AttributeValueSingleQuoted;
+                        }
+                        Some('>') => {
+                            eprintln!("missing-attribute-value parse error");
+                            self.state = TokenizationState::Data;
+                            self.output.push_back(self.current_token.clone().unwrap());
+                            break;
+                        }
                         _ => {
                             self.allow_reconsume(TokenizationState::AttributeValueUnquoted);
                         }
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#attribute-value-(double-quoted)-state
-                    TokenizationState::AttributeValueDoubleQuoted => {
-                        match self.consume_input_char() {
-                            Some(c) => match c {
-                                '"' => {
-                                    self.state = TokenizationState::AfterAttributeValueQuoted;
-                                }
-                                '&' => {
-                                    unimplemented!();
-                                }
-                                '\u{0000}' => {
-                                    eprintln!("unexpected-null-character parse error");
-                                    if let Some(HtmlToken::StartTag { attributes, .. })
-                                    | Some(HtmlToken::EndTag { attributes, .. }) =
-                                        &mut self.current_token
-                                    {
-                                        attributes.last_mut().unwrap().1.push('\u{FFFD}');
-                                    }
-                                }
-                                _ => {
-                                    if let Some(HtmlToken::StartTag { attributes, .. })
-                                    | Some(HtmlToken::EndTag { attributes, .. }) =
-                                        &mut self.current_token
-                                    {
-                                        attributes.last_mut().unwrap().1.push(c);
-                                    }
-                                }
-                            },
-                            None => {
-                                eprintln!("eof-in-tag parse error");
-                                self.output.push_back(HtmlToken::Eof);
-                                break;
+                    TokenizationState::AttributeValueDoubleQuoted => match self.consume_char() {
+                        Some(c) => match c {
+                            '"' => {
+                                self.state = TokenizationState::AfterAttributeValueQuoted;
                             }
+                            '&' => {
+                                unimplemented!();
+                            }
+                            '\u{0000}' => {
+                                eprintln!("unexpected-null-character parse error");
+                                if let Some(HtmlToken::StartTag { attributes, .. })
+                                | Some(HtmlToken::EndTag { attributes, .. }) =
+                                    &mut self.current_token
+                                {
+                                    attributes.last_mut().unwrap().1.push('\u{FFFD}');
+                                }
+                            }
+                            _ => {
+                                if let Some(HtmlToken::StartTag { attributes, .. })
+                                | Some(HtmlToken::EndTag { attributes, .. }) =
+                                    &mut self.current_token
+                                {
+                                    attributes.last_mut().unwrap().1.push(c);
+                                }
+                            }
+                        },
+                        None => {
+                            eprintln!("eof-in-tag parse error");
+                            self.output.push_back(HtmlToken::Eof);
+                            break;
                         }
-                    }
+                    },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#attribute-value-(single-quoted)-state
-                    TokenizationState::AttributeValueSingleQuoted => {
-                        match self.consume_input_char() {
-                            Some(c) => match c {
-                                '\'' => {
-                                    self.state = TokenizationState::AfterAttributeValueQuoted;
-                                }
-                                '&' => {
-                                    unimplemented!();
-                                }
-                                '\u{0000}' => {
-                                    eprintln!("unexpected-null-character parse error");
-                                    if let Some(HtmlToken::StartTag { attributes, .. })
-                                    | Some(HtmlToken::EndTag { attributes, .. }) =
-                                        &mut self.current_token
-                                    {
-                                        attributes.last_mut().unwrap().1.push('\u{FFFD}');
-                                    }
-                                }
-                                _ => {
-                                    if let Some(HtmlToken::StartTag { attributes, .. })
-                                    | Some(HtmlToken::EndTag { attributes, .. }) =
-                                        &mut self.current_token
-                                    {
-                                        attributes.last_mut().unwrap().1.push(c);
-                                    }
-                                }
-                            },
-                            None => {
-                                eprintln!("eof-in-tag parse error");
-                                self.output.push_back(HtmlToken::Eof);
-                                break;
+                    TokenizationState::AttributeValueSingleQuoted => match self.consume_char() {
+                        Some(c) => match c {
+                            '\'' => {
+                                self.state = TokenizationState::AfterAttributeValueQuoted;
                             }
+                            '&' => {
+                                unimplemented!();
+                            }
+                            '\u{0000}' => {
+                                eprintln!("unexpected-null-character parse error");
+                                if let Some(HtmlToken::StartTag { attributes, .. })
+                                | Some(HtmlToken::EndTag { attributes, .. }) =
+                                    &mut self.current_token
+                                {
+                                    attributes.last_mut().unwrap().1.push('\u{FFFD}');
+                                }
+                            }
+                            _ => {
+                                if let Some(HtmlToken::StartTag { attributes, .. })
+                                | Some(HtmlToken::EndTag { attributes, .. }) =
+                                    &mut self.current_token
+                                {
+                                    attributes.last_mut().unwrap().1.push(c);
+                                }
+                            }
+                        },
+                        None => {
+                            eprintln!("eof-in-tag parse error");
+                            self.output.push_back(HtmlToken::Eof);
+                            break;
                         }
-                    }
+                    },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#attribute-value-(unquoted)-state
-                    TokenizationState::AttributeValueUnquoted => match self.consume_input_char() {
+                    TokenizationState::AttributeValueUnquoted => match self.consume_char() {
                         Some(c) => match c {
                             '\t' | '\n' | '\x0C' | ' ' => {
                                 self.state = TokenizationState::BeforeAttributeName;
@@ -599,8 +584,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#after-attribute-value-(quoted)-state
-                    TokenizationState::AfterAttributeValueQuoted => match self.consume_input_char()
-                    {
+                    TokenizationState::AfterAttributeValueQuoted => match self.consume_char() {
                         Some(c) => match c {
                             '\t' | '\n' | '\x0C' | ' ' => {
                                 self.state = TokenizationState::BeforeAttributeName;
@@ -626,7 +610,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#self-closing-start-tag-state
-                    TokenizationState::SelfClosingStartTag => match self.consume_input_char() {
+                    TokenizationState::SelfClosingStartTag => match self.consume_char() {
                         Some(c) => match c {
                             '>' => {
                                 if let Some(HtmlToken::StartTag { self_closing, .. })
@@ -652,7 +636,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#bogus-comment-state
-                    TokenizationState::BogusComment => match self.consume_input_char() {
+                    TokenizationState::BogusComment => match self.consume_char() {
                         Some(c) => match c {
                             '>' => {
                                 self.state = TokenizationState::Data;
@@ -680,12 +664,12 @@ impl HtmlTokenizer {
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#markup-declaration-open-state
                     TokenizationState::MarkupDeclarationOpen => {
-                        if self.peek_input_str(2) == "--" {
+                        if self.peek_str(2) == "--" {
                             unimplemented!();
-                        } else if self.peek_input_str(7).to_uppercase() == "DOCTYPE" {
+                        } else if self.peek_str(7).to_uppercase() == "DOCTYPE" {
                             self.current_pos += 7;
                             self.state = TokenizationState::Doctype;
-                        } else if self.peek_input_str(7) == "[CDATA[" {
+                        } else if self.peek_str(7) == "[CDATA[" {
                             unimplemented!();
                         } else {
                             eprintln!("incorrectly-opened-comment parse error");
@@ -695,7 +679,7 @@ impl HtmlTokenizer {
                     }
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#doctype-state
-                    TokenizationState::Doctype => match self.consume_input_char() {
+                    TokenizationState::Doctype => match self.consume_char() {
                         Some(c) => match c {
                             '\t' | '\n' | '\x0C' | ' ' => {
                                 self.state = TokenizationState::BeforeDoctypeName;
@@ -723,7 +707,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#before-doctype-name-state
-                    TokenizationState::BeforeDoctypeName => match self.consume_input_char() {
+                    TokenizationState::BeforeDoctypeName => match self.consume_char() {
                         Some(c) => match c {
                             '\t' | '\n' | '\x0C' | ' ' => {
                                 continue;
@@ -784,7 +768,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#doctype-name-state
-                    TokenizationState::DoctypeName => match self.consume_input_char() {
+                    TokenizationState::DoctypeName => match self.consume_char() {
                         Some(c) => match c {
                             '\t' | '\n' | '\x0C' | ' ' => {
                                 self.state = TokenizationState::AfterDoctypeName;
@@ -834,7 +818,7 @@ impl HtmlTokenizer {
                     },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#after-doctype-name-state
-                    TokenizationState::AfterDoctypeName => match self.consume_input_char() {
+                    TokenizationState::AfterDoctypeName => match self.consume_char() {
                         Some(c) => match c {
                             '\t' | '\n' | '\x0C' | ' ' => {
                                 continue;
@@ -876,33 +860,33 @@ mod tests {
     #[test]
     fn test_consume_char() {
         let mut tokenizer = HtmlTokenizer::new("he llo, world!\n");
-        assert_eq!(tokenizer.consume_input_char(), Some('h'));
-        assert_eq!(tokenizer.consume_input_char(), Some('e'));
-        assert_eq!(tokenizer.consume_input_char(), Some(' '));
-        assert_eq!(tokenizer.consume_input_char(), Some('l'));
-        assert_eq!(tokenizer.consume_input_char(), Some('l'));
-        assert_eq!(tokenizer.consume_input_char(), Some('o'));
-        assert_eq!(tokenizer.consume_input_char(), Some(','));
+        assert_eq!(tokenizer.consume_char(), Some('h'));
+        assert_eq!(tokenizer.consume_char(), Some('e'));
+        assert_eq!(tokenizer.consume_char(), Some(' '));
+        assert_eq!(tokenizer.consume_char(), Some('l'));
+        assert_eq!(tokenizer.consume_char(), Some('l'));
+        assert_eq!(tokenizer.consume_char(), Some('o'));
+        assert_eq!(tokenizer.consume_char(), Some(','));
         tokenizer.current_pos -= 1;
-        assert_eq!(tokenizer.consume_input_char(), Some(','));
-        assert_eq!(tokenizer.consume_input_char(), Some(' '));
-        assert_eq!(tokenizer.consume_input_char(), Some('w'));
-        assert_eq!(tokenizer.consume_input_char(), Some('o'));
-        assert_eq!(tokenizer.consume_input_char(), Some('r'));
-        assert_eq!(tokenizer.consume_input_char(), Some('l'));
+        assert_eq!(tokenizer.consume_char(), Some(','));
+        assert_eq!(tokenizer.consume_char(), Some(' '));
+        assert_eq!(tokenizer.consume_char(), Some('w'));
+        assert_eq!(tokenizer.consume_char(), Some('o'));
+        assert_eq!(tokenizer.consume_char(), Some('r'));
+        assert_eq!(tokenizer.consume_char(), Some('l'));
         tokenizer.current_pos -= 1;
-        assert_eq!(tokenizer.consume_input_char(), Some('l'));
-        assert_eq!(tokenizer.consume_input_char(), Some('d'));
-        assert_eq!(tokenizer.consume_input_char(), Some('!'));
-        assert_eq!(tokenizer.consume_input_char(), Some('\n'));
-        assert_eq!(tokenizer.consume_input_char(), None);
+        assert_eq!(tokenizer.consume_char(), Some('l'));
+        assert_eq!(tokenizer.consume_char(), Some('d'));
+        assert_eq!(tokenizer.consume_char(), Some('!'));
+        assert_eq!(tokenizer.consume_char(), Some('\n'));
+        assert_eq!(tokenizer.consume_char(), None);
     }
 
     #[test]
     fn test_peek_input_str() {
         let tokenizer = HtmlTokenizer::new("hello");
-        assert_eq!(tokenizer.peek_input_str(5), "hello");
-        assert_eq!(tokenizer.peek_input_str(3), "hel");
+        assert_eq!(tokenizer.peek_str(5), "hello");
+        assert_eq!(tokenizer.peek_str(3), "hel");
     }
 
     #[test]
