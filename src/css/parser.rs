@@ -22,6 +22,8 @@ impl CssParser {
         }
     }
 
+    /// This is `Parse a stylesheet` entry point (normal parser entry point).
+    /// https://www.w3.org/TR/css-syntax-3/#parse-stylesheet
     pub fn parse(&mut self) -> Result<StyleSheet> {
         Ok(StyleSheet::new(self.consume_list_of_rules()?))
     }
@@ -31,6 +33,7 @@ impl CssParser {
         let token = if let Some(token) = self.input.get(self.current_pos) {
             token
         } else {
+            // Whenever the list of tokens is empty, the next input token is always an <EOF-token>.
             return CssToken::Eof;
         };
         self.current_token = Some(token.clone());
@@ -43,12 +46,12 @@ impl CssParser {
         if let Some(token) = self.input.get(self.current_pos) {
             token.to_owned()
         } else {
+            // Whenever the list of tokens is empty, the next input token is always an <EOF-token>.
             CssToken::Eof
         }
     }
 
-    /// The next time an algorithm instructs you to consume the next input token,
-    /// instead do nothing (retain the current input token unchanged).
+    /// https://www.w3.org/TR/css-syntax-3/#reconsume-the-current-input-token
     fn recomsume(&mut self) {
         self.current_pos -= 1;
     }
@@ -78,8 +81,7 @@ impl CssParser {
     /// https://www.w3.org/TR/css-syntax-3/#consume-a-qualified-rule
     fn consume_qualified_rule(&mut self) -> Result<Option<QualifiedRule>> {
         let mut qualified_rule = QualifiedRule {
-            // A prelude for style rules is a selector.
-            // https://www.w3.org/TR/css-syntax-3/#syntax-description
+            // The prelude of the qualified rule is parsed as a <selector-list>.
             selectors: Vec::new(),
             declarations: Vec::new(),
         };
@@ -92,6 +94,9 @@ impl CssParser {
                     return Ok(None);
                 }
                 CssToken::OpenBrace => {
+                    // Here, the consume-list-of-declarations algorithm should be called on the
+                    // result (a list of ComponentValue) after calling the consume-simple-block algorithm,
+                    // but for the sake of simplicity, the consume-list-of-declarations algorithm is called from the beginning.
                     qualified_rule
                         .declarations
                         .extend(self.consume_list_of_declarations());
@@ -104,6 +109,8 @@ impl CssParser {
                         selectors_buf.pop();
                     }
 
+                    // If the selector parsing fails, the the entire style rule is invalid, which means it must be ignored.
+                    // This implementation stops parsing the CSS and returns an error in this case, instead of ignoring the rule.
                     qualified_rule
                         .selectors
                         .extend(SelectorParser::new(selectors_buf).parse()?);
@@ -112,25 +119,19 @@ impl CssParser {
                 }
                 _ => {
                     self.recomsume();
-                    selectors_buf.push(self.consume_component_value(None));
+                    selectors_buf.push(self.consume_component_value());
                 }
             }
         }
     }
 
-    /// Consumes a function from the specified list of component values and the current token or default input stream.
     /// https://www.w3.org/TR/css-syntax-3/#consume-simple-block
-    fn consume_simple_block(
-        &mut self,
-        component_values: Option<VecDeque<ComponentValue>>,
-        current_token: Option<CssToken>,
-    ) -> ComponentValue {
-        let current_token = if let Some(t) = current_token {
-            t
-        } else {
-            self.current_token.as_ref().unwrap().clone()
-        };
-        let ending_token = match current_token {
+    fn consume_simple_block(&mut self) -> ComponentValue {
+        assert!(self.current_token.as_ref().is_some_and(|t| matches!(
+            t,
+            CssToken::OpenBrace | CssToken::OpenParenthesis | CssToken::OpenSquareBracket
+        )));
+        let ending_token = match self.current_token.as_ref().unwrap() {
             CssToken::OpenBrace => CssToken::CloseBrace,
             CssToken::OpenParenthesis => CssToken::CloseParenthesis,
             CssToken::OpenSquareBracket => CssToken::CloseSquareBracket,
@@ -139,42 +140,21 @@ impl CssParser {
             }
         };
         let mut block = ComponentValue::SimpleBlock {
-            associated_token: current_token.clone(),
+            associated_token: self.current_token.as_ref().unwrap().clone(),
             values: Vec::new(),
         };
 
-        if component_values.is_some() {
-            let mut component_values = component_values.unwrap();
-            loop {
-                match component_values.pop_front().unwrap() {
-                    ComponentValue::PreservedToken(t) if t == ending_token => return block,
-                    ComponentValue::PreservedToken(CssToken::Eof) => {
-                        eprintln!("parse error in consume_simple_block");
-                        return block;
-                    }
-                    v => {
-                        component_values.push_front(v); // reconsume
-                        if let ComponentValue::SimpleBlock { values, .. } = &mut block {
-                            values.push(self.consume_component_value(Some(From::from(
-                                component_values.clone(),
-                            ))));
-                        }
-                    }
+        loop {
+            match self.consume_token() {
+                t if t == ending_token => return block,
+                CssToken::Eof => {
+                    eprintln!("parse error in consume_simple_block");
+                    return block;
                 }
-            }
-        } else {
-            loop {
-                match self.consume_token() {
-                    t if t == ending_token => return block,
-                    CssToken::Eof => {
-                        eprintln!("parse error in consume_simple_block");
-                        return block;
-                    }
-                    _ => {
-                        self.recomsume();
-                        if let ComponentValue::SimpleBlock { values, .. } = &mut block {
-                            values.push(self.consume_component_value(None));
-                        }
+                _ => {
+                    self.recomsume();
+                    if let ComponentValue::SimpleBlock { values, .. } = &mut block {
+                        values.push(self.consume_component_value());
                     }
                 }
             }
@@ -183,10 +163,13 @@ impl CssParser {
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-list-of-declarations
     fn consume_list_of_declarations(&mut self) -> Vec<Declaration> {
+        assert!(self.current_token.as_ref().is_some_and(|t| matches!(
+            t,
+            CssToken::OpenBrace | CssToken::OpenParenthesis | CssToken::OpenSquareBracket
+        )));
         let mut declarations = Vec::new();
 
-        // Partially follows the consume simple block algorithm.
-        // https://www.w3.org/TR/css-syntax-3/#consume-simple-block
+        // Partially follows the consume-simple-block algorithm.
         let ending_token = match self.current_token.as_ref().unwrap() {
             CssToken::OpenBrace => CssToken::CloseBrace,
             CssToken::OpenParenthesis => CssToken::CloseParenthesis,
@@ -205,18 +188,15 @@ impl CssParser {
                     unimplemented!();
                 }
                 CssToken::Ident(_) => {
-                    // todo
                     let mut tmp_token_list = vec![ComponentValue::PreservedToken(
                         self.current_token.clone().unwrap(),
                     )];
                     while (self.peek_token() != CssToken::Semicolon)
                         && (self.peek_token() != CssToken::Eof)
                     {
-                        tmp_token_list.push(self.consume_component_value(None));
+                        tmp_token_list.push(self.consume_component_value());
                     }
-                    if let Some(declaration) =
-                        self.consume_declaration(VecDeque::from(tmp_token_list))
-                    {
+                    if let Some(declaration) = self.consume_declaration(tmp_token_list) {
                         declarations.push(declaration);
                     }
                 }
@@ -229,23 +209,27 @@ impl CssParser {
                     while (self.peek_token() != CssToken::Semicolon)
                         && (self.peek_token() != CssToken::Eof)
                     {
-                        self.consume_component_value(None);
+                        self.consume_component_value();
                     }
                 }
             }
         }
     }
 
-    /// This function is intended to be called for a given list of component values, not for default input.
+    /// This function is intended to be called for a given list of component values, not for default input stream.
     /// https://www.w3.org/TR/css-syntax-3/#consume-declaration
     fn consume_declaration(
         &mut self,
-        mut component_values: VecDeque<ComponentValue>,
+        component_values: Vec<ComponentValue>,
     ) -> Option<Declaration> {
+        let mut component_values = VecDeque::from(component_values);
+        assert!(component_values
+            .front()
+            .is_some_and(|t| matches!(t, ComponentValue::PreservedToken(CssToken::Ident(_)))));
         let Some(ComponentValue::PreservedToken(CssToken::Ident(name))) =
             component_values.pop_front()
         else {
-            unreachable!();
+            unreachable!()
         };
         let mut declaration = Declaration {
             name,
@@ -268,7 +252,7 @@ impl CssParser {
         {
             component_values.pop_front();
         }
-        // todo: consume a component value here
+
         while component_values.front().is_some()
             && (component_values.front() != Some(&ComponentValue::PreservedToken(CssToken::Eof)))
         {
@@ -296,54 +280,26 @@ impl CssParser {
         Some(declaration)
     }
 
-    /// Consumes a component value from the specified list of component values or the default input stream.
     /// https://www.w3.org/TR/css-syntax-3/#consume-a-component-value
-    fn consume_component_value(
-        &mut self,
-        component_values: Option<Vec<ComponentValue>>,
-    ) -> ComponentValue {
-        if component_values.is_some() {
-            let mut component_values = VecDeque::from(component_values.unwrap());
-            let ComponentValue::PreservedToken(token) = component_values.pop_front().unwrap()
-            else {
-                unreachable!();
-            };
-            if let CssToken::OpenParenthesis | CssToken::OpenSquareBracket | CssToken::OpenBrace =
-                token
-            {
-                self.consume_simple_block(Some(component_values), Some(token))
-            } else if let CssToken::Function(_) = token {
-                self.consume_function(Some(component_values), Some(token))
-            } else {
-                ComponentValue::PreservedToken(token)
-            }
+    fn consume_component_value(&mut self) -> ComponentValue {
+        let token = self.consume_token();
+        if let CssToken::OpenParenthesis | CssToken::OpenSquareBracket | CssToken::OpenBrace = token
+        {
+            self.consume_simple_block()
+        } else if let CssToken::Function(_) = token {
+            self.consume_function()
         } else {
-            let token = self.consume_token();
-            if let CssToken::OpenParenthesis | CssToken::OpenSquareBracket | CssToken::OpenBrace =
-                token
-            {
-                self.consume_simple_block(None, None)
-            } else if let CssToken::Function(_) = token {
-                self.consume_function(None, None)
-            } else {
-                ComponentValue::PreservedToken(token)
-            }
+            ComponentValue::PreservedToken(token)
         }
     }
 
-    /// Consumes a function from the specified list of component values and the current token or default input stream.
     /// https://www.w3.org/TR/css-syntax-3/#consume-function
-    fn consume_function(
-        &mut self,
-        component_values: Option<VecDeque<ComponentValue>>,
-        current_token: Option<CssToken>,
-    ) -> ComponentValue {
-        let current_token = if let Some(t) = current_token {
-            t
-        } else {
-            self.current_token.as_ref().unwrap().clone()
-        };
-        let CssToken::Function(name) = current_token else {
+    fn consume_function(&mut self) -> ComponentValue {
+        assert!(self
+            .current_token
+            .as_ref()
+            .is_some_and(|t| matches!(t, CssToken::Function(_))));
+        let CssToken::Function(name) = self.current_token.as_ref().unwrap() else {
             unreachable!();
         };
         let mut function = ComponentValue::Function {
@@ -351,38 +307,17 @@ impl CssParser {
             values: Vec::new(),
         };
 
-        if component_values.is_some() {
-            let mut component_values = component_values.unwrap();
-            loop {
-                match component_values.pop_front().unwrap() {
-                    ComponentValue::PreservedToken(CssToken::CloseParenthesis) => return function,
-                    ComponentValue::PreservedToken(CssToken::Eof) => {
-                        eprintln!("parse error in consume_function");
-                        return function;
-                    }
-                    v => {
-                        component_values.push_front(v); // reconsume
-                        if let ComponentValue::Function { values, .. } = &mut function {
-                            values.push(self.consume_component_value(Some(From::from(
-                                component_values.clone(),
-                            ))));
-                        }
-                    }
+        loop {
+            match &self.consume_token() {
+                CssToken::CloseParenthesis => return function,
+                CssToken::Eof => {
+                    eprintln!("parse error in consume_function");
+                    return function;
                 }
-            }
-        } else {
-            loop {
-                match &self.consume_token() {
-                    CssToken::CloseParenthesis => return function,
-                    CssToken::Eof => {
-                        eprintln!("parse error in consume_function");
-                        return function;
-                    }
-                    _ => {
-                        self.recomsume();
-                        if let ComponentValue::Function { values, .. } = &mut function {
-                            values.push(self.consume_component_value(None));
-                        }
+                _ => {
+                    self.recomsume();
+                    if let ComponentValue::Function { values, .. } = &mut function {
+                        values.push(self.consume_component_value());
                     }
                 }
             }
