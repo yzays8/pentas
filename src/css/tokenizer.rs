@@ -337,10 +337,7 @@ impl CssTokenizer {
                 self.consume_char();
             }
             match self.peek_chars(2)[..] {
-                [Some('"'), _]
-                | [Some('\''), _]
-                | [Some(' '), Some('"')]
-                | [Some(' '), Some('\'')] => CssToken::Function(string),
+                [Some('"' | '\''), _] | [Some(' '), Some('"' | '\'')] => CssToken::Function(string),
                 _ => self.consume_url_token(),
             }
         } else if self.peek_char() == Some('(') {
@@ -360,13 +357,15 @@ impl CssTokenizer {
         loop {
             match self.consume_char() {
                 Some(')') => return CssToken::Url(url),
-                Some('"')
-                | Some('\'')
-                | Some('(')
-                | Some('\u{0000}'..='\u{0008}')
-                | Some('\u{000B}')
-                | Some('\u{000E}'..='\u{001F}')
-                | Some('\u{007F}') => {
+                Some(
+                    '"'
+                    | '\''
+                    | '('
+                    | '\u{0000}'..='\u{0008}'
+                    | '\u{000B}'
+                    | '\u{000E}'..='\u{001F}'
+                    | '\u{007F}',
+                ) => {
                     eprintln!("parse error: invalid character in consume_url_token");
                     self.consume_remnants_of_bad_url();
                     return CssToken::BadUrl;
@@ -445,7 +444,7 @@ impl CssTokenizer {
         let mut repr = String::new();
         let mut type_flag = TypeFlag::Integer;
 
-        if let Some('+') | Some('-') = self.peek_char() {
+        if let Some('+' | '-') = self.peek_char() {
             repr.push(self.consume_char().unwrap());
         }
 
@@ -462,16 +461,14 @@ impl CssTokenizer {
             type_flag = TypeFlag::Number;
         }
 
-        if let [Some('E') | Some('e'), Some('0'..='9')] = self.peek_chars(2)[..] {
+        if let [Some('E' | 'e'), Some('0'..='9')] = self.peek_chars(2)[..] {
             repr.push(self.consume_char().unwrap());
             repr.push(self.consume_char().unwrap());
             while let Some('0'..='9') = self.peek_char() {
                 repr.push(self.consume_char().unwrap());
             }
             type_flag = TypeFlag::Number;
-        } else if let [Some('E') | Some('e'), Some('+') | Some('-'), Some('0'..='9')] =
-            self.peek_chars(3)[..]
-        {
+        } else if let [Some('E' | 'e'), Some('+' | '-'), Some('0'..='9')] = self.peek_chars(3)[..] {
             repr.push(self.consume_char().unwrap());
             repr.push(self.consume_char().unwrap());
             repr.push(self.consume_char().unwrap());
@@ -518,8 +515,8 @@ impl CssTokenizer {
             (Some('-'), Some('-'), _) => true,
             (Some('-'), Some(c), _) if Self::is_ident_start_char(c) => true,
             (Some('-'), c1, c2) if Self::are_valid_escape(&[c1, c2]) => true,
-            (Some(c), _, _) if Self::is_ident_start_char(c) => true,
             (Some('\\'), c, _) if Self::are_valid_escape(&[Some('\\'), c]) => true,
+            (Some(c), _, _) if Self::is_ident_start_char(c) => true,
             _ => false,
         }
     }
@@ -530,9 +527,8 @@ impl CssTokenizer {
         matches!(
             (chars[0], chars[1], chars[2]),
             (Some('0'..='9'), _, _)
-                | (Some('+') | Some('-'), Some('0'..='9'), _)
-                | (Some('+') | Some('-'), Some('.'), Some('0'..='9'))
-                | (Some('.'), Some('0'..='9'), _)
+                | (Some('+' | '-' | '.'), Some('0'..='9'), _)
+                | (Some('+' | '-'), Some('.'), Some('0'..='9'))
         )
     }
 }
