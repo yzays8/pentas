@@ -203,7 +203,7 @@ impl HtmlParser {
                     InsertionMode::InHead => {
                         match &token {
                             HtmlToken::Character(c) if Self::is_blank(*c) => {
-                                // Ignore the token
+                                self.insert_char_to_token(*c);
                             }
                             HtmlToken::Comment(comment) => {
                                 self.insert_comment(comment.clone());
