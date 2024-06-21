@@ -21,6 +21,11 @@ pub enum TokenizationState {
     AfterAttributeValueQuoted,
     BogusComment,
     MarkupDeclarationOpen,
+    CommentStart,
+    CommentStartDash,
+    Comment,
+    CommentEndDash,
+    CommentEnd,
     Doctype,
     BeforeDoctypeName,
     DoctypeName,
@@ -665,7 +670,9 @@ impl HtmlTokenizer {
                     // https://html.spec.whatwg.org/multipage/parsing.html#markup-declaration-open-state
                     TokenizationState::MarkupDeclarationOpen => {
                         if self.peek_str(2) == "--" {
-                            unimplemented!();
+                            self.current_pos += 2;
+                            self.current_token = Some(HtmlToken::Comment(String::new()));
+                            self.state = TokenizationState::CommentStart;
                         } else if self.peek_str(7).to_uppercase() == "DOCTYPE" {
                             self.current_pos += 7;
                             self.state = TokenizationState::Doctype;
@@ -677,6 +684,135 @@ impl HtmlTokenizer {
                             self.state = TokenizationState::BogusComment;
                         }
                     }
+
+                    // https://html.spec.whatwg.org/multipage/parsing.html#comment-start-state
+                    TokenizationState::CommentStart => match self.consume_char() {
+                        Some('-') => {
+                            self.state = TokenizationState::CommentStartDash;
+                        }
+                        Some('>') => {
+                            eprintln!("abrupt-closing-of-empty-comment parse error");
+                            self.state = TokenizationState::Data;
+                            self.output.push_back(self.current_token.clone().unwrap());
+                            break;
+                        }
+                        _ => {
+                            self.allow_reconsume(TokenizationState::Comment);
+                        }
+                    },
+
+                    // https://html.spec.whatwg.org/multipage/parsing.html#comment-start-dash-state
+                    TokenizationState::CommentStartDash => match self.consume_char() {
+                        Some(c) => match c {
+                            '-' => {
+                                self.state = TokenizationState::CommentEnd;
+                            }
+                            '>' => {
+                                eprintln!("abrupt-closing-of-empty-comment parse error");
+                                self.state = TokenizationState::Data;
+                                self.output.push_back(self.current_token.clone().unwrap());
+                                break;
+                            }
+                            _ => {
+                                if let Some(HtmlToken::Comment(comment)) = &mut self.current_token {
+                                    comment.push('-');
+                                }
+                                self.allow_reconsume(TokenizationState::Comment);
+                            }
+                        },
+                        None => {
+                            eprintln!("eof-in-comment parse error");
+                            self.output.push_back(self.current_token.clone().unwrap());
+                            self.output.push_back(HtmlToken::Eof);
+                            break;
+                        }
+                    },
+
+                    // https://html.spec.whatwg.org/multipage/parsing.html#comment-state
+                    TokenizationState::Comment => match self.consume_char() {
+                        Some(c) => match c {
+                            '<' => {
+                                if let Some(HtmlToken::Comment(comment)) = &mut self.current_token {
+                                    comment.push(c);
+                                }
+                                todo!()
+                            }
+                            '-' => {
+                                self.state = TokenizationState::CommentEndDash;
+                            }
+                            '\u{0000}' => {
+                                eprintln!("unexpected-null-character parse error");
+                                if let Some(HtmlToken::Comment(comment)) = &mut self.current_token {
+                                    comment.push('\u{FFFD}');
+                                }
+                            }
+                            _ => {
+                                if let Some(HtmlToken::Comment(comment)) = &mut self.current_token {
+                                    comment.push(c);
+                                }
+                            }
+                        },
+                        None => {
+                            eprintln!("eof-in-comment parse error");
+                            self.output.push_back(self.current_token.clone().unwrap());
+                            self.output.push_back(HtmlToken::Eof);
+                            break;
+                        }
+                    },
+
+                    // https://html.spec.whatwg.org/multipage/parsing.html#comment-end-dash-state
+                    TokenizationState::CommentEndDash => match self.consume_char() {
+                        Some(c) => match c {
+                            '-' => {
+                                self.state = TokenizationState::CommentEnd;
+                            }
+                            _ => {
+                                if let Some(HtmlToken::Comment(comment)) = &mut self.current_token {
+                                    comment.push('-');
+                                }
+                                self.allow_reconsume(TokenizationState::Comment);
+                            }
+                        },
+                        None => {
+                            eprintln!("eof-in-comment parse error");
+                            self.output.push_back(self.current_token.clone().unwrap());
+                            self.output.push_back(HtmlToken::Eof);
+                            break;
+                        }
+                    },
+
+                    // https://html.spec.whatwg.org/multipage/parsing.html#comment-end-state
+                    TokenizationState::CommentEnd => match self.consume_char() {
+                        Some(c) => match c {
+                            '>' => {
+                                self.state = TokenizationState::Data;
+                                self.output.push_back(self.current_token.clone().unwrap());
+                                break;
+                            }
+                            '!' => {
+                                unimplemented!();
+                            }
+                            '-' => {
+                                if let Some(HtmlToken::Comment(comment)) = &mut self.current_token {
+                                    comment.push('-');
+                                }
+                            }
+                            _ => {
+                                if let Some(HtmlToken::Comment(comment)) = &mut self.current_token {
+                                    comment.push('-');
+                                    comment.push('-');
+                                    comment.push(c);
+                                }
+                                self.allow_reconsume(TokenizationState::Comment);
+                            }
+                        },
+                        None => {
+                            eprintln!("eof-in-comment parse error");
+                            self.output.push_back(self.current_token.clone().unwrap());
+                            self.output.push_back(HtmlToken::Eof);
+                            break;
+                        }
+                    },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#doctype-state
                     TokenizationState::Doctype => match self.consume_char() {

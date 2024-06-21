@@ -215,6 +215,9 @@ impl HtmlParser {
                             HtmlToken::Character(c) if self.is_blank(*c) => {
                                 // Ignore the token
                             }
+                            HtmlToken::Comment(comment) => {
+                                self.insert_comment(comment.clone());
+                            }
                             HtmlToken::Doctype { .. } => {
                                 eprintln!("parse error, ignored the token: {:?}", token);
                             }
@@ -316,6 +319,9 @@ impl HtmlParser {
                                 self.insert_tokens_char(*c);
                             }
                         },
+                        HtmlToken::Comment(comment) => {
+                            self.insert_comment(comment.clone());
+                        }
                         HtmlToken::Doctype { .. } => {
                             eprintln!("parse error, ignored the token: {:?}", token)
                         }
@@ -647,6 +653,13 @@ impl HtmlParser {
             })),
         );
         self.stack.push(Rc::clone(&new_node));
+    }
+
+    fn insert_comment(&mut self, comment: String) {
+        DomNode::append_child(
+            self.stack.last().unwrap(),
+            DomNode::new(NodeType::Comment(comment)),
+        );
     }
 
     fn insert_tokens_char(&mut self, c: char) {

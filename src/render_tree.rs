@@ -22,11 +22,17 @@ impl RenderNode {
         style_sheets: &Vec<StyleSheet>,
         parent_style: Option<SpecifiedValues>,
     ) -> Result<Option<Self>> {
-        // Omit the script and meta elements from the render tree.
-        if let NodeType::Element(Element { tag_name, .. }) = &node.borrow().node_type {
-            if let "script" | "meta" = tag_name.as_str() {
+        // Omit nodes that are not rendered.
+        match &node.borrow().node_type {
+            NodeType::Element(Element { tag_name, .. }) => {
+                if let "script" | "meta" = tag_name.as_str() {
+                    return Ok(None);
+                }
+            }
+            NodeType::Comment(_) => {
                 return Ok(None);
             }
+            _ => {}
         }
 
         let style = if let NodeType::Element(_) = &node.borrow().node_type {

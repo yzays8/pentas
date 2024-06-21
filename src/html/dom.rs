@@ -63,6 +63,7 @@ impl fmt::Display for DomNode {
 /// https://dom.spec.whatwg.org/#dom-node-nodetype
 #[derive(Debug, PartialEq, Eq)]
 pub enum NodeType {
+    Comment(String),
     Document,
     DocumentType(String),
     Element(Element),
