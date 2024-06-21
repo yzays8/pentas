@@ -76,9 +76,7 @@ impl HtmlParser {
                     // https://html.spec.whatwg.org/multipage/parsing.html#the-initial-insertion-mode
                     InsertionMode::Initial => {
                         match &token {
-                            HtmlToken::Character(c) if self.is_blank(*c) => {
-                                // Ignore the token
-                            }
+                            HtmlToken::Character(c) if Self::is_blank(*c) => {}
                             HtmlToken::Comment(_) => {
                                 unimplemented!("token: {:?}", token);
                             }
@@ -120,45 +118,28 @@ impl HtmlParser {
                     }
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#the-before-html-insertion-mode
-                    InsertionMode::BeforeHtml => {
-                        match &token {
-                            HtmlToken::Doctype { .. } => {
-                                eprintln!("parse error, ignored the token: {:?}", token);
-                            }
-                            HtmlToken::Character(c) if self.is_blank(*c) => {
-                                // Ignore the token
-                            }
-                            HtmlToken::StartTag {
-                                tag_name,
-                                attributes,
-                                ..
-                            } if tag_name == "html" => {
-                                let n = DomNode::append_child(
-                                    &document_node,
-                                    DomNode::new(NodeType::Element(Element {
-                                        tag_name: tag_name.clone(),
-                                        attributes: attributes.clone(),
-                                    })),
-                                );
-                                self.stack.push(Rc::clone(&n));
-                                self.insertion_mode = InsertionMode::BeforeHead;
-                            }
-                            HtmlToken::EndTag { tag_name, .. } => {
-                                if let "head" | "body" | "html" | "br" = tag_name.as_str() {
-                                    let n = DomNode::append_child(
-                                        &document_node,
-                                        DomNode::new(NodeType::Element(Element {
-                                            tag_name: "html".to_string(),
-                                            attributes: Vec::new(),
-                                        })),
-                                    );
-                                    self.stack.push(Rc::clone(&n));
-                                    self.insertion_mode = InsertionMode::BeforeHead;
-                                } else {
-                                    eprintln!("parse error, ignored the token: {:?}", token);
-                                }
-                            }
-                            _ => {
+                    InsertionMode::BeforeHtml => match &token {
+                        HtmlToken::Doctype { .. } => {
+                            eprintln!("parse error, ignored the token: {:?}", token);
+                        }
+                        HtmlToken::Character(c) if Self::is_blank(*c) => {}
+                        HtmlToken::StartTag {
+                            tag_name,
+                            attributes,
+                            ..
+                        } if tag_name == "html" => {
+                            let n = DomNode::append_child(
+                                &document_node,
+                                DomNode::new(NodeType::Element(Element {
+                                    tag_name: tag_name.clone(),
+                                    attributes: attributes.clone(),
+                                })),
+                            );
+                            self.stack.push(Rc::clone(&n));
+                            self.insertion_mode = InsertionMode::BeforeHead;
+                        }
+                        HtmlToken::EndTag { tag_name, .. } => {
+                            if let "head" | "body" | "html" | "br" = tag_name.as_str() {
                                 let n = DomNode::append_child(
                                     &document_node,
                                     DomNode::new(NodeType::Element(Element {
@@ -168,51 +149,60 @@ impl HtmlParser {
                                 );
                                 self.stack.push(Rc::clone(&n));
                                 self.insertion_mode = InsertionMode::BeforeHead;
-                            }
-                        }
-                    }
-
-                    // https://html.spec.whatwg.org/multipage/parsing.html#the-before-head-insertion-mode
-                    InsertionMode::BeforeHead => {
-                        match &token {
-                            HtmlToken::Character(c) if self.is_blank(*c) => {
-                                // Ignore the token
-                            }
-                            HtmlToken::Doctype { .. } => {
+                            } else {
                                 eprintln!("parse error, ignored the token: {:?}", token);
                             }
-                            HtmlToken::StartTag {
-                                tag_name,
-                                attributes,
-                                ..
-                            } => match tag_name.as_str() {
-                                "head" => {
-                                    self.insert_element(tag_name, attributes);
-                                    self.insertion_mode = InsertionMode::InHead;
-                                }
-                                _ => unimplemented!("token: {:?}", token),
-                            },
-                            HtmlToken::EndTag { tag_name, .. } => {
-                                if let "head" | "body" | "html" | "br" = tag_name.as_str() {
-                                    self.insert_element(tag_name, &Vec::new());
-                                    self.insertion_mode = InsertionMode::InHead;
-                                    continue;
-                                } else {
-                                    eprintln!("parse error, ignored the token: {:?}", token);
-                                }
+                        }
+                        _ => {
+                            let n = DomNode::append_child(
+                                &document_node,
+                                DomNode::new(NodeType::Element(Element {
+                                    tag_name: "html".to_string(),
+                                    attributes: Vec::new(),
+                                })),
+                            );
+                            self.stack.push(Rc::clone(&n));
+                            self.insertion_mode = InsertionMode::BeforeHead;
+                        }
+                    },
+
+                    // https://html.spec.whatwg.org/multipage/parsing.html#the-before-head-insertion-mode
+                    InsertionMode::BeforeHead => match &token {
+                        HtmlToken::Character(c) if Self::is_blank(*c) => {}
+                        HtmlToken::Doctype { .. } => {
+                            eprintln!("parse error, ignored the token: {:?}", token);
+                        }
+                        HtmlToken::StartTag {
+                            tag_name,
+                            attributes,
+                            ..
+                        } => match tag_name.as_str() {
+                            "head" => {
+                                self.insert_element(tag_name, attributes);
+                                self.insertion_mode = InsertionMode::InHead;
                             }
-                            _ => {
-                                self.insert_element("head", &Vec::new());
+                            _ => unimplemented!("token: {:?}", token),
+                        },
+                        HtmlToken::EndTag { tag_name, .. } => {
+                            if let "head" | "body" | "html" | "br" = tag_name.as_str() {
+                                self.insert_element(tag_name, &Vec::new());
                                 self.insertion_mode = InsertionMode::InHead;
                                 continue;
+                            } else {
+                                eprintln!("parse error, ignored the token: {:?}", token);
                             }
                         }
-                    }
+                        _ => {
+                            self.insert_element("head", &Vec::new());
+                            self.insertion_mode = InsertionMode::InHead;
+                            continue;
+                        }
+                    },
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inhead
                     InsertionMode::InHead => {
                         match &token {
-                            HtmlToken::Character(c) if self.is_blank(*c) => {
+                            HtmlToken::Character(c) if Self::is_blank(*c) => {
                                 // Ignore the token
                             }
                             HtmlToken::Comment(comment) => {
@@ -285,8 +275,8 @@ impl HtmlParser {
 
                     // https://html.spec.whatwg.org/multipage/parsing.html#the-after-head-insertion-mode
                     InsertionMode::AfterHead => match &token {
-                        HtmlToken::Character(c) if self.is_blank(*c) => {
-                            self.insert_tokens_char(*c);
+                        HtmlToken::Character(c) if Self::is_blank(*c) => {
+                            self.insert_char_to_token(*c);
                         }
                         HtmlToken::Doctype { .. } => {
                             eprintln!("parse error, ignored the token: {:?}", token);
@@ -316,7 +306,7 @@ impl HtmlParser {
                         HtmlToken::Character(c) => match c {
                             '\u{0000}' => eprintln!("parse error, ignored the token: {:?}", token),
                             _ => {
-                                self.insert_tokens_char(*c);
+                                self.insert_char_to_token(*c);
                             }
                         },
                         HtmlToken::Comment(comment) => {
@@ -526,7 +516,7 @@ impl HtmlParser {
                         HtmlToken::Character(c) => match c {
                             '\u{0000}' => unreachable!(),
                             _ => {
-                                self.insert_tokens_char(*c);
+                                self.insert_char_to_token(*c);
                             }
                         },
                         HtmlToken::EndTag { tag_name, .. } if tag_name != "script" => {
@@ -550,8 +540,8 @@ impl HtmlParser {
                     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-afterbody
                     InsertionMode::AfterBody => match &token {
                         HtmlToken::Character(c) => {
-                            if self.is_blank(*c) {
-                                self.insert_tokens_char(*c);
+                            if Self::is_blank(*c) {
+                                self.insert_char_to_token(*c);
                             }
                         }
                         HtmlToken::Doctype { .. } => {
@@ -573,8 +563,8 @@ impl HtmlParser {
                         HtmlToken::Doctype { .. } => {
                             eprintln!("parse error, ignored the token: {:?}", token);
                         }
-                        HtmlToken::Character(c) if self.is_blank(*c) => {
-                            self.insert_tokens_char(*c);
+                        HtmlToken::Character(c) if Self::is_blank(*c) => {
+                            self.insert_char_to_token(*c);
                         }
                         HtmlToken::StartTag { tag_name, .. } if tag_name == "html" => {
                             unimplemented!("token: {:?}", token)
@@ -601,12 +591,11 @@ impl HtmlParser {
         Ok((document_node, style_sheets))
     }
 
-    /// U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
-    fn is_blank(&self, c: char) -> bool {
-        c == '\t' || c == '\n' || c == '\x0C' || c == '\r' || c == ' '
+    fn is_blank(c: char) -> bool {
+        matches!(c, '\t' | '\n' | '\x0C' | '\r' | ' ')
     }
 
-    /// Get the tag name of the current element, if the current node is an element.
+    /// Returns the tag name of the current element, if the current node is an element.
     fn get_current_elm_name(&self) -> Option<String> {
         if let Some(node) = &self.stack.last() {
             let NodeType::Element(elm) = &node.borrow().node_type else {
@@ -618,6 +607,7 @@ impl HtmlParser {
         }
     }
 
+    /// https://html.spec.whatwg.org/multipage/parsing.html#generate-implied-end-tags
     fn generate_implied_end_tags(&mut self, excluded_tag: Option<&str>) {
         let mut tag_lists = vec![
             "dd", "dt", "li", "optgroup", "option", "p", "rb", "rp", "rt", "rtc",
@@ -644,6 +634,7 @@ impl HtmlParser {
         }
     }
 
+    /// https://html.spec.whatwg.org/multipage/parsing.html#insert-an-html-element
     fn insert_element(&mut self, tag_name: &str, attributes: &[(String, String)]) {
         let new_node = DomNode::append_child(
             self.stack.last().unwrap(),
@@ -655,6 +646,7 @@ impl HtmlParser {
         self.stack.push(Rc::clone(&new_node));
     }
 
+    /// https://html.spec.whatwg.org/multipage/parsing.html#insert-a-comment
     fn insert_comment(&mut self, comment: String) {
         DomNode::append_child(
             self.stack.last().unwrap(),
@@ -662,7 +654,8 @@ impl HtmlParser {
         );
     }
 
-    fn insert_tokens_char(&mut self, c: char) {
+    /// https://html.spec.whatwg.org/multipage/parsing.html#insert-a-character
+    fn insert_char_to_token(&mut self, c: char) {
         let mut need_to_push_node = false;
         if let Some(n) = &mut self.stack.last().unwrap().borrow_mut().child_nodes.last() {
             if let NodeType::Text(text) = &mut n.borrow_mut().node_type {
