@@ -17,7 +17,7 @@ pub enum SimpleSelector {
         namespace_prefix: Option<String>,
         name: String,
     },
-    Universal(Option<String>), // <namespace prefix>
+    Universal(Option<String>), // Option<namespace prefix>
     Attribute {
         namespace_prefix: Option<String>,
         name: String,
@@ -230,7 +230,7 @@ impl Selector {
     pub fn calc_specificity(&self) -> u32 {
         /// Returns `(a, b, c)`, where `a` is the number of ID selectors, `b` is the number of class selectors, attributes selectors, and pseudo-classes,
         /// and `c` is the number of type selectors and pseudo-elements.
-        fn helper(
+        fn calc_helper(
             current_selector: &Selector,
             current_specificity: (u32, u32, u32),
         ) -> (u32, u32, u32) {
@@ -251,8 +251,8 @@ impl Selector {
                 let Selector::Complex(left, _, right) = current_selector else {
                     unreachable!();
                 };
-                let right_spec = helper(right, current_specificity);
-                let left_spec = helper(left, current_specificity);
+                let right_spec = calc_helper(right, current_specificity);
+                let left_spec = calc_helper(left, current_specificity);
                 (
                     left_spec.0 + right_spec.0,
                     left_spec.1 + right_spec.1,
@@ -261,7 +261,7 @@ impl Selector {
             }
         }
 
-        let w = helper(self, (0, 0, 0));
+        let w = calc_helper(self, (0, 0, 0));
         w.0 * 100 + w.1 * 10 + w.2
     }
 }
@@ -318,10 +318,12 @@ impl SelectorParser {
     fn parse_selector(&mut self) -> Result<Selector> {
         let simple = Selector::Simple(self.parse_simple_selector_seq()?);
         match self.input.front() {
-            Some(ComponentValue::PreservedToken(CssToken::Delim('+')))
-            | Some(ComponentValue::PreservedToken(CssToken::Delim('>')))
-            | Some(ComponentValue::PreservedToken(CssToken::Delim('~')))
-            | Some(ComponentValue::PreservedToken(CssToken::Whitespace)) => Ok(Selector::Complex(
+            Some(ComponentValue::PreservedToken(
+                CssToken::Delim('+')
+                | CssToken::Delim('>')
+                | CssToken::Delim('~')
+                | CssToken::Whitespace,
+            )) => Ok(Selector::Complex(
                 Box::new(simple),
                 self.parse_combinator()?,
                 Box::new(self.parse_selector()?),
@@ -342,32 +344,22 @@ impl SelectorParser {
         }
 
         match self.input.front() {
-            Some(ComponentValue::PreservedToken(CssToken::Delim('+'))) => {
-                self.consume();
+            Some(ComponentValue::PreservedToken(CssToken::Delim('+' | '>' | '~'))) => {
+                let Some(ComponentValue::PreservedToken(CssToken::Delim(c))) = self.consume()
+                else {
+                    unreachable!();
+                };
                 while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
                     self.input.front()
                 {
                     self.consume();
                 }
-                Ok(Combinator::Plus)
-            }
-            Some(ComponentValue::PreservedToken(CssToken::Delim('>'))) => {
-                self.consume();
-                while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
-                    self.input.front()
-                {
-                    self.consume();
+                match c {
+                    '+' => Ok(Combinator::Plus),
+                    '>' => Ok(Combinator::GreaterThan),
+                    '~' => Ok(Combinator::Tilde),
+                    _ => unreachable!(),
                 }
-                Ok(Combinator::GreaterThan)
-            }
-            Some(ComponentValue::PreservedToken(CssToken::Delim('~'))) => {
-                self.consume();
-                while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
-                    self.input.front()
-                {
-                    self.consume();
-                }
-                Ok(Combinator::Tilde)
             }
             _ => {
                 if is_detected_space {
@@ -393,8 +385,7 @@ impl SelectorParser {
 
         match (self.input.front(), self.input.get(1), self.input.get(2)) {
             (
-                Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
-                | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
+                Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))),
                 Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
                 Some(ComponentValue::PreservedToken(CssToken::Ident(_))),
             )
@@ -404,8 +395,7 @@ impl SelectorParser {
                 _,
             ) => selector_seq.push(self.parse_type_selector()?),
             (
-                Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
-                | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
+                Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))),
                 Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
                 Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
             )
@@ -471,8 +461,7 @@ impl SelectorParser {
     fn parse_type_selector(&mut self) -> Result<SimpleSelector> {
         match (self.input.front(), self.input.get(1)) {
             (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
-            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
-                | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
+            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
                 Ok(SimpleSelector::Type {
                     namespace_prefix: Some(self.parse_namespace_prefix()?),
                     name: self.parse_element_name()?,
@@ -551,8 +540,7 @@ impl SelectorParser {
     fn parse_universal(&mut self) -> Result<SimpleSelector> {
         match (self.input.front(), self.input.get(1)) {
             (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
-            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
-                | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
+            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
                 let prefix = self.parse_namespace_prefix()?;
                 self.consume();
                 Ok(SimpleSelector::Universal(Some(prefix)))
@@ -624,8 +612,7 @@ impl SelectorParser {
 
         let prefix = match (self.input.front(), self.input.get(1)) {
             (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
-            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_)))
-                | Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
+            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
                 Some(self.parse_namespace_prefix()?)
             }
             (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _) => {
@@ -653,7 +640,7 @@ impl SelectorParser {
                 let op = if c == '=' {
                     self.consume();
                     "=".to_string()
-                } else if let '^' | '$' | '*' | '~' | '|' = c {
+                } else if matches!(c, '^' | '$' | '*' | '~' | '|') {
                     self.consume();
                     if let Some(ComponentValue::PreservedToken(CssToken::Delim('='))) =
                         self.input.front()
@@ -679,8 +666,9 @@ impl SelectorParser {
                 }
 
                 let comp = self.consume();
-                let value = if let Some(ComponentValue::PreservedToken(CssToken::Ident(s)))
-                | Some(ComponentValue::PreservedToken(CssToken::String(s))) = comp
+                let value = if let Some(ComponentValue::PreservedToken(
+                    CssToken::Ident(s) | CssToken::String(s),
+                )) = comp
                 {
                     Some(s)
                 } else {
