@@ -303,10 +303,10 @@ impl SelectorParser {
                     }
                     selectors.push(self.parse_selector()?);
                 }
-                None => break,
-                t => {
-                    bail!("Unexpected token when parsing CSS selectors in parse_selectors_group: {:?}", t);
+                Some(v) => {
+                    bail!("Unexpected token when parsing CSS selectors in parse_selectors_group: {:?}", v);
                 }
+                None => break,
             }
         }
         Ok(selectors)
@@ -317,18 +317,18 @@ impl SelectorParser {
     //   ;
     fn parse_selector(&mut self) -> Result<Selector> {
         let simple = Selector::Simple(self.parse_simple_selector_seq()?);
-        match self.input.front() {
-            Some(ComponentValue::PreservedToken(
-                CssToken::Delim('+')
-                | CssToken::Delim('>')
-                | CssToken::Delim('~')
-                | CssToken::Whitespace,
-            )) => Ok(Selector::Complex(
+
+        if let Some(ComponentValue::PreservedToken(
+            CssToken::Delim('+' | '>' | '~') | CssToken::Whitespace,
+        )) = self.input.front()
+        {
+            Ok(Selector::Complex(
                 Box::new(simple),
                 self.parse_combinator()?,
                 Box::new(self.parse_selector()?),
-            )),
-            _ => Ok(simple),
+            ))
+        } else {
+            Ok(simple)
         }
     }
 
@@ -343,33 +343,29 @@ impl SelectorParser {
             is_detected_space = true;
         }
 
-        match self.input.front() {
-            Some(ComponentValue::PreservedToken(CssToken::Delim('+' | '>' | '~'))) => {
-                let Some(ComponentValue::PreservedToken(CssToken::Delim(c))) = self.consume()
-                else {
-                    unreachable!();
-                };
-                while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
-                    self.input.front()
-                {
-                    self.consume();
-                }
-                match c {
-                    '+' => Ok(Combinator::Plus),
-                    '>' => Ok(Combinator::GreaterThan),
-                    '~' => Ok(Combinator::Tilde),
-                    _ => unreachable!(),
-                }
+        if let Some(ComponentValue::PreservedToken(CssToken::Delim('+' | '>' | '~'))) =
+            self.input.front()
+        {
+            let Some(ComponentValue::PreservedToken(CssToken::Delim(c))) = self.consume() else {
+                unreachable!();
+            };
+            while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
+                self.input.front()
+            {
+                self.consume();
             }
-            _ => {
-                if is_detected_space {
-                    Ok(Combinator::Whitespace)
-                } else {
-                    bail!(
-                    "Expected \"+\", \">\", \"~\", or whitespace but found {:?} when parsing CSS selectors in parse_combinator",
-                    self.input.front())
-                }
+            match c {
+                '+' => Ok(Combinator::Plus),
+                '>' => Ok(Combinator::GreaterThan),
+                '~' => Ok(Combinator::Tilde),
+                _ => unreachable!(),
             }
+        } else if is_detected_space {
+            Ok(Combinator::Whitespace)
+        } else {
+            bail!(
+            "Expected \"+\", \">\", \"~\", or whitespace but found {:?} when parsing CSS selectors in parse_combinator",
+            self.input.front())
         }
     }
 
