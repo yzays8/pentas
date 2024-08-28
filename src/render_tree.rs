@@ -399,6 +399,27 @@ impl SpecifiedValues {
                     );
                 }
 
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration
+                "text-decoration" => {
+                    if value.len() != 1 {
+                        unimplemented!();
+                    }
+                    let value = value.first().unwrap();
+                    computed_values.values.insert(
+                        name.to_string(),
+                        match value {
+                            ComponentValue::PreservedToken(token) => match &token {
+                                CssToken::Ident(keyword) => ComputedValue::String(keyword.clone()),
+                                _ => unimplemented!(),
+                            },
+                            _ => bail!(
+                                "Unexpected value for the text-decoration property: {:?}",
+                                value
+                            ),
+                        },
+                    );
+                }
+
                 _ => unimplemented!(),
             }
         }
