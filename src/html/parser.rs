@@ -320,7 +320,7 @@ impl HtmlParser {
                             attributes,
                             ..
                         } => match tag_name.as_str() {
-                            "div" | "p" | "ul" => {
+                            "a" | "div" | "p" | "ul" => {
                                 self.insert_element(tag_name, attributes);
                             }
                             "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => {
@@ -414,6 +414,7 @@ impl HtmlParser {
                             }
                         },
                         HtmlToken::EndTag { tag_name, .. } => match tag_name.as_str() {
+                            "a" => {}
                             "body" => {
                                 self.insertion_mode = InsertionMode::AfterBody;
                             }
