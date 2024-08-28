@@ -1,3 +1,5 @@
+use std::vec;
+
 use anyhow::{bail, Ok, Result};
 use clap::Parser as _;
 
@@ -17,7 +19,13 @@ pub fn run() -> Result<()> {
             let html = std::fs::read_to_string(html)?;
             let doc_and_css = HtmlParser::new(HtmlTokenizer::new(&html)).parse()?;
             let doc_tree = DocumentTree::build(doc_and_css.0)?;
-            let style_sheets = doc_and_css.1;
+
+            // User agent style sheet
+            let ua_css = std::fs::read_to_string("src/css/ua.css")?;
+            let ua_style_sheet =
+                CssParser::new(CssTokenizer::new(&ua_css).tokenize().unwrap()).parse()?;
+            let mut style_sheets = vec![ua_style_sheet];
+            style_sheets.extend(doc_and_css.1);
 
             if args.parse_only {
                 println!("{}", doc_tree);
