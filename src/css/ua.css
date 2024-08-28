@@ -9,6 +9,7 @@ header, hr, legend, listing, main, p, plaintext, pre, search, xmp {
   display: block;
 }
 
+:link { color: blue; }
 /* :link { color: #0000EE; }
 :visited { color: #551A8B; }
 :link:active, :visited:active { color: #FF0000; }

@@ -26,7 +26,8 @@ pub enum SimpleSelector {
     },
     Class(String),
     Id(String),
-    // PseudoClass,
+    PseudoClass(String),
+    // PseudoElement(String),
 }
 
 impl SimpleSelector {
@@ -61,6 +62,17 @@ impl SimpleSelector {
             SimpleSelector::Id(id) => {
                 if let NodeType::Element(elm) = &dom_node.node_type {
                     elm.attributes.iter().any(|(k, v)| k == "id" && v == id)
+                } else {
+                    false
+                }
+            }
+            SimpleSelector::PseudoClass(class_name) => {
+                if let NodeType::Element(elm) = &dom_node.node_type {
+                    match class_name.as_str() {
+                        // https://developer.mozilla.org/en-US/docs/Web/CSS/:link
+                        "link" => elm.attributes.iter().any(|(k, _)| k == "href"),
+                        _ => unimplemented!(),
+                    }
                 } else {
                     false
                 }
@@ -243,7 +255,7 @@ impl Selector {
                         SimpleSelector::Attribute { .. } => spec.1 += 1,
                         SimpleSelector::Class(_) => spec.1 += 1,
                         SimpleSelector::Id(_) => spec.0 += 1,
-                        // todo: PseudoClass
+                        SimpleSelector::PseudoClass(_) => spec.1 += 1,
                     }
                 }
                 spec
@@ -436,6 +448,12 @@ impl SelectorParser {
                         bail!("Expected \"[\" but found {:?} when parsing CSS selectors in parse_simple_selector_seq", self.input.front());
                     }
                     selector_seq.push(self.parse_attrib()?);
+                }
+            }
+            Some(ComponentValue::PreservedToken(CssToken::Colon)) => {
+                while let Some(ComponentValue::PreservedToken(CssToken::Colon)) = self.input.front()
+                {
+                    selector_seq.push(self.parse_pseudo()?);
                 }
             }
             _ => {}
@@ -694,6 +712,40 @@ impl SelectorParser {
                 "Unexpected token when parsing CSS selectors in parse_attrib: {:?}",
                 self.input.front()
             ),
+        }
+    }
+
+    // pseudo
+    //     : ':' ':'? [ IDENT | functional_pseudo ]
+    //     ;
+    fn parse_pseudo(&mut self) -> Result<SimpleSelector> {
+        match (self.input.front(), self.input.get(1)) {
+            (
+                Some(ComponentValue::PreservedToken(CssToken::Colon)),
+                Some(ComponentValue::PreservedToken(CssToken::Colon)),
+            ) => {
+                // pseudo-element
+                self.consume();
+                self.consume();
+            }
+            (Some(ComponentValue::PreservedToken(CssToken::Colon)), _) => {
+                // pseudo-class
+                self.consume();
+            }
+            _ => bail!(
+                "Expected \":\" but found {:?} when parsing CSS selectors in parse_pseudo",
+                self.input.front()
+            ),
+        }
+
+        // todo: handle functional-pseudo and pseudo-element
+        if let Some(ComponentValue::PreservedToken(CssToken::Ident(s))) = self.consume() {
+            Ok(SimpleSelector::PseudoClass(s))
+        } else {
+            bail!(
+                "Expected ident but found {:?} when parsing CSS selectors in parse_pseudo",
+                self.input.front()
+            );
         }
     }
 }
@@ -1043,9 +1095,11 @@ mod tests {
         let selector = Selector::Simple(vec![SimpleSelector::Id("x34y".to_string())]);
         assert_eq!(selector.calc_specificity(), 100);
 
-        // todo: Implement pseudo-class
+        // todo: handle functional pseudo-class
         // #s12:not(FOO)
-        // let selector = Selector::Simple(vec![SimpleSelector::Id("s12".to_string())]);
+        // let selector = Selector::Simple(vec![
+        //     SimpleSelector::Id("s12".to_string()),
+        // ]);
         // assert_eq!(selector.calc_specificity(), 101);
     }
 }
