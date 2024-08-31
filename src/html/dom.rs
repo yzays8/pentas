@@ -48,6 +48,15 @@ impl DomNode {
         node_ref.borrow_mut().child_nodes.push(Rc::clone(&child));
         child
     }
+
+    pub fn get_inside_text(&self) -> Option<String> {
+        match &self.node_type {
+            NodeType::Comment(text) | NodeType::DocumentType(text) | NodeType::Text(text) => {
+                Some(text.clone())
+            }
+            _ => None,
+        }
+    }
 }
 
 impl fmt::Display for DomNode {

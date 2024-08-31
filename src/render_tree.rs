@@ -9,11 +9,18 @@ use crate::css::selector::Selector;
 use crate::css::tokenizer::{CssToken, NumericType};
 use crate::html::dom::{DocumentTree, DomNode, Element, NodeType};
 
+#[derive(Debug, Eq, PartialEq)]
+pub enum DisplayType {
+    Inline,
+    Block,
+    None,
+}
+
 #[derive(Debug)]
 pub struct RenderNode {
-    node: Rc<RefCell<DomNode>>,
-    style: ComputedValues,
-    child_nodes: Vec<Rc<RefCell<RenderNode>>>,
+    pub node: Rc<RefCell<DomNode>>,
+    pub style: ComputedValues,
+    pub child_nodes: Vec<Rc<RefCell<RenderNode>>>,
 }
 
 impl RenderNode {
@@ -73,6 +80,21 @@ impl RenderNode {
             style: style.compute()?,
             child_nodes,
         }))
+    }
+
+    pub fn get_display_type(&self) -> DisplayType {
+        if let Some(ComputedValue::String(keyword)) = self.style.values.get("display") {
+            match keyword.as_str() {
+                "inline" => DisplayType::Inline,
+                "block" => DisplayType::Block,
+                "none" => DisplayType::None,
+                _ => unimplemented!(),
+            }
+        } else {
+            // The default value of the display property is inline.
+            // The text sequence is treated as a single inline type here.
+            DisplayType::Inline
+        }
     }
 }
 
@@ -547,7 +569,7 @@ fn is_inherited_property(name: &str) -> bool {
 
 #[derive(Debug)]
 pub struct RenderTree {
-    root: Rc<RefCell<RenderNode>>,
+    pub root: Rc<RefCell<RenderNode>>,
 }
 
 impl RenderTree {
