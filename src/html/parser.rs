@@ -414,7 +414,29 @@ impl HtmlParser {
                             }
                         },
                         HtmlToken::EndTag { tag_name, .. } => match tag_name.as_str() {
-                            "a" => {}
+                            "a" => {
+                                if self.get_current_elm_name().unwrap().as_str() != "a" {
+                                    eprintln!("parse error");
+                                }
+                                loop {
+                                    if let Some(n) = &self.stack.pop() {
+                                        if let NodeType::Element(elm) = &n.borrow().node_type {
+                                            if elm.tag_name == "a" {
+                                                break;
+                                            }
+                                        }
+                                    } else {
+                                        bail!(ParseError {
+                                            message: "a element not found".to_string(),
+                                            current_token: token,
+                                            current_tree: DocumentTree::build(Rc::clone(
+                                                &document_node
+                                            ))?
+                                            .to_string(),
+                                        });
+                                    }
+                                }
+                            }
                             "body" => {
                                 self.insertion_mode = InsertionMode::AfterBody;
                             }
