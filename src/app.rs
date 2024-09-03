@@ -42,10 +42,7 @@ pub fn run() -> Result<()> {
                 println!("\n===============\n");
                 println!(
                     "{}",
-                    box_tree
-                        .remove_whitespace()?
-                        .remove_whitespace()?
-                        .remove_empty_anonymous_boxes()
+                    box_tree.remove_whitespace()?.remove_empty_anonymous_boxes()
                 );
             } else {
                 println!(
