@@ -38,18 +38,9 @@ pub fn run() -> Result<()> {
                 let mut box_tree = render_tree.to_box_tree()?;
                 println!("{}", box_tree);
                 println!("\n===============\n");
-                println!(
-                    "{}",
-                    box_tree.remove_whitespace()?.remove_empty_anonymous_boxes()
-                );
+                println!("{}", box_tree.clean_up()?);
             } else {
-                println!(
-                    "{}",
-                    render_tree
-                        .to_box_tree()?
-                        .remove_whitespace()?
-                        .remove_empty_anonymous_boxes()
-                );
+                println!("{}", render_tree.to_box_tree()?.clean_up()?);
             }
         }
         (None, Some(css)) => {

@@ -42,8 +42,13 @@ impl BoxTree {
         })
     }
 
+    /// Removes unnecessary whitespace from all text nodes in the tree.
     /// https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model/Whitespace
-    pub fn remove_whitespace(&mut self) -> Result<&mut Self> {
+    pub fn clean_up(&mut self) -> Result<&mut Self> {
+        Ok(self.remove_whitespace()?.remove_empty_anonymous_boxes())
+    }
+
+    fn remove_whitespace(&mut self) -> Result<&mut Self> {
         fn helper(
             node: &mut Rc<RefCell<BoxNode>>,
             is_first_child: bool,
@@ -110,7 +115,7 @@ impl BoxTree {
         Ok(self)
     }
 
-    pub fn remove_empty_anonymous_boxes(&mut self) -> &mut Self {
+    fn remove_empty_anonymous_boxes(&mut self) -> &mut Self {
         fn helper(node: &mut Rc<RefCell<BoxNode>>) {
             let mut remove_list: Vec<usize> = vec![];
             for (i, child) in node.borrow_mut().child_nodes.iter_mut().enumerate() {
