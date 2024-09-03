@@ -1,9 +1,8 @@
-use std::vec;
-
 use anyhow::{bail, Ok, Result};
 use clap::Parser as _;
 
 use crate::cli;
+use crate::css::cssom::StyleSheet;
 use crate::css::parser::CssParser;
 use crate::css::tokenizer::CssTokenizer;
 use crate::html::dom::DocumentTree;
@@ -12,37 +11,66 @@ use crate::html::tokenizer::HtmlTokenizer;
 use crate::layout::BoxTree;
 use crate::render_tree::RenderTree;
 
+const UA_CSS_PATH: &str = "src/css/ua.css";
+
 pub fn run() -> Result<()> {
     let args = cli::Args::parse();
 
     match (args.html, args.css) {
         (Some(html), None) => {
-            let html = std::fs::read_to_string(html)?;
-            let doc_and_css = HtmlParser::new(HtmlTokenizer::new(&html)).parse()?;
-            let doc_tree = DocumentTree::build(doc_and_css.0)?;
+            let (doc_root, style_sheets) =
+                HtmlParser::new(HtmlTokenizer::new(&std::fs::read_to_string(html)?)).parse()?;
+            let doc_tree = DocumentTree::build(doc_root)?;
+            if args.trace {
+                println!("{}", doc_tree);
+                println!("\n===============\n");
+            }
 
-            // User agent style sheet
-            let ua_css = std::fs::read_to_string("src/css/ua.css")?;
-            let ua_style_sheet =
-                CssParser::new(CssTokenizer::new(&ua_css).tokenize().unwrap()).parse()?;
-            let mut style_sheets = vec![ua_style_sheet];
-            style_sheets.extend(doc_and_css.1);
+            let style_sheets = std::iter::once(get_ua_style_sheet()?)
+                .chain(style_sheets)
+                .collect::<Vec<_>>();
 
             let render_tree = RenderTree::build(doc_tree, style_sheets)?;
-            let mut box_tree = BoxTree::build(render_tree)?;
-            box_tree.remove_whitespace()?.remove_empty_anonymous_boxes();
-            println!("{}", box_tree);
+            if args.trace {
+                println!("{}", render_tree);
+                println!("\n===============\n");
+            }
+
+            if args.trace {
+                let mut box_tree = BoxTree::build(render_tree)?;
+                println!("{}", box_tree);
+                println!("\n===============\n");
+                println!(
+                    "{}",
+                    box_tree
+                        .remove_whitespace()?
+                        .remove_whitespace()?
+                        .remove_empty_anonymous_boxes()
+                );
+            } else {
+                println!(
+                    "{}",
+                    BoxTree::build(render_tree)?
+                        .remove_whitespace()?
+                        .remove_empty_anonymous_boxes()
+                );
+            }
         }
         (None, Some(css)) => {
-            let css = std::fs::read_to_string(css)?;
-
             println!(
                 "{:#?}",
-                CssParser::new(CssTokenizer::new(&css).tokenize()?).parse()?
+                CssParser::new(CssTokenizer::new(&std::fs::read_to_string(css)?).tokenize()?)
+                    .parse()?
             );
         }
         _ => bail!("Provide either HTML or CSS file."),
     }
 
     Ok(())
+}
+
+/// Returns the user agent style sheet.
+fn get_ua_style_sheet() -> Result<StyleSheet> {
+    let ua_css = std::fs::read_to_string(UA_CSS_PATH)?;
+    Ok(CssParser::new(CssTokenizer::new(&ua_css).tokenize().unwrap()).parse()?)
 }
