@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <!-- This is a comment in head -->
+        <meta charset="utf-8">
+        <title>Test HTML file</title>
+        <style>
+            /* This is a comment in style. */
+
+            /* .foo {
+                color: black;
+            } */
+
+            .foo p {
+                color:yellow;
+            }
+
+            .foo + div {
+                color: blue;
+            }
+
+            .foo + .ghost + .orange #orange {
+                color: orange;
+            }
+
+            .foo ~ div div #black {
+                color: black;
+            }
+
+            html {
+                color: green;
+            }
+
+            .foo > .bar > #quux ~ .foo p {
+                display: block;
+            }
+
+            p#grault {
+                color: aqua;
+                font-size: large;
+            }
+
+            .foo ~ div > p ~ p,
+            h1 {
+                color: red;
+            }
+
+            .foo ~ .orange div + p {
+                color: brown;
+            }
+
+            .ghost > #ghost {
+                display: none;
+            }
+
+            p.c1.c2.c3 {
+                /* blueviolet */
+                color: rgb(138, 43, 226);
+                width: 100px;
+                height: 60%;
+            }
+        </style>
+        <style>
+            /* This is the second style tag. */
+            .foo > .bar #qux ~ #tata + #toto {
+                color: yellowgreen;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="foo">
+            <div class="bar">
+                <p id="qux"></p>
+                <a href="https://www.example.com">Example Link</a>
+                <p id="quux"></p>
+                <ul>
+                    <p id="corge"></p>
+                </ul>
+                <div class="baz">
+                    <h1>Test HTML file</h1>
+                    <p id="grault">This is a test HTML file.</p>
+                </div>
+                <p id="toto"></p>
+                <div id="tata"></div>
+                <p id="toto">This should be yellowgreen.</p>
+                <div class="baz">
+                    <p id="titi"></p>
+                </div>
+            </div>
+        </div>
+        <!-- This is a comment in body -->
+        <div class="ghost">
+            <p id="ghost">This text should be invisible.</p>
+            <div>
+                <p id="blue">This text should be blue.</p>
+            </div>
+            <p id="red">This text should be red.</p>
+        </div>
+        <div class="orange">
+            <p id="orange">This text should be orange.</p>
+            <div>
+                <p id="black">This text should be black.</p>
+            </div>
+            <p id="brown">This text should be brown.</p>
+            <p class="c1 c2 c3">This text should be blueviolet.</p>
+        </div>
+        <a href="https://www.example2.com">Example Link1</a>
+        <a href="https://www.example1.com">Example Link2</a>
+        <a href="https://www.example3.com">Example Link3</a>
+        <div display="block">block</div>
+        <a href="https://www.example4.com">Example Link4</a>
+        <a href="https://www.example5.com">Example Link5</a>
+        Text
+        <h1>this is h2 element <a href="">foo</a>bar</h1>
+    </body>
+</html>
