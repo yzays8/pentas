@@ -4,6 +4,9 @@ use std::rc::Rc;
 
 use anyhow::{bail, Result};
 
+use crate::css::cssom::StyleSheet;
+use crate::render_tree::RenderTree;
+
 /// https://dom.spec.whatwg.org/#node
 #[derive(Debug, PartialEq, Eq)]
 pub struct DomNode {
@@ -98,6 +101,10 @@ impl DocumentTree {
             bail!("The root node of a document tree must be a document node.");
         }
         Ok(Self { root })
+    }
+
+    pub fn to_render_tree(&self, style_sheets: Vec<StyleSheet>) -> Result<RenderTree> {
+        RenderTree::build(self, style_sheets)
     }
 
     #[allow(dead_code)]

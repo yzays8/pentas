@@ -15,7 +15,7 @@ pub struct BoxTree {
 }
 
 impl BoxTree {
-    pub fn build(render_tree: RenderTree) -> Result<Self> {
+    pub fn build(render_tree: &RenderTree) -> Result<Self> {
         if render_tree.root.borrow().node.borrow().node_type != NodeType::Document {
             bail!("The root node of the render tree must be a document node.");
         }

@@ -9,6 +9,7 @@ use crate::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
 use crate::css::selector::Selector;
 use crate::css::tokenizer::{CssToken, NumericType};
 use crate::html::dom::{DocumentTree, DomNode, Element, NodeType};
+use crate::layout::BoxTree;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum DisplayType {
@@ -574,13 +575,17 @@ pub struct RenderTree {
 }
 
 impl RenderTree {
-    pub fn build(document_tree: DocumentTree, style_sheets: Vec<StyleSheet>) -> Result<Self> {
+    pub fn build(document_tree: &DocumentTree, style_sheets: Vec<StyleSheet>) -> Result<Self> {
         Ok(Self {
             root: Rc::new(RefCell::new(
                 RenderNode::build(Rc::clone(&document_tree.root), &style_sheets, None)?
                     .context("Failed to build the render tree.")?,
             )),
         })
+    }
+
+    pub fn to_box_tree(&self) -> Result<BoxTree> {
+        BoxTree::build(self)
     }
 }
 

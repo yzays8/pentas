@@ -8,8 +8,6 @@ use crate::css::tokenizer::CssTokenizer;
 use crate::html::dom::DocumentTree;
 use crate::html::parser::HtmlParser;
 use crate::html::tokenizer::HtmlTokenizer;
-use crate::layout::BoxTree;
-use crate::render_tree::RenderTree;
 
 const UA_CSS_PATH: &str = "src/css/ua.css";
 
@@ -30,14 +28,14 @@ pub fn run() -> Result<()> {
                 .chain(style_sheets)
                 .collect::<Vec<_>>();
 
-            let render_tree = RenderTree::build(doc_tree, style_sheets)?;
+            let render_tree = doc_tree.to_render_tree(style_sheets)?;
             if args.trace {
                 println!("{}", render_tree);
                 println!("\n===============\n");
             }
 
             if args.trace {
-                let mut box_tree = BoxTree::build(render_tree)?;
+                let mut box_tree = render_tree.to_box_tree()?;
                 println!("{}", box_tree);
                 println!("\n===============\n");
                 println!(
@@ -47,7 +45,8 @@ pub fn run() -> Result<()> {
             } else {
                 println!(
                     "{}",
-                    BoxTree::build(render_tree)?
+                    render_tree
+                        .to_box_tree()?
                         .remove_whitespace()?
                         .remove_empty_anonymous_boxes()
                 );
