@@ -1,0 +1,52 @@
+mod css;
+mod html;
+mod layout;
+mod render_tree;
+
+use anyhow::Result;
+
+use css::get_ua_style_sheet;
+use css::parser::CssParser;
+use css::tokenizer::CssTokenizer;
+use html::dom::DocumentTree;
+use html::parser::HtmlParser;
+use html::tokenizer::HtmlTokenizer;
+
+pub fn display_box_tree(html: String, trace: bool) -> Result<()> {
+    let (doc_root, style_sheets) =
+        HtmlParser::new(HtmlTokenizer::new(&std::fs::read_to_string(html)?)).parse()?;
+    let doc_tree = DocumentTree::build(doc_root)?;
+    if trace {
+        println!("{}", doc_tree);
+        println!("\n===============\n");
+    }
+
+    let style_sheets = std::iter::once(get_ua_style_sheet()?)
+        .chain(style_sheets)
+        .collect::<Vec<_>>();
+
+    let render_tree = doc_tree.to_render_tree(style_sheets)?;
+    if trace {
+        println!("{}", render_tree);
+        println!("\n===============\n");
+    }
+
+    if trace {
+        let mut box_tree = render_tree.to_box_tree()?;
+        println!("{}", box_tree);
+        println!("\n===============\n");
+        println!("{}", box_tree.clean_up()?);
+    } else {
+        println!("{}", render_tree.to_box_tree()?.clean_up()?);
+    }
+
+    Ok(())
+}
+
+pub fn display_style_sheet(css: String) -> Result<()> {
+    println!(
+        "{:#?}",
+        CssParser::new(CssTokenizer::new(&std::fs::read_to_string(css)?).tokenize()?).parse()?
+    );
+    Ok(())
+}

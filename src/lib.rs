@@ -1,8 +1,5 @@
 mod app;
 mod cli;
-mod css;
-mod html;
-mod layout;
-mod render_tree;
+mod renderer;
 
 pub use app::run;

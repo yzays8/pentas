@@ -5,9 +5,9 @@ use std::rc::Rc;
 
 use anyhow::{bail, Ok, Result};
 
-use crate::css::cssom::ComponentValue;
-use crate::css::tokenizer::CssToken;
-use crate::html::dom::{DomNode, NodeType};
+use crate::renderer::css::cssom::ComponentValue;
+use crate::renderer::css::tokenizer::CssToken;
+use crate::renderer::html::dom::{DomNode, NodeType};
 
 /// - https://www.w3.org/TR/selectors-3/#simple-selectors
 /// - https://www.w3.org/TR/selectors-3/#grammar

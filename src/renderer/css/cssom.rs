@@ -1,9 +1,9 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::css::selector::Selector;
-use crate::css::tokenizer::CssToken;
-use crate::html::dom::DomNode;
+use crate::renderer::css::selector::Selector;
+use crate::renderer::css::tokenizer::CssToken;
+use crate::renderer::html::dom::DomNode;
 
 /// https://www.w3.org/TR/cssom-1/#cssstylesheet
 #[derive(Debug)]

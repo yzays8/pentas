@@ -4,11 +4,11 @@ use std::rc::Rc;
 use anyhow::{bail, Ok, Result};
 use thiserror::Error;
 
-use crate::css::cssom::StyleSheet;
-use crate::css::parser::CssParser;
-use crate::css::tokenizer::CssTokenizer;
-use crate::html::dom::{DocumentTree, DomNode, Element, NodeType};
-use crate::html::tokenizer::{HtmlToken, HtmlTokenizer, TokenizationState};
+use crate::renderer::css::cssom::StyleSheet;
+use crate::renderer::css::parser::CssParser;
+use crate::renderer::css::tokenizer::CssTokenizer;
+use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
+use crate::renderer::html::tokenizer::{HtmlToken, HtmlTokenizer, TokenizationState};
 
 #[derive(Error, Debug)]
 #[error("{message} (in the HTML tree construction stage)\nCurrent HTML token: {current_token:?}\nCurrent DOM tree:\n{current_tree}")]

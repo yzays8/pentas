@@ -2,9 +2,9 @@ use std::collections::VecDeque;
 
 use anyhow::Result;
 
-use crate::css::cssom::{ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet};
-use crate::css::selector::SelectorParser;
-use crate::css::tokenizer::CssToken;
+use crate::renderer::css::cssom::{ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet};
+use crate::renderer::css::selector::SelectorParser;
+use crate::renderer::css::tokenizer::CssToken;
 
 #[derive(Debug)]
 pub struct CssParser {
@@ -328,9 +328,9 @@ impl CssParser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::css::cssom::*;
-    use crate::css::selector::*;
-    use crate::css::tokenizer::*;
+    use crate::renderer::css::cssom::*;
+    use crate::renderer::css::selector::*;
+    use crate::renderer::css::tokenizer::*;
 
     #[test]
     fn test_parse1() {

@@ -4,8 +4,8 @@ use std::rc::Rc;
 
 use anyhow::{bail, Result};
 
-use crate::css::cssom::StyleSheet;
-use crate::render_tree::RenderTree;
+use crate::renderer::css::cssom::StyleSheet;
+use crate::renderer::render_tree::RenderTree;
 
 /// https://dom.spec.whatwg.org/#node
 #[derive(Debug, PartialEq, Eq)]

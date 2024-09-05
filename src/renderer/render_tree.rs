@@ -5,11 +5,11 @@ use std::rc::Rc;
 
 use anyhow::{bail, Context, Ok, Result};
 
-use crate::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
-use crate::css::selector::Selector;
-use crate::css::tokenizer::{CssToken, NumericType};
-use crate::html::dom::{DocumentTree, DomNode, Element, NodeType};
-use crate::layout::BoxTree;
+use crate::renderer::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
+use crate::renderer::css::selector::Selector;
+use crate::renderer::css::tokenizer::{CssToken, NumericType};
+use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
+use crate::renderer::layout::BoxTree;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum DisplayType {
