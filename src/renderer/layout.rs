@@ -42,6 +42,10 @@ impl BoxTree {
         })
     }
 
+    pub fn print(&self) {
+        println!("{}", self);
+    }
+
     /// Removes unnecessary whitespace from all text nodes in the tree.
     /// https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model/Whitespace
     pub fn clean_up(&mut self) -> Result<&mut Self> {

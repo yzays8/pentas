@@ -584,6 +584,10 @@ impl RenderTree {
         })
     }
 
+    pub fn print(&self) {
+        println!("{}", self);
+    }
+
     pub fn to_box_tree(&self) -> Result<BoxTree> {
         BoxTree::build(self)
     }

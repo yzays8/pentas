@@ -17,6 +17,10 @@ impl StyleSheet {
     pub fn new(rules: Vec<Rule>) -> Self {
         Self { rules }
     }
+
+    pub fn print(&self) {
+        println!("{:#?}", self);
+    }
 }
 
 /// A CSS document is a series of style rules and at-rules.

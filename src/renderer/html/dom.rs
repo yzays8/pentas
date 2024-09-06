@@ -103,6 +103,10 @@ impl DocumentTree {
         Ok(Self { root })
     }
 
+    pub fn print(&self) {
+        println!("{}", self);
+    }
+
     pub fn to_render_tree(&self, style_sheets: Vec<StyleSheet>) -> Result<RenderTree> {
         RenderTree::build(self, style_sheets)
     }

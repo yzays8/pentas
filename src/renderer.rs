@@ -17,7 +17,7 @@ pub fn display_box_tree(html: String, trace: bool) -> Result<()> {
         HtmlParser::new(HtmlTokenizer::new(&std::fs::read_to_string(html)?)).parse()?;
     let doc_tree = DocumentTree::build(doc_root)?;
     if trace {
-        println!("{}", doc_tree);
+        doc_tree.print();
         println!("\n===============\n");
     }
 
@@ -27,26 +27,25 @@ pub fn display_box_tree(html: String, trace: bool) -> Result<()> {
 
     let render_tree = doc_tree.to_render_tree(style_sheets)?;
     if trace {
-        println!("{}", render_tree);
+        render_tree.print();
         println!("\n===============\n");
     }
 
     if trace {
         let mut box_tree = render_tree.to_box_tree()?;
-        println!("{}", box_tree);
+        box_tree.print();
         println!("\n===============\n");
-        println!("{}", box_tree.clean_up()?);
+        box_tree.clean_up()?.print();
     } else {
-        println!("{}", render_tree.to_box_tree()?.clean_up()?);
+        render_tree.to_box_tree()?.clean_up()?.print();
     }
 
     Ok(())
 }
 
 pub fn display_style_sheet(css: String) -> Result<()> {
-    println!(
-        "{:#?}",
-        CssParser::new(CssTokenizer::new(&std::fs::read_to_string(css)?).tokenize()?).parse()?
-    );
+    CssParser::new(CssTokenizer::new(&std::fs::read_to_string(css)?).tokenize()?)
+        .parse()?
+        .print();
     Ok(())
 }
