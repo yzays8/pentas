@@ -7,7 +7,7 @@ use crate::renderer::css::tokenizer::CssToken;
 use crate::renderer::css::tokenizer::NumericType;
 
 /// Computed value of the `color` property
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
@@ -61,7 +61,7 @@ impl Color {
                             // Return the initial value of the property
                             return Ok(Color::default());
                         }
-                        return Ok(current_color.unwrap().clone());
+                        return Ok(*current_color.unwrap());
                     } else if v == "transparent" {
                         return Ok(Color::new(0, 0, 0, 0));
                     }

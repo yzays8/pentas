@@ -90,7 +90,7 @@ impl RenderNode {
         let computed_values =
             style.compute(parent_font_size_px_computed, parent_color_computed.as_ref())?;
         let parent_font_size_px_computed = computed_values.font_size;
-        let parent_color_computed = computed_values.color.clone();
+        let parent_color_computed = computed_values.color;
 
         let child_nodes = node
             .borrow()
@@ -102,7 +102,7 @@ impl RenderNode {
                     style_sheets,
                     Some(style.clone()),
                     parent_font_size_px_computed,
-                    parent_color_computed.clone(),
+                    parent_color_computed,
                 )
             })
             .collect::<Result<Vec<_>>>()?
@@ -284,7 +284,7 @@ impl SpecifiedValues {
 
         // The `color` value needs to be computed earlier because it is used to calculate other properties.
         let current_color = Color::parse(self.values.get("color").unwrap(), parent_color).ok();
-        computed_values.color = current_color.clone();
+        computed_values.color = current_color;
 
         for (name, value) in &self.values {
             match name.as_str() {
@@ -312,7 +312,7 @@ impl SpecifiedValues {
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration
                 "text-decoration" => {
                     computed_values.text_decoration =
-                        TextDecoration::parse(value, parent_color.unwrap()).ok();
+                        TextDecoration::parse(value, &current_color.unwrap()).ok();
                 }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/margin

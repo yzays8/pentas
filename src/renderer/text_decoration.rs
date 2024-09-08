@@ -59,7 +59,7 @@ impl TextDecoration {
             == &ComponentValue::PreservedToken(CssToken::Ident("underline".to_string()))
         {
             Ok(Self::new(
-                current_color.clone(),
+                *current_color,
                 TextDecorationLine::Underline,
                 TextDecorationStyle::Solid,
             ))
