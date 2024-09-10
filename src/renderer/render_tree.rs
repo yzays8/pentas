@@ -132,7 +132,7 @@ impl RenderNode {
 impl fmt::Display for RenderNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let NodeType::Element(elm) = &self.node.borrow().node_type {
-            write!(f, "{:?}: Computed( {})", elm, self.style)
+            write!(f, "{}, Computed( {})", elm, self.style)
         } else {
             write!(f, "{:?}", self.node.borrow().node_type)
         }

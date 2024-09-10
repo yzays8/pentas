@@ -65,7 +65,7 @@ impl DomNode {
 impl fmt::Display for DomNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let NodeType::Element(elm) = &self.node_type {
-            write!(f, "{:?}", elm)
+            write!(f, "{}", elm)
         } else {
             write!(f, "{:?}", self.node_type)
         }
@@ -82,11 +82,37 @@ pub enum NodeType {
     Text(String),
 }
 
+impl fmt::Display for NodeType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            NodeType::Comment(text) => write!(f, "Comment( {} )", text),
+            NodeType::Document => write!(f, "Document"),
+            NodeType::DocumentType(text) => write!(f, "DocumentType( {} )", text),
+            NodeType::Element(elm) => write!(f, "{}", elm),
+            NodeType::Text(text) => write!(f, "Text( {} )", text),
+        }
+    }
+}
+
 /// https://dom.spec.whatwg.org/#element
 #[derive(Debug, PartialEq, Eq)]
 pub struct Element {
     pub tag_name: String,
     pub attributes: Vec<(String, String)>,
+}
+
+impl fmt::Display for Element {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let attr = self.attributes
+            .iter()
+            .map(|(key, value)| format!("\"{}\"=\"{}\"", key, value))
+            .collect::<Vec<String>>();
+        if attr.is_empty() {
+            write!(f, "Elem( tag: <{}> )", self.tag_name)
+        } else {
+            write!(f, "Elem( tag: <{}>, attr: [{}] )", self.tag_name, attr.join("; "))
+        }
+    }
 }
 
 /// https://dom.spec.whatwg.org/#document-trees

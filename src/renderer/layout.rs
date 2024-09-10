@@ -312,10 +312,10 @@ impl BoxNode {
 impl fmt::Display for BoxNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.box_kind {
-            BoxKind::Block(node) => write!(f, "CTX: {}, Block: {}", self.ctx, node.borrow()),
-            BoxKind::Inline(node) => write!(f, "CTX: {}, Inline: {}", self.ctx, node.borrow()),
-            BoxKind::Text(node) => write!(f, "CTX: {}, Text: {}", self.ctx, node.borrow()),
-            BoxKind::Anonymous => write!(f, "CTX: {}, Anonymous", self.ctx),
+            BoxKind::Block(node) => write!(f, "Ctx: {}, Box: Block, {}", self.ctx, node.borrow()),
+            BoxKind::Inline(node) => write!(f, "Ctx: {}, Box: Inline, {}", self.ctx, node.borrow()),
+            BoxKind::Text(node) => write!(f, "Ctx: {}, {}", self.ctx, node.borrow()),
+            BoxKind::Anonymous => write!(f, "Ctx: {}, Box: Anonymous", self.ctx),
         }
     }
 }
