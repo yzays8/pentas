@@ -1,5 +1,5 @@
-use core::fmt;
 use std::cell::RefCell;
+use std::fmt;
 use std::rc::Rc;
 
 use anyhow::{bail, Context, Result};

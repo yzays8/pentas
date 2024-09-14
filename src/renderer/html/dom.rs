@@ -1,5 +1,5 @@
-use core::fmt;
 use std::cell::RefCell;
+use std::fmt;
 use std::rc::Rc;
 
 use anyhow::{bail, Result};
@@ -103,14 +103,20 @@ pub struct Element {
 
 impl fmt::Display for Element {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let attr = self.attributes
+        let attr = self
+            .attributes
             .iter()
             .map(|(key, value)| format!("\"{}\"=\"{}\"", key, value))
             .collect::<Vec<String>>();
         if attr.is_empty() {
             write!(f, "Elem( tag: <{}> )", self.tag_name)
         } else {
-            write!(f, "Elem( tag: <{}>, attr: [{}] )", self.tag_name, attr.join("; "))
+            write!(
+                f,
+                "Elem( tag: <{}>, attr: [{}] )",
+                self.tag_name,
+                attr.join("; ")
+            )
         }
     }
 }
