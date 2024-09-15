@@ -11,10 +11,10 @@ use crate::renderer::render_tree::RenderTree;
 #[derive(Debug, PartialEq, Eq)]
 pub struct DomNode {
     pub node_type: NodeType,
-    pub child_nodes: Vec<Rc<RefCell<DomNode>>>,
-    pub parent_node: Option<Rc<RefCell<DomNode>>>,
-    pub previous_sibling: Option<Rc<RefCell<DomNode>>>,
-    pub next_sibling: Option<Rc<RefCell<DomNode>>>,
+    pub child_nodes: Vec<Rc<RefCell<Self>>>,
+    pub parent_node: Option<Rc<RefCell<Self>>>,
+    pub previous_sibling: Option<Rc<RefCell<Self>>>,
+    pub next_sibling: Option<Rc<RefCell<Self>>>,
 }
 
 impl Default for DomNode {

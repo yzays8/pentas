@@ -106,7 +106,7 @@ impl fmt::Display for RenderTree {
 pub struct RenderNode {
     pub node: Rc<RefCell<DomNode>>,
     pub style: ComputedValues,
-    pub child_nodes: Vec<Rc<RefCell<RenderNode>>>,
+    pub child_nodes: Vec<Rc<RefCell<Self>>>,
 }
 
 impl RenderNode {

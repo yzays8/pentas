@@ -218,7 +218,7 @@ pub enum BoxKind {
 pub struct BoxNode {
     pub box_kind: BoxKind,
     pub ctx: FormattingContext,
-    pub child_nodes: Vec<Rc<RefCell<BoxNode>>>,
+    pub child_nodes: Vec<Rc<RefCell<Self>>>,
 }
 
 impl BoxNode {
