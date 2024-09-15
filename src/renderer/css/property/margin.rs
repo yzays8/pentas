@@ -3,21 +3,21 @@ use std::fmt;
 use anyhow::{bail, Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
+use crate::renderer::css::property::font_size::{self, FontSizePx};
 use crate::renderer::css::tokenizer::CssToken;
 use crate::renderer::css::tokenizer::NumericType;
-use crate::renderer::font_size::{FontSizePx, MEDIUM};
 
 #[derive(Clone, Debug)]
-pub struct Padding {
+pub struct Margin {
     pub top: f32,
     pub right: f32,
     pub bottom: f32,
     pub left: f32,
 }
 
-impl Default for Padding {
-    fn default() -> Padding {
-        Padding {
+impl Default for Margin {
+    fn default() -> Margin {
+        Margin {
             top: 0.0,
             right: 0.0,
             bottom: 0.0,
@@ -26,7 +26,7 @@ impl Default for Padding {
     }
 }
 
-impl fmt::Display for Padding {
+impl fmt::Display for Margin {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -36,7 +36,7 @@ impl fmt::Display for Padding {
     }
 }
 
-impl Padding {
+impl Margin {
     pub fn new(top: f32, right: f32, bottom: f32, left: f32) -> Self {
         Self {
             top,
@@ -52,7 +52,7 @@ impl Padding {
         }
         let parent_px = match parent_px {
             Some(px) => px.size,
-            None => MEDIUM,
+            None => font_size::MEDIUM,
         };
         let value = &value[0];
         match value {
@@ -62,7 +62,7 @@ impl Padding {
                         unimplemented!();
                     }
                     _ => {
-                        bail!("Invalid margin declaration: {:?}", value)
+                        bail!("Invalid margin declaration: {:?}", value);
                     }
                 },
                 CssToken::Dimension(size, unit) => {

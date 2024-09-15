@@ -1,7 +1,7 @@
 use anyhow::{Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::font_size::FontSizePx;
+use crate::renderer::css::property::font_size::FontSizePx;
 
 // The values of these properties are not clearly defined in the CSS specification.
 // const THIN: f32 = 1.0;

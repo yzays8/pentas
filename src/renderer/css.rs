@@ -1,5 +1,6 @@
 pub mod cssom;
 pub mod parser;
+pub mod property;
 pub mod selector;
 pub mod tokenizer;
 

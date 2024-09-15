@@ -2,8 +2,8 @@ use std::fmt;
 
 use anyhow::{Ok, Result};
 
-use crate::renderer::color::Color;
 use crate::renderer::css::cssom::ComponentValue;
+use crate::renderer::css::property::color::Color;
 use crate::renderer::css::tokenizer::CssToken;
 
 #[derive(Clone, Debug)]

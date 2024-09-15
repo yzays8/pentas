@@ -6,7 +6,7 @@ use anyhow::{ensure, Context, Result};
 use regex::Regex;
 
 use crate::renderer::html::dom::{Element, NodeType};
-use crate::renderer::render_tree::{DisplayType, RenderNode, RenderTree};
+use crate::renderer::style::render_tree::{DisplayType, RenderNode, RenderTree};
 
 /// https://www.w3.org/TR/css-display-3/#box-tree
 #[derive(Debug)]

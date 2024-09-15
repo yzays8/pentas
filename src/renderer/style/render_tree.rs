@@ -7,14 +7,16 @@ use std::rc::Rc;
 use anyhow::{Context, Ok, Result};
 
 use crate::renderer::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
+use crate::renderer::css::property::border::Border;
+use crate::renderer::css::property::color::Color;
+use crate::renderer::css::property::font_size::{self, FontSizePx};
+use crate::renderer::css::property::margin::Margin;
+use crate::renderer::css::property::padding::Padding;
+use crate::renderer::css::property::text_decoration::TextDecoration;
 use crate::renderer::css::selector::Selector;
 use crate::renderer::css::tokenizer::CssToken;
 use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
-use crate::renderer::layout::BoxTree;
-use crate::renderer::{
-    border::Border, color::Color, font_size::FontSizePx, font_size::MEDIUM, margin::Margin,
-    padding::Padding, text_decoration::TextDecoration,
-};
+use crate::renderer::style::box_tree::BoxTree;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DisplayType {
@@ -334,7 +336,7 @@ impl ComputedValues {
         self.background_color = None;
         self.color = Some(Color::default());
         self.display = Some(DisplayType::Inline);
-        self.font_size = Some(FontSizePx::new(MEDIUM));
+        self.font_size = Some(FontSizePx::new(font_size::MEDIUM));
         self.text_decoration = None;
         self.margin = None;
         self.border = None;

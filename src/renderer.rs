@@ -1,13 +1,6 @@
-mod border;
-mod color;
 mod css;
-mod font_size;
 mod html;
-mod layout;
-mod margin;
-mod padding;
-mod render_tree;
-mod text_decoration;
+mod style;
 
 use anyhow::Result;
 
