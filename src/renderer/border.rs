@@ -8,7 +8,7 @@ use crate::renderer::font_size::FontSizePx;
 const MEDIUM: f32 = 3.0;
 // const THICK: f32 = 5.0;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Border {
     pub top: f32,
     pub right: f32,

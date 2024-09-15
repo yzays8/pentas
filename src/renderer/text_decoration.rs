@@ -6,14 +6,14 @@ use crate::renderer::color::Color;
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::tokenizer::CssToken;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TextDecoration {
     pub color: Color,
     pub line: TextDecorationLine,
     pub style: TextDecorationStyle,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum TextDecorationLine {
     None,
     Underline,
@@ -21,7 +21,7 @@ pub enum TextDecorationLine {
     // LineThrough,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum TextDecorationStyle {
     Solid,
     // Double,

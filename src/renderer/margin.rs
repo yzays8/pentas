@@ -7,7 +7,7 @@ use crate::renderer::css::tokenizer::CssToken;
 use crate::renderer::css::tokenizer::NumericType;
 use crate::renderer::font_size::{FontSizePx, MEDIUM};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Margin {
     pub top: f32,
     pub right: f32,
