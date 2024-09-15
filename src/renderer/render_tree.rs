@@ -171,7 +171,8 @@ impl DeclaredValues {
         Self { values }
     }
 
-    /// Returns the declared values sorted by precedence in descending order.
+    /// Returns the cascaded values, which are the declared values that "win" the cascade.
+    /// There is at most one cascaded value per property per element.
     /// https://www.w3.org/TR/css-cascade-3/#cascading
     fn cascade(&self) -> CascadedValues {
         // Vec<(index, declaration, specificity)>
@@ -179,49 +180,47 @@ impl DeclaredValues {
             .values
             .iter()
             .enumerate()
+            // This function assumes that the element with the lower index is the one that appears earlier in the stylesheets.
             .map(|(index, (selector, declarations))| {
                 (index, declarations.clone(), selector.calc_specificity())
             })
             .collect::<Vec<_>>();
 
-        // Sort by specificity and then by index.
-        // If the specificity is the same, the order of the declarations in the stylesheet is preserved (the last declared style gets precedence).
-        // Note: The higher the specificity or index, the higher the priority, so this must be sorted in descending order.
+        // Sort by specificity and then by index in descending order. If the specificity is the same,
+        // the order of the declarations in the stylesheet is preserved (the last declared style gets precedence).
         sorted_list.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| b.0.cmp(&a.0)));
 
-        CascadedValues::new(
-            sorted_list
-                .into_iter()
-                .map(|(_, declarations, _)| declarations)
-                .collect(),
-        )
+        // Determine the winning (highest-priority) declarations.
+        let mut cascaded_values = HashMap::new();
+        for declarations in sorted_list.iter().map(|(_, declarations, _)| declarations) {
+            for declaration in declarations {
+                // The higher-priority declarations are placed first in the hash table,
+                // and declarations placed later in the table that have lower-priority
+                // with the same name are ignored.
+                cascaded_values
+                    .entry(declaration.name.clone())
+                    .or_insert_with(|| declaration.value.clone());
+            }
+        }
+
+        CascadedValues::new(cascaded_values)
     }
 }
 
 #[derive(Debug)]
 pub struct CascadedValues {
-    pub values: Vec<Vec<Declaration>>,
+    pub values: HashMap<String, Vec<ComponentValue>>,
 }
 
 impl CascadedValues {
-    pub fn new(values: Vec<Vec<Declaration>>) -> Self {
+    pub fn new(values: HashMap<String, Vec<ComponentValue>>) -> Self {
         Self { values }
     }
 
     /// Returns the table of the name and value pairs for the properties.
     /// https://www.w3.org/TR/css-cascade-3/#defaulting
     fn default(&self, parent_style: Option<SpecifiedValues>) -> SpecifiedValues {
-        let mut style_values = HashMap::new();
-
-        // The higher priority declarations are placed at the beginning of the hash table,
-        // and the lower priority declarations with the same name are ignored.
-        for declaration in &self.values {
-            for name_and_value in declaration {
-                style_values
-                    .entry(name_and_value.name.clone())
-                    .or_insert_with(|| name_and_value.value.clone());
-            }
-        }
+        let mut style_values = self.values.clone();
 
         // Inherit the parent style
         if let Some(parent_style) = parent_style {
