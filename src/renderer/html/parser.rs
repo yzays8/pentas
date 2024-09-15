@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use anyhow::{bail, Ok, Result};
+use anyhow::{bail, ensure, Ok, Result};
 use thiserror::Error;
 
 use crate::renderer::css::cssom::StyleSheet;
@@ -245,16 +245,17 @@ impl HtmlParser {
                             HtmlToken::EndTag { tag_name, .. } if tag_name == "head" => {
                                 let elm = self.stack.pop().unwrap();
                                 if let NodeType::Element(elm) = &elm.borrow().node_type {
-                                    if elm.tag_name != "head" {
-                                        bail!(ParseError {
+                                    ensure!(
+                                        elm.tag_name == "head",
+                                        ParseError {
                                             message: "Expected head element".to_string(),
                                             current_token: token,
                                             current_tree: DocumentTree::build(Rc::clone(
                                                 &document_node
                                             ))?
                                             .to_string(),
-                                        });
-                                    }
+                                        }
+                                    );
                                 } else {
                                     bail!(ParseError {
                                         message: "Expected head element".to_string(),

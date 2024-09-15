@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use anyhow::{bail, Ok, Result};
+use anyhow::{bail, ensure, Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::tokenizer::CssToken;
@@ -444,9 +444,11 @@ impl SelectorParser {
                     ..
                 }) = self.input.front()
                 {
-                    if t != &CssToken::OpenSquareBracket {
-                        bail!("Expected \"[\" but found {:?} when parsing CSS selectors in parse_simple_selector_seq", self.input.front());
-                    }
+                    ensure!(
+                        t == &CssToken::OpenSquareBracket,
+                        "Expected \"[\" but found {:?} when parsing CSS selectors in parse_simple_selector_seq",
+                        self.input.front()
+                    );
                     selector_seq.push(self.parse_attrib()?);
                 }
             }
@@ -459,12 +461,11 @@ impl SelectorParser {
             _ => {}
         }
 
-        if selector_seq.is_empty() {
-            bail!(
-                "Expected type selector, universal selector, hash, class, attribute, pseudo, or negation but found {:?} when parsing CSS selectors in parse_simple_selector_seq",
-                self.input.front()
-            );
-        }
+        ensure!(
+            !selector_seq.is_empty(),
+            "Expected type selector, universal selector, hash, class, attribute, pseudo, or negation but found {:?} when parsing CSS selectors in parse_simple_selector_seq",
+            self.input.front()
+        );
 
         Ok(selector_seq)
     }
@@ -600,12 +601,11 @@ impl SelectorParser {
             values,
         }) = self.input.front()
         {
-            if t != &CssToken::OpenSquareBracket {
-                bail!(
-                    "Expected \"[\" but found {:?} when parsing CSS selectors in parse_attrib",
-                    t
-                );
-            }
+            ensure!(
+                t == &CssToken::OpenSquareBracket,
+                "Expected \"[\" but found {:?} when parsing CSS selectors in parse_attrib",
+                t
+            );
 
             // Expand values in the simple block to the front of the input.
             let values = values.clone().into_iter().rev();

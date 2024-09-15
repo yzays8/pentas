@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
-use anyhow::{bail, Result};
+use anyhow::{ensure, Result};
 
 use crate::renderer::css::cssom::StyleSheet;
 use crate::renderer::render_tree::RenderTree;
@@ -129,9 +129,10 @@ pub struct DocumentTree {
 
 impl DocumentTree {
     pub fn build(root: Rc<RefCell<DomNode>>) -> Result<Self> {
-        if root.borrow().node_type != NodeType::Document {
-            bail!("The root node of a document tree must be a document node.");
-        }
+        ensure!(
+            root.borrow().node_type == NodeType::Document,
+            "The root node of a document tree must be a document node."
+        );
         Ok(Self { root })
     }
 

@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{ensure, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::tokenizer::CssToken;
@@ -26,9 +26,11 @@ impl FontSizePx {
             Some(px) => px.size,
             None => MEDIUM,
         };
-        if value.len() != 1 {
-            bail!("Invalid font-size declaration: {:?}", value);
-        }
+        ensure!(
+            value.len() == 1,
+            "Invalid font-size declaration: {:?}",
+            value
+        );
         let value = &value[0];
         match value {
             ComponentValue::PreservedToken(token) => match &token {

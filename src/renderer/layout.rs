@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{ensure, Context, Result};
 use regex::Regex;
 
 use crate::renderer::html::dom::{Element, NodeType};
@@ -16,9 +16,10 @@ pub struct BoxTree {
 
 impl BoxTree {
     pub fn build(render_tree: &RenderTree) -> Result<Self> {
-        if render_tree.root.borrow().node.borrow().node_type != NodeType::Document {
-            bail!("The root node of the render tree must be a document node.");
-        }
+        ensure!(
+            render_tree.root.borrow().node.borrow().node_type == NodeType::Document,
+            "The root node of the render tree must be a document node."
+        );
 
         // https://www.w3.org/TR/css-display-3/#root-element
         let mut root = None;
@@ -30,9 +31,10 @@ impl BoxTree {
                 root = Some(Rc::clone(child));
             }
         }
-        if root.is_none() {
-            bail!("The element at the root box of the box tree must be an HTML element node.");
-        }
+        ensure!(
+            root.is_some(),
+            "The element at the root box of the box tree must be an HTML element node."
+        );
 
         Ok(Self {
             root: Rc::new(RefCell::new(

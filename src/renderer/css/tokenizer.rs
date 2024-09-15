@@ -1,6 +1,6 @@
 use std::vec;
 
-use anyhow::{bail, Ok, Result};
+use anyhow::{ensure, Ok, Result};
 
 /// https://www.w3.org/TR/css-syntax-3/#tokenization
 #[derive(Clone, Debug, PartialEq)]
@@ -318,9 +318,10 @@ impl CssTokenizer {
                 }
             }
         }
-        if end_with_eof {
-            bail!("parse error: consuming comments ended with EOF");
-        }
+        ensure!(
+            !end_with_eof,
+            "parse error: consuming comments ended with EOF"
+        );
         Ok(())
     }
 
