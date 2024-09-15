@@ -27,7 +27,7 @@ impl Default for Padding {
 }
 
 impl fmt::Display for Padding {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{} {} {} {}",

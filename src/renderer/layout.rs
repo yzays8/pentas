@@ -310,7 +310,7 @@ impl BoxNode {
 }
 
 impl fmt::Display for BoxNode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.box_kind {
             BoxKind::Block(node) => write!(f, "Ctx: {}, Box: Block, {}", self.ctx, node.borrow()),
             BoxKind::Inline(node) => write!(f, "Ctx: {}, Box: Inline, {}", self.ctx, node.borrow()),
