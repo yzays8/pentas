@@ -11,7 +11,4 @@ pub struct Args {
 
     #[arg(long, help = "Display all intermediate steps")]
     pub trace: bool,
-
-    #[arg(long, help = "Only parse the HTML and print the document tree")]
-    pub parse_only: bool,
 }

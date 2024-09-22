@@ -1,5 +1,18 @@
+mod cli;
+
+use clap::Parser as _;
+
+use pentas::{Config, Runner};
+
 fn main() {
-    if let Err(e) = pentas::run() {
+    let args = cli::Args::parse();
+    let config = Config {
+        html_path: args.html,
+        css_path: args.css,
+        is_tracing_enabled: args.trace,
+    };
+
+    if let Err(e) = Runner::new(config).run() {
         eprintln!("Error: {}", e);
         std::process::exit(1);
     }
