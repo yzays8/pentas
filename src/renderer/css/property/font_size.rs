@@ -1,84 +1,230 @@
-use anyhow::{ensure, Result};
+use std::fmt;
+use std::iter::Peekable;
 
+use anyhow::{bail, Result};
+
+use crate::renderer::css::css_type::{self, parse_length_percentage_type};
+use crate::renderer::css::css_type::{
+    AbsoluteLengthUnit, CssValue, LengthUnit, RelativeLengthUnit,
+};
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::tokenizer::CssToken;
-use crate::renderer::css::tokenizer::NumericType;
 
 pub const SMALL: f32 = 13.0;
 pub const MEDIUM: f32 = 16.0;
 pub const LARGE: f32 = 18.0;
 
-/// Computed value of `font-size` property. The unit is `px`.
-#[derive(Clone, Copy, Debug)]
-pub struct FontSizePx {
-    pub size: f32,
+#[derive(Clone, Debug, PartialEq)]
+pub struct FontSizeProp {
+    pub size: CssValue,
 }
 
-impl FontSizePx {
-    pub fn new(size: f32) -> Self {
-        Self { size }
+impl fmt::Display for FontSizeProp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.size)
     }
+}
 
-    /// Computes the `font-size` value.
-    /// The parent `font-size` value is used to calculate the relative font-size.
-    pub fn parse(value: &[ComponentValue], parent_px: Option<FontSizePx>) -> Result<Self> {
+impl FontSizeProp {
+    pub fn compute(&mut self, parent_px: Option<&Self>) -> Result<&Self> {
         let parent_px = match parent_px {
-            Some(px) => px.size,
-            None => MEDIUM,
+            Some(FontSizeProp {
+                size: CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
+            }) => *size,
+            _ => MEDIUM,
         };
-        ensure!(
-            value.len() == 1,
-            "Invalid font-size declaration: {:?}",
-            value
-        );
-        let value = &value[0];
-        match value {
-            ComponentValue::PreservedToken(token) => match &token {
-                CssToken::Ident(size) => match size.as_str() {
-                    "small" | "medium" | "large" => Ok(Self::new(match size.as_str() {
-                        "small" => SMALL,
-                        "medium" => MEDIUM,
-                        "large" => LARGE,
-                        _ => unreachable!(),
-                    })),
-                    _ => {
-                        unimplemented!();
-                    }
-                },
-                CssToken::Dimension(size, unit) => {
-                    let size = match size {
-                        NumericType::Integer(integer) => *integer as f32,
-                        NumericType::Number(float) => *float,
-                    };
-                    match unit.as_str() {
-                        "px" => Ok(Self::new(size)),
-                        "em" => Ok(Self::new(size * parent_px)),
-                        _ => unimplemented!(),
-                    }
+
+        match &self.size {
+            CssValue::AbsoluteSize(size) => match size {
+                css_type::AbsoluteSize::Small => {
+                    self.size = CssValue::Length(
+                        SMALL,
+                        LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                    );
                 }
-                CssToken::Percentage(size) => Ok(Self::new(size / 100.0 * parent_px)),
+                css_type::AbsoluteSize::Medium => {
+                    self.size = CssValue::Length(
+                        MEDIUM,
+                        LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                    );
+                }
+                css_type::AbsoluteSize::Large => {
+                    self.size = CssValue::Length(
+                        LARGE,
+                        LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                    );
+                }
                 _ => unimplemented!(),
             },
-            _ => unimplemented!(),
+            CssValue::RelativeSize(_) => unimplemented!(),
+            CssValue::Length(size, unit) => match unit {
+                LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px) => {
+                    self.size = CssValue::Length(
+                        *size,
+                        LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                    );
+                }
+                LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Em) => {
+                    self.size = CssValue::Length(
+                        size * parent_px,
+                        LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                    );
+                }
+                _ => unimplemented!(),
+            },
+            CssValue::Percentage(size) => {
+                self.size = CssValue::Length(
+                    size / 100.0 * parent_px,
+                    LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                );
+            }
+            _ => bail!("Invalid font-size value: {:?}", self.size),
         }
+
+        Ok(self)
+    }
+}
+
+// font-size =
+//   <absolute-size>            |
+//   <relative-size>            |
+//   <length-percentage [0,∞]>  |
+//   math
+pub fn parse_font_size(values: &[ComponentValue]) -> Result<FontSizeProp> {
+    let mut values = values.iter().cloned().peekable();
+    if let Some(ComponentValue::PreservedToken(CssToken::Ident(size))) = values.peek() {
+        match size.as_str() {
+            "xx-small" | "x-small" | "small" | "medium" | "large" | "x-large" | "xx-large" => {
+                Ok(FontSizeProp {
+                    size: parse_absolute_size_type(&mut values)?,
+                })
+            }
+            "larger" | "smaller" => Ok(FontSizeProp {
+                size: parse_relative_size_type(&mut values)?,
+            }),
+            _ => bail!(
+                "Expected absolute or relative size value but found: {:?}",
+                values
+            ),
+        }
+    } else {
+        Ok(FontSizeProp {
+            size: parse_length_percentage_type(&mut values)?,
+        })
+    }
+}
+
+// <absolute-size> = xx-small | x-small | small | medium | large | x-large | xx-large | xxx-large
+pub fn parse_absolute_size_type<I>(values: &mut Peekable<I>) -> Result<CssValue>
+where
+    I: Iterator<Item = ComponentValue>,
+{
+    match values.next() {
+        Some(v) => match &v {
+            ComponentValue::PreservedToken(CssToken::Ident(size)) => match size.as_str() {
+                "xx-small" => Ok(CssValue::AbsoluteSize(css_type::AbsoluteSize::XXSmall)),
+                "x-small" => Ok(CssValue::AbsoluteSize(css_type::AbsoluteSize::XSmall)),
+                "small" => Ok(CssValue::AbsoluteSize(css_type::AbsoluteSize::Small)),
+                "medium" => Ok(CssValue::AbsoluteSize(css_type::AbsoluteSize::Medium)),
+                "large" => Ok(CssValue::AbsoluteSize(css_type::AbsoluteSize::Large)),
+                "x-large" => Ok(CssValue::AbsoluteSize(css_type::AbsoluteSize::XLarge)),
+                "xx-large" => Ok(CssValue::AbsoluteSize(css_type::AbsoluteSize::XXLarge)),
+                _ => bail!("Invalid absolute size value: {:?}", v),
+            },
+            _ => bail!("Expected absolute size value but found: {:?}", v),
+        },
+        None => bail!("Expected absolute size value but found none"),
+    }
+}
+
+// <relative-size> = smaller | larger
+pub fn parse_relative_size_type<I>(values: &mut Peekable<I>) -> Result<CssValue>
+where
+    I: Iterator<Item = ComponentValue>,
+{
+    match values.next() {
+        Some(v) => match &v {
+            ComponentValue::PreservedToken(CssToken::Ident(size)) => match size.as_str() {
+                "larger" => Ok(CssValue::RelativeSize(css_type::RelativeSize::Larger)),
+                "smaller" => Ok(CssValue::RelativeSize(css_type::RelativeSize::Smaller)),
+                _ => bail!("Invalid relative size value: {:?}", v),
+            },
+            _ => bail!("Expected relative size value but found: {:?}", v),
+        },
+        None => bail!("Expected relative size value but found none"),
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::renderer::css::tokenizer::NumericType;
+
     use super::*;
 
     #[test]
-    fn test_font_size() {
-        let parent_px = FontSizePx::new(16.0);
+    fn test_parse_font_size() {
+        let value = vec![ComponentValue::PreservedToken(CssToken::Ident(
+            "small".to_string(),
+        ))];
+        assert_eq!(
+            parse_font_size(&value).unwrap(),
+            FontSizeProp {
+                size: CssValue::AbsoluteSize(css_type::AbsoluteSize::Small)
+            }
+        );
+
+        let value = vec![ComponentValue::PreservedToken(CssToken::Ident(
+            "medium".to_string(),
+        ))];
+        assert_eq!(
+            parse_font_size(&value).unwrap(),
+            FontSizeProp {
+                size: CssValue::AbsoluteSize(css_type::AbsoluteSize::Medium)
+            }
+        );
+
+        let value = vec![ComponentValue::PreservedToken(CssToken::Ident(
+            "large".to_string(),
+        ))];
+        assert_eq!(
+            parse_font_size(&value).unwrap(),
+            FontSizeProp {
+                size: CssValue::AbsoluteSize(css_type::AbsoluteSize::Large)
+            }
+        );
+
+        let value = vec![ComponentValue::PreservedToken(CssToken::Ident(
+            "larger".to_string(),
+        ))];
+        assert_eq!(
+            parse_font_size(&value).unwrap(),
+            FontSizeProp {
+                size: CssValue::RelativeSize(css_type::RelativeSize::Larger)
+            }
+        );
+
+        let value = vec![ComponentValue::PreservedToken(CssToken::Ident(
+            "smaller".to_string(),
+        ))];
+        assert_eq!(
+            parse_font_size(&value).unwrap(),
+            FontSizeProp {
+                size: CssValue::RelativeSize(css_type::RelativeSize::Smaller)
+            }
+        );
 
         let value = vec![ComponentValue::PreservedToken(CssToken::Dimension(
             NumericType::Number(12.0),
             "px".to_string(),
         ))];
         assert_eq!(
-            FontSizePx::parse(&value, Some(parent_px)).unwrap().size,
-            12.0
+            parse_font_size(&value).unwrap(),
+            FontSizeProp {
+                size: CssValue::Length(
+                    12.0,
+                    LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)
+                )
+            }
         );
 
         let value = vec![ComponentValue::PreservedToken(CssToken::Dimension(
@@ -86,38 +232,18 @@ mod tests {
             "em".to_string(),
         ))];
         assert_eq!(
-            FontSizePx::parse(&value, Some(parent_px)).unwrap().size,
-            24.0
+            parse_font_size(&value).unwrap(),
+            FontSizeProp {
+                size: CssValue::Length(1.5, LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Em))
+            }
         );
 
         let value = vec![ComponentValue::PreservedToken(CssToken::Percentage(50.0))];
         assert_eq!(
-            FontSizePx::parse(&value, Some(parent_px)).unwrap().size,
-            8.0
-        );
-
-        let value = vec![ComponentValue::PreservedToken(CssToken::Ident(
-            "small".to_string(),
-        ))];
-        assert_eq!(
-            FontSizePx::parse(&value, Some(parent_px)).unwrap().size,
-            SMALL
-        );
-
-        let value = vec![ComponentValue::PreservedToken(CssToken::Ident(
-            "medium".to_string(),
-        ))];
-        assert_eq!(
-            FontSizePx::parse(&value, Some(parent_px)).unwrap().size,
-            MEDIUM
-        );
-
-        let value = vec![ComponentValue::PreservedToken(CssToken::Ident(
-            "large".to_string(),
-        ))];
-        assert_eq!(
-            FontSizePx::parse(&value, Some(parent_px)).unwrap().size,
-            LARGE
+            parse_font_size(&value).unwrap(),
+            FontSizeProp {
+                size: CssValue::Percentage(50.0,)
+            }
         );
     }
 }

@@ -1,32 +1,24 @@
 use std::fmt;
+use std::iter::Peekable;
 
 use anyhow::{bail, Ok, Result};
 
+use crate::renderer::css::css_type::{
+    parse_length_percentage_type, AbsoluteLengthUnit, CssValue, LengthUnit, RelativeLengthUnit,
+};
 use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::property::font_size::{self, FontSizePx};
+use crate::renderer::css::property::font_size::{self, FontSizeProp};
 use crate::renderer::css::tokenizer::CssToken;
-use crate::renderer::css::tokenizer::NumericType;
 
-#[derive(Clone, Debug)]
-pub struct Padding {
-    pub top: f32,
-    pub right: f32,
-    pub bottom: f32,
-    pub left: f32,
+#[derive(Clone, Debug, PartialEq)]
+pub struct PaddingProp {
+    pub top: CssValue,
+    pub right: CssValue,
+    pub bottom: CssValue,
+    pub left: CssValue,
 }
 
-impl Default for Padding {
-    fn default() -> Padding {
-        Padding {
-            top: 0.0,
-            right: 0.0,
-            bottom: 0.0,
-            left: 0.0,
-        }
-    }
-}
-
-impl fmt::Display for Padding {
+impl fmt::Display for PaddingProp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -36,60 +28,100 @@ impl fmt::Display for Padding {
     }
 }
 
-impl Padding {
-    pub fn new(top: f32, right: f32, bottom: f32, left: f32) -> Self {
-        Self {
-            top,
-            right,
-            bottom,
-            left,
-        }
+impl PaddingProp {
+    pub fn compute(&mut self, current_font_size: Option<&FontSizeProp>) -> Result<&Self> {
+        self.top = Self::compute_top(&self.top, current_font_size)?;
+        self.right = Self::compute_top(&self.right, current_font_size)?;
+        self.bottom = Self::compute_top(&self.bottom, current_font_size)?;
+        self.left = Self::compute_top(&self.left, current_font_size)?;
+        Ok(self)
     }
 
-    pub fn parse(value: &[ComponentValue], parent_px: Option<FontSizePx>) -> Result<Self> {
-        if value.len() != 1 {
-            unimplemented!();
-        }
-        let parent_px = match parent_px {
-            Some(px) => px.size,
-            None => font_size::MEDIUM,
+    fn compute_top(value: &CssValue, current_font_size: Option<&FontSizeProp>) -> Result<CssValue> {
+        let current_font_size = match current_font_size {
+            Some(FontSizeProp {
+                size: CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
+            }) => size,
+            None => &font_size::MEDIUM,
+            _ => bail!("Invalid font-size value: {:?}", current_font_size),
         };
-        let value = &value[0];
-        match value {
-            ComponentValue::PreservedToken(token) => match &token {
-                CssToken::Ident(size) => match size.as_str() {
-                    "auto" => {
-                        unimplemented!();
-                    }
-                    _ => {
-                        bail!("Invalid margin declaration: {:?}", value)
-                    }
-                },
-                CssToken::Dimension(size, unit) => {
-                    let size = match size {
-                        NumericType::Integer(integer) => *integer as f32,
-                        NumericType::Number(float) => *float,
-                    };
-                    match unit.as_str() {
-                        "px" => Ok(Self::new(size, size, size, size)),
-                        "em" => {
-                            let size = size * parent_px;
-                            Ok(Self::new(size, size, size, size))
-                        }
-                        _ => unimplemented!(),
-                    }
-                }
-                CssToken::Percentage(size) => {
-                    let size = *size * parent_px / 100.0;
-                    Ok(Self::new(size, size, size, size))
-                }
-                _ => {
-                    unimplemented!();
-                }
+        match &value {
+            CssValue::Length(size, unit) => match unit {
+                LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px) => Ok(value.clone()),
+                LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Em) => Ok(CssValue::Length(
+                    size * current_font_size,
+                    LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                )),
+                _ => unimplemented!(),
             },
-            _ => {
-                unimplemented!();
-            }
+            CssValue::Percentage(_) => unimplemented!(),
+            _ => bail!("Invalid padding value: {:?}", &value),
         }
     }
+}
+
+// padding =
+//   <'padding-top'>{1,4}
+pub fn parse_padding(values: &[ComponentValue]) -> Result<PaddingProp> {
+    let mut values = values.iter().cloned().peekable();
+    let mut trbl = vec![];
+    while values.peek().is_some() {
+        while values
+            .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
+            .is_some()
+        {}
+        if values.peek().is_some() {
+            trbl.push(parse_padding_top_type(&mut values)?);
+        }
+    }
+    match trbl.len() {
+        1 => {
+            let v = trbl.first().unwrap().clone();
+            Ok(PaddingProp {
+                top: v.clone(),
+                right: v.clone(),
+                bottom: v.clone(),
+                left: v,
+            })
+        }
+        2 => {
+            let top = trbl.first().unwrap().clone();
+            let right = trbl.get(1).unwrap().clone();
+            Ok(PaddingProp {
+                top: top.clone(),
+                right: right.clone(),
+                bottom: top,
+                left: right,
+            })
+        }
+        3 => {
+            let right = trbl.get(1).unwrap().clone();
+            Ok(PaddingProp {
+                top: trbl.first().unwrap().clone(),
+                right: right.clone(),
+                bottom: trbl.get(2).unwrap().clone(),
+                left: right,
+            })
+        }
+        4 => Ok(PaddingProp {
+            top: trbl.first().unwrap().clone(),
+            right: trbl.get(1).unwrap().clone(),
+            bottom: trbl.get(2).unwrap().clone(),
+            left: trbl.get(3).unwrap().clone(),
+        }),
+        _ => bail!("Invalid margin declaration: {:?}", values),
+    }
+}
+
+// <padding-top> =
+//   <length-percentage [0,∞]>
+fn parse_padding_top_type<I>(values: &mut Peekable<I>) -> Result<CssValue>
+where
+    I: Iterator<Item = ComponentValue>,
+{
+    while values
+        .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
+        .is_some()
+    {}
+    parse_length_percentage_type(values)
 }

@@ -6,39 +6,22 @@ use std::rc::Rc;
 
 use anyhow::{Context, Ok, Result};
 
+use crate::renderer::css::css_type::{AbsoluteSize, CssValue};
 use crate::renderer::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
-use crate::renderer::css::property::border::Border;
-use crate::renderer::css::property::color::Color;
-use crate::renderer::css::property::font_size::{self, FontSizePx};
-use crate::renderer::css::property::margin::Margin;
-use crate::renderer::css::property::padding::Padding;
-use crate::renderer::css::property::text_decoration::TextDecoration;
+use crate::renderer::css::property::border::{parse_border, BorderProp};
+use crate::renderer::css::property::color::{parse_color, ColorProp};
+use crate::renderer::css::property::display::{
+    parse_display, DisplayBox, DisplayInside, DisplayOutside, DisplayProp,
+};
+use crate::renderer::css::property::font_size::{parse_font_size, FontSizeProp};
+use crate::renderer::css::property::margin::{
+    parse_margin, parse_margin_block, MarginBlockProp, MarginProp,
+};
+use crate::renderer::css::property::padding::{parse_padding, PaddingProp};
+use crate::renderer::css::property::text_decoration::{parse_text_decoration, TextDecorationProp};
 use crate::renderer::css::selector::Selector;
-use crate::renderer::css::tokenizer::CssToken;
 use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
 use crate::renderer::style::box_tree::BoxTree;
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DisplayType {
-    Inline,
-    Block,
-    None,
-}
-
-impl DisplayType {
-    pub fn parse(values: &[ComponentValue]) -> Self {
-        if let Some(ComponentValue::PreservedToken(CssToken::Ident(keyword))) = values.first() {
-            match keyword.as_str() {
-                "inline" => DisplayType::Inline,
-                "block" => DisplayType::Block,
-                "none" => DisplayType::None,
-                _ => unimplemented!(),
-            }
-        } else {
-            unimplemented!()
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct RenderTree {
@@ -134,14 +117,17 @@ impl RenderNode {
             // https://www.w3.org/TR/css-cascade-3/#value-stages
             apply_filtering(Rc::clone(&node), style_sheets)
                 .apply_cascading()
-                .apply_defaulting_and_computing(&parent_style)?
+                .apply_defaulting(&parent_style)?
+                .apply_computing()
         } else {
             ComputedValues::default()
         };
 
         // All elements with a value of none for the display property and their descendants are not rendered.
         // https://developer.mozilla.org/en-US/docs/Web/CSS/display#none
-        if style.display == Some(DisplayType::None) {
+        if style.display.is_some()
+            && (style.display.as_ref().unwrap().display_box == Some(DisplayBox::None))
+        {
             return Ok(None);
         }
 
@@ -164,13 +150,13 @@ impl RenderNode {
         }))
     }
 
-    pub fn get_display_type(&self) -> DisplayType {
+    pub fn get_display_type(&self) -> DisplayOutside {
         if self.style.display.is_none() {
             // The default value of the `display` property is inline.
             // The text sequence is treated as a single inline type here.
-            return DisplayType::Inline;
+            return DisplayOutside::Inline;
         }
-        self.style.display.as_ref().unwrap().clone()
+        self.style.display.as_ref().unwrap().outside
     }
 }
 
@@ -219,7 +205,7 @@ impl DeclaredValues {
     /// Returns the cascaded values, which are the declared values that "win" the cascade.
     /// There is at most one cascaded value per property per element.
     /// https://www.w3.org/TR/css-cascade-3/#cascading
-    fn apply_cascading(&self) -> CascadedValues {
+    pub fn apply_cascading(&self) -> CascadedValues {
         // Vec<(index, declaration, specificity)>
         let mut sorted_list = self
             .values
@@ -254,6 +240,7 @@ impl DeclaredValues {
 
 #[derive(Debug)]
 pub struct CascadedValues {
+    // todo: Use IndexMap to preserve the order of insertion.
     pub values: HashMap<String, Vec<ComponentValue>>,
 }
 
@@ -262,36 +249,203 @@ impl CascadedValues {
         Self { values }
     }
 
-    /// Returns the computed values by applying the defaulting and computing stages.
+    /// Returns the specified values. All properties are set to their initial values or inherited values.
     /// https://www.w3.org/TR/css-cascade-3/#defaulting
-    fn apply_defaulting_and_computing(
+    pub fn apply_defaulting(
         &self,
         parent_style: &Option<ComputedValues>,
-    ) -> Result<ComputedValues> {
-        let mut computed_values = ComputedValues::new();
+    ) -> Result<SpecifiedValues> {
+        let mut specified_values = SpecifiedValues::new();
 
-        computed_values.initialize();
+        specified_values.initialize();
 
         if parent_style.is_some() {
-            computed_values.inherit(parent_style.as_ref().unwrap());
+            specified_values.inherit(parent_style.as_ref().unwrap());
         }
 
-        computed_values.set_from(self);
+        specified_values.set_from(self);
 
-        Ok(computed_values)
+        Ok(specified_values)
     }
 }
 
 #[derive(Clone, Debug, Default)]
+pub struct SpecifiedValues {
+    pub background_color: Option<ColorProp>,
+    pub color: Option<ColorProp>,
+    pub display: Option<DisplayProp>,
+    pub font_size: Option<FontSizeProp>,
+    pub text_decoration: Option<TextDecorationProp>,
+    pub margin: Option<MarginProp>,
+    pub margin_block: Option<MarginBlockProp>,
+    pub border: Option<BorderProp>,
+    pub padding: Option<PaddingProp>,
+}
+
+impl SpecifiedValues {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the initial values for the properties.
+    pub fn initialize(&mut self) {
+        // todo: Add more properties and set correct initial values
+        self.background_color = None;
+        self.color = Some(ColorProp::default());
+        self.display = Some(DisplayProp {
+            inside: DisplayInside::Flow,
+            outside: DisplayOutside::Inline,
+            display_box: None,
+        });
+        self.font_size = Some(FontSizeProp {
+            size: CssValue::AbsoluteSize(AbsoluteSize::Medium),
+        });
+        self.text_decoration = None;
+        self.margin = None;
+        self.margin_block = None;
+        self.border = None;
+        self.padding = None;
+    }
+
+    /// Sets the inherited values for all "inherited properties".
+    /// The values inherited from the parent element must be the computed values.
+    pub fn inherit(&mut self, parent_values: &ComputedValues) {
+        if parent_values.color.is_some() {
+            self.color = parent_values.color.clone();
+        }
+        if parent_values.font_size.is_some() {
+            self.font_size = parent_values.font_size.clone();
+        }
+    }
+
+    // todo: Need to keep the order of the declarations of the properties. HashMap does not guarantee the order.
+    // Assumes that the computed values have been initialized and inherited.
+    pub fn set_from(&mut self, cascaded_values: &CascadedValues) {
+        for (name, values) in &cascaded_values.values {
+            match name.as_str() {
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/background-color
+                "background-color" => self.background_color = parse_color(values).ok(),
+
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/color
+                "color" => self.color = parse_color(values).ok(),
+
+                // https://drafts.csswg.org/css-display/#the-display-properties
+                "display" => {
+                    self.display = parse_display(values).ok();
+                }
+
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/font-size
+                "font-size" => {
+                    self.font_size = parse_font_size(values).ok();
+                }
+
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration
+                "text-decoration" => {
+                    self.text_decoration = parse_text_decoration(values).ok();
+                }
+
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/margin
+                "margin" => self.margin = parse_margin(values).ok(),
+
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/margin-block
+                "margin-block" => {
+                    // Assume that the margin-block-start and margin-block-end values
+                    // are the same as the margin-top and margin-bottom values.
+                    // todo: Handle the direction of the text
+                    self.margin_block = parse_margin_block(values).ok();
+                    if self.margin_block.is_some() {
+                        if self.margin.is_some() {
+                            self.margin.as_mut().unwrap().top =
+                                self.margin_block.as_ref().unwrap().start.clone();
+                            self.margin.as_mut().unwrap().bottom =
+                                self.margin_block.as_ref().unwrap().end.clone();
+                        } else {
+                            self.margin = Some(MarginProp {
+                                top: self.margin_block.as_ref().unwrap().start.clone(),
+                                bottom: self.margin_block.as_ref().unwrap().end.clone(),
+                                ..Default::default()
+                            })
+                        }
+                    }
+                }
+
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/border
+                "border" => {
+                    self.border = parse_border(values).ok();
+                }
+
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/padding
+                "padding" => {
+                    self.padding = parse_padding(values).ok();
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Converts the relative values to absolute values.
+    /// https://www.w3.org/TR/css-cascade-3/#computed
+    pub fn apply_computing(&self) -> ComputedValues {
+        let parent_font_size_px = self.font_size.clone();
+        let parent_color = self.color.clone();
+
+        let mut t = self.clone();
+
+        // The `color` value needs to be computed earlier because it is used to calculate other properties.
+        t.color
+            .as_mut()
+            .map(|v| v.compute(parent_color.as_ref()).ok().cloned());
+        // The `font-size` value needs to be computed earlier because it is used to calculate other properties.
+        t.font_size
+            .as_mut()
+            .map(|v| v.compute(parent_font_size_px.as_ref()).ok().cloned());
+
+        t.display.as_mut().map(|v| v.compute().ok().cloned());
+        t.background_color
+            .as_mut()
+            .map(|v| v.compute(t.color.as_ref()).ok().cloned());
+        t.text_decoration
+            .as_mut()
+            .map(|v| v.compute(t.color.as_ref()).ok().cloned());
+        t.margin
+            .as_mut()
+            .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
+        t.margin_block
+            .as_mut()
+            .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
+        t.border
+            .as_mut()
+            .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
+        t.padding
+            .as_mut()
+            .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
+
+        ComputedValues {
+            background_color: t.background_color,
+            color: t.color,
+            display: t.display,
+            font_size: t.font_size,
+            text_decoration: t.text_decoration,
+            margin: t.margin,
+            margin_block: t.margin_block,
+            border: t.border,
+            padding: t.padding,
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Default)]
 pub struct ComputedValues {
-    pub background_color: Option<Color>,
-    pub color: Option<Color>,
-    pub display: Option<DisplayType>,
-    pub font_size: Option<FontSizePx>,
-    pub text_decoration: Option<TextDecoration>,
-    pub margin: Option<Margin>,
-    pub border: Option<Border>,
-    pub padding: Option<Padding>,
+    pub background_color: Option<ColorProp>,
+    pub color: Option<ColorProp>,
+    pub display: Option<DisplayProp>,
+    pub font_size: Option<FontSizeProp>,
+    pub text_decoration: Option<TextDecorationProp>,
+    pub margin: Option<MarginProp>,
+    pub margin_block: Option<MarginBlockProp>,
+    pub border: Option<BorderProp>,
+    pub padding: Option<PaddingProp>,
 }
 
 impl fmt::Display for ComputedValues {
@@ -304,10 +458,10 @@ impl fmt::Display for ComputedValues {
             style_str.push_str(&format!("color: {}; ", color));
         }
         if let Some(display) = &self.display {
-            style_str.push_str(&format!("display: {:?}; ", display));
+            style_str.push_str(&format!("display: {}; ", display));
         }
         if let Some(font_size) = &self.font_size {
-            style_str.push_str(&format!("font-size: {}; ", font_size.size));
+            style_str.push_str(&format!("font-size: {}; ", font_size));
         }
         if let Some(text_decoration) = &self.text_decoration {
             style_str.push_str(&format!("text-decoration: {}; ", text_decoration));
@@ -315,6 +469,9 @@ impl fmt::Display for ComputedValues {
         if let Some(margin) = &self.margin {
             style_str.push_str(&format!("margin: {}; ", margin));
         }
+        // if let Some(margin_block) = &self.margin_block {
+        //     style_str.push_str(&format!("margin-block: {}; ", margin_block));
+        // }
         if let Some(border) = &self.border {
             style_str.push_str(&format!("border: {}; ", border));
         }
@@ -322,97 +479,5 @@ impl fmt::Display for ComputedValues {
             style_str.push_str(&format!("padding: {}; ", padding));
         }
         write!(f, "{}", style_str)
-    }
-}
-
-impl ComputedValues {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    // todo: Add more properties
-    /// Sets the initial values for the properties.
-    fn initialize(&mut self) {
-        self.background_color = None;
-        self.color = Some(Color::default());
-        self.display = Some(DisplayType::Inline);
-        self.font_size = Some(FontSizePx::new(font_size::MEDIUM));
-        self.text_decoration = None;
-        self.margin = None;
-        self.border = None;
-        self.padding = None;
-    }
-
-    /// Sets the inherited values for all "inherited properties".
-    fn inherit(&mut self, parent_values: &Self) {
-        if parent_values.color.is_some() {
-            self.color = parent_values.color;
-        }
-        if parent_values.font_size.is_some() {
-            self.font_size = parent_values.font_size;
-        }
-    }
-
-    /// Converts the relative values to absolute values and sets the computed values.
-    /// Assumes that the computed values have been initialized and inherited.
-    /// https://www.w3.org/TR/css-cascade-3/#computed
-    fn set_from(&mut self, cascaded_values: &CascadedValues) {
-        let parent_font_size_px = self.font_size;
-        let parent_color = self.color.as_ref();
-
-        // The `color` value needs to be computed earlier because it is used to calculate other properties.
-        let current_color = if let Some(values) = cascaded_values.values.get("color") {
-            Color::parse(values, parent_color).ok()
-        } else {
-            self.color
-        };
-        self.color = current_color;
-
-        for (name, value) in &cascaded_values.values {
-            match name.as_str() {
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/background-color
-                "background-color" => {
-                    self.background_color = Color::parse(value, current_color.as_ref()).ok();
-                }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/color
-                "color" => {
-                    continue;
-                }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/font-size
-                "font-size" => {
-                    self.font_size = FontSizePx::parse(value, parent_font_size_px).ok();
-                }
-
-                // https://drafts.csswg.org/css-display/#the-display-properties
-                "display" => {
-                    self.display = Some(DisplayType::parse(value));
-                }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration
-                "text-decoration" => {
-                    self.text_decoration =
-                        TextDecoration::parse(value, &current_color.unwrap()).ok();
-                }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/margin
-                "margin" => {
-                    self.margin = Margin::parse(value, parent_font_size_px).ok();
-                }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/border
-                "border" => {
-                    self.border = Border::parse(value, parent_font_size_px).ok();
-                }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/padding
-                "padding" => {
-                    self.padding = Padding::parse(value, parent_font_size_px).ok();
-                }
-
-                _ => {}
-            }
-        }
     }
 }

@@ -5,8 +5,9 @@ use std::rc::Rc;
 use anyhow::{ensure, Context, Result};
 use regex::Regex;
 
+use crate::renderer::css::property::display::DisplayOutside;
 use crate::renderer::html::dom::{Element, NodeType};
-use crate::renderer::style::render_tree::{DisplayType, RenderNode, RenderTree};
+use crate::renderer::style::render_tree::{RenderNode, RenderTree};
 
 /// https://www.w3.org/TR/css-display-3/#box-tree
 #[derive(Debug)]
@@ -242,7 +243,7 @@ impl BoxNode {
             .borrow()
             .child_nodes
             .iter()
-            .any(|child| child.borrow().get_display_type() == DisplayType::Block)
+            .any(|child| child.borrow().get_display_type() == DisplayOutside::Block)
         {
             FormattingContext::Block
         } else {
@@ -253,13 +254,13 @@ impl BoxNode {
         let mut i = 0;
         while i < node.borrow().child_nodes.len() {
             match node.borrow().child_nodes[i].borrow().get_display_type() {
-                DisplayType::Block => {
+                DisplayOutside::Block => {
                     let child = Self::build(Rc::clone(&node.borrow().child_nodes[i]), next_ctx);
                     if let Some(child) = child {
                         children.push(Rc::new(RefCell::new(child)));
                     }
                 }
-                DisplayType::Inline => {
+                DisplayOutside::Inline => {
                     if (FormattingContext::Block == current_ctx)
                         && (node.borrow().child_nodes.len() > 1)
                     {
@@ -273,7 +274,7 @@ impl BoxNode {
                         // If there are successive inline-level contents, they are wrapped in the same anonymous box.
                         while i < node.borrow().child_nodes.len()
                             && node.borrow().child_nodes[i].borrow().get_display_type()
-                                == DisplayType::Inline
+                                == DisplayOutside::Inline
                         {
                             let child = Self::build(
                                 Rc::clone(&node.borrow().child_nodes[i]),
@@ -293,7 +294,6 @@ impl BoxNode {
                         }
                     }
                 }
-                DisplayType::None => {}
             }
 
             i += 1;
@@ -301,9 +301,8 @@ impl BoxNode {
 
         Some(Self {
             box_kind: match node.borrow().get_display_type() {
-                DisplayType::Block => BoxKind::Block(Rc::clone(&node)),
-                DisplayType::Inline => BoxKind::Inline(Rc::clone(&node)),
-                DisplayType::None => unreachable!(),
+                DisplayOutside::Block => BoxKind::Block(Rc::clone(&node)),
+                DisplayOutside::Inline => BoxKind::Inline(Rc::clone(&node)),
             },
             ctx: current_ctx,
             child_nodes: children,

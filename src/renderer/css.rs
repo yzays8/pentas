@@ -1,3 +1,4 @@
+pub mod css_type;
 pub mod cssom;
 pub mod parser;
 pub mod property;
