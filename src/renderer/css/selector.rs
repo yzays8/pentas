@@ -289,8 +289,7 @@ pub fn parse(values: &[ComponentValue]) -> Result<Vec<Selector>> {
 //   ;
 fn parse_selectors_group<I>(values: &mut Peekable<I>) -> Result<Vec<Selector>>
 where
-    I: Iterator<Item = ComponentValue>,
-    I: Clone,
+    I: Iterator<Item = ComponentValue> + Clone,
 {
     let mut selectors = Vec::new();
     selectors.push(parse_selector(values)?);
@@ -320,8 +319,7 @@ where
 //   ;
 fn parse_selector<I>(values: &mut Peekable<I>) -> Result<Selector>
 where
-    I: Iterator<Item = ComponentValue>,
-    I: Clone,
+    I: Iterator<Item = ComponentValue> + Clone,
 {
     let simple = Selector::Simple(parse_simple_selector_seq(values)?);
 
@@ -385,8 +383,7 @@ where
 //   ;
 fn parse_simple_selector_seq<I>(values: &mut Peekable<I>) -> Result<Vec<SimpleSelector>>
 where
-    I: Iterator<Item = ComponentValue>,
-    I: Clone,
+    I: Iterator<Item = ComponentValue> + Clone,
 {
     // todo: parse pseudo and negation
 
@@ -472,8 +469,7 @@ where
 //   ;
 fn parse_type_selector<I>(values: &mut Peekable<I>) -> Result<SimpleSelector>
 where
-    I: Iterator<Item = ComponentValue>,
-    I: Clone,
+    I: Iterator<Item = ComponentValue> + Clone,
 {
     let v = values.clone().take(2).collect::<Vec<_>>();
     match (v.first(), v.get(1)) {
@@ -559,8 +555,7 @@ where
 //   ;
 fn parse_universal<I>(values: &mut Peekable<I>) -> Result<SimpleSelector>
 where
-    I: Iterator<Item = ComponentValue>,
-    I: Clone,
+    I: Iterator<Item = ComponentValue> + Clone,
 {
     let v = values.clone().take(2).collect::<Vec<_>>();
     match (v.first(), v.get(1)) {
@@ -610,8 +605,7 @@ where
 //   ;
 fn parse_attrib<I>(values: &mut Peekable<I>) -> Result<SimpleSelector>
 where
-    I: Iterator<Item = ComponentValue>,
-    I: Clone,
+    I: Iterator<Item = ComponentValue> + Clone,
 {
     let v = values.next();
     let mut values_in_block = if let Some(ComponentValue::SimpleBlock {
@@ -735,8 +729,7 @@ where
 //     ;
 fn parse_pseudo<I>(values: &mut Peekable<I>) -> Result<SimpleSelector>
 where
-    I: Iterator<Item = ComponentValue>,
-    I: Clone,
+    I: Iterator<Item = ComponentValue> + Clone,
 {
     let v = values.clone().take(2).collect::<Vec<_>>();
     match (v.first(), v.get(1)) {
