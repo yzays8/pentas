@@ -6,8 +6,8 @@ use std::rc::Rc;
 
 use anyhow::{Context, Ok, Result};
 
-use crate::renderer::css::css_type::{AbsoluteSize, CssValue};
 use crate::renderer::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
+use crate::renderer::css::dtype::{AbsoluteSize, CssValue};
 use crate::renderer::css::property::border::{parse_border, BorderProp};
 use crate::renderer::css::property::color::{parse_color, ColorProp};
 use crate::renderer::css::property::display::{

@@ -4,8 +4,8 @@ use std::iter::Peekable;
 
 use anyhow::{bail, Ok, Result};
 
-use crate::renderer::css::css_type::CssValue;
 use crate::renderer::css::cssom::ComponentValue;
+use crate::renderer::css::dtype::CssValue;
 use crate::renderer::css::property::color::{parse_color_type, ColorProp};
 use crate::renderer::css::tokenizer::CssToken;
 

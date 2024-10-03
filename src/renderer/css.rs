@@ -1,5 +1,5 @@
-pub mod css_type;
 pub mod cssom;
+pub mod dtype;
 pub mod parser;
 pub mod property;
 pub mod selector;

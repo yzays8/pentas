@@ -3,8 +3,8 @@ use std::iter::Peekable;
 
 use anyhow::{anyhow, bail, ensure, Ok, Result};
 
-use crate::renderer::css::css_type::CssValue;
 use crate::renderer::css::cssom::ComponentValue;
+use crate::renderer::css::dtype::CssValue;
 use crate::renderer::css::tokenizer::{CssToken, NumericType};
 
 #[derive(Clone, Debug, PartialEq)]

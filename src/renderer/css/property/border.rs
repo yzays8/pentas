@@ -1,7 +1,7 @@
 use anyhow::{Ok, Result};
 
-use crate::renderer::css::css_type::CssValue;
 use crate::renderer::css::cssom::ComponentValue;
+use crate::renderer::css::dtype::CssValue;
 use crate::renderer::css::property::color::ColorProp;
 use crate::renderer::css::property::font_size::FontSizeProp;
 
