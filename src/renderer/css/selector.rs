@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::VecDeque;
+use std::iter::Peekable;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -278,475 +278,495 @@ impl Selector {
     }
 }
 
-#[derive(Debug)]
-pub struct SelectorParser {
-    input: VecDeque<ComponentValue>,
+/// https://www.w3.org/TR/selectors-3/#w3cselgrammar
+pub fn parse(values: &[ComponentValue]) -> Result<Vec<Selector>> {
+    let mut values = values.iter().cloned().peekable();
+    parse_selectors_group(&mut values)
 }
 
-impl SelectorParser {
-    pub fn new(input: Vec<ComponentValue>) -> Self {
-        Self {
-            input: input.into(),
+// selectors_group
+//   : selector [ COMMA S* selector ]*
+//   ;
+fn parse_selectors_group<I>(values: &mut Peekable<I>) -> Result<Vec<Selector>>
+where
+    I: Iterator<Item = ComponentValue>,
+    I: Clone,
+{
+    let mut selectors = Vec::new();
+    selectors.push(parse_selector(values)?);
+    loop {
+        match values.next() {
+            Some(ComponentValue::PreservedToken(CssToken::Comma)) => {
+                while values
+                    .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
+                    .is_some()
+                {}
+                selectors.push(parse_selector(values)?);
+            }
+            Some(v) => {
+                bail!(
+                    "Unexpected token when parsing CSS selectors in parse_selectors_group: {:?}",
+                    v
+                );
+            }
+            None => break,
         }
     }
+    Ok(selectors)
+}
 
-    fn consume(&mut self) -> Option<ComponentValue> {
-        self.input.pop_front()
+// selector
+//   : simple_selector_sequence [ combinator simple_selector_sequence ]*
+//   ;
+fn parse_selector<I>(values: &mut Peekable<I>) -> Result<Selector>
+where
+    I: Iterator<Item = ComponentValue>,
+    I: Clone,
+{
+    let simple = Selector::Simple(parse_simple_selector_seq(values)?);
+
+    if let Some(ComponentValue::PreservedToken(
+        CssToken::Delim('+' | '>' | '~') | CssToken::Whitespace,
+    )) = values.peek()
+    {
+        Ok(Selector::Complex(
+            Box::new(simple),
+            parse_combinator(values)?,
+            Box::new(parse_selector(values)?),
+        ))
+    } else {
+        Ok(simple)
+    }
+}
+
+// combinator
+//   /* combinators can be surrounded by whitespace */
+//   : PLUS S* | GREATER S* | TILDE S* | S+
+//   ;
+fn parse_combinator<I>(values: &mut Peekable<I>) -> Result<Combinator>
+where
+    I: Iterator<Item = ComponentValue>,
+{
+    let mut is_detected_space = false;
+    while values
+        .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
+        .is_some()
+    {
+        is_detected_space = true;
     }
 
-    /// https://www.w3.org/TR/selectors-3/#w3cselgrammar
-    pub fn parse(&mut self) -> Result<Vec<Selector>> {
-        self.parse_selectors_group()
+    if let Some(ComponentValue::PreservedToken(CssToken::Delim('+' | '>' | '~'))) = values.peek() {
+        let Some(ComponentValue::PreservedToken(CssToken::Delim(c))) = values.next() else {
+            unreachable!();
+        };
+        while values
+            .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
+            .is_some()
+        {}
+        match c {
+            '+' => Ok(Combinator::Plus),
+            '>' => Ok(Combinator::GreaterThan),
+            '~' => Ok(Combinator::Tilde),
+            _ => unreachable!(),
+        }
+    } else if is_detected_space {
+        Ok(Combinator::Whitespace)
+    } else {
+        bail!(
+        "Expected \"+\", \">\", \"~\", or whitespace but found {:?} when parsing CSS selectors in parse_combinator",
+        values.peek())
+    }
+}
+
+// simple_selector_sequence
+//   : [ type_selector | universal ]
+//     [ HASH | class | attrib | pseudo | negation ]*
+//   | [ HASH | class | attrib | pseudo | negation ]+
+//   ;
+fn parse_simple_selector_seq<I>(values: &mut Peekable<I>) -> Result<Vec<SimpleSelector>>
+where
+    I: Iterator<Item = ComponentValue>,
+    I: Clone,
+{
+    // todo: parse pseudo and negation
+
+    let mut selector_seq = Vec::new();
+
+    let v = values.clone().take(3).collect::<Vec<_>>();
+    match (v.first(), v.get(1), v.get(2)) {
+        (
+            Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))),
+            Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+            Some(ComponentValue::PreservedToken(CssToken::Ident(_))),
+        )
+        | (
+            Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+            Some(ComponentValue::PreservedToken(CssToken::Ident(_))),
+            _,
+        ) => selector_seq.push(parse_type_selector(values)?),
+        (
+            Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))),
+            Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+            Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
+        )
+        | (
+            Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+            Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
+            _,
+        ) => selector_seq.push(parse_universal(values)?),
+        (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _, _) => {
+            selector_seq.push(parse_type_selector(values)?)
+        }
+        (Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), _, _) => {
+            selector_seq.push(parse_universal(values)?)
+        }
+        _ => {}
     }
 
-    // selectors_group
-    //   : selector [ COMMA S* selector ]*
-    //   ;
-    fn parse_selectors_group(&mut self) -> Result<Vec<Selector>> {
-        let mut selectors = Vec::new();
-        selectors.push(self.parse_selector()?);
-        loop {
-            match self.consume() {
-                Some(ComponentValue::PreservedToken(CssToken::Comma)) => {
-                    while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
-                        self.input.front()
-                    {
-                        self.consume();
-                    }
-                    selectors.push(self.parse_selector()?);
-                }
-                Some(v) => {
-                    bail!("Unexpected token when parsing CSS selectors in parse_selectors_group: {:?}", v);
-                }
-                None => break,
+    match values.peek() {
+        Some(ComponentValue::PreservedToken(CssToken::Hash(..))) => {
+            while let Some(ComponentValue::PreservedToken(CssToken::Hash(s, ..))) = values.peek() {
+                let s = s.clone();
+                values.next();
+                selector_seq.push(SimpleSelector::Id(s.to_string()));
             }
         }
-        Ok(selectors)
-    }
-
-    // selector
-    //   : simple_selector_sequence [ combinator simple_selector_sequence ]*
-    //   ;
-    fn parse_selector(&mut self) -> Result<Selector> {
-        let simple = Selector::Simple(self.parse_simple_selector_seq()?);
-
-        if let Some(ComponentValue::PreservedToken(
-            CssToken::Delim('+' | '>' | '~') | CssToken::Whitespace,
-        )) = self.input.front()
-        {
-            Ok(Selector::Complex(
-                Box::new(simple),
-                self.parse_combinator()?,
-                Box::new(self.parse_selector()?),
-            ))
-        } else {
-            Ok(simple)
+        Some(ComponentValue::PreservedToken(CssToken::Delim('.'))) => {
+            while let Some(ComponentValue::PreservedToken(CssToken::Delim('.'))) = values.peek() {
+                selector_seq.push(parse_class(values)?);
+            }
         }
-    }
-
-    // combinator
-    //   /* combinators can be surrounded by whitespace */
-    //   : PLUS S* | GREATER S* | TILDE S* | S+
-    //   ;
-    fn parse_combinator(&mut self) -> Result<Combinator> {
-        let mut is_detected_space = false;
-        while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) = self.input.front() {
-            self.consume();
-            is_detected_space = true;
-        }
-
-        if let Some(ComponentValue::PreservedToken(CssToken::Delim('+' | '>' | '~'))) =
-            self.input.front()
-        {
-            let Some(ComponentValue::PreservedToken(CssToken::Delim(c))) = self.consume() else {
-                unreachable!();
-            };
-            while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
-                self.input.front()
+        Some(ComponentValue::SimpleBlock { .. }) => {
+            while let Some(ComponentValue::SimpleBlock {
+                associated_token: t,
+                ..
+            }) = values.peek()
             {
-                self.consume();
+                ensure!(
+                    t == &CssToken::OpenSquareBracket,
+                    "Expected \"[\" but found {:?} when parsing CSS selectors in parse_simple_selector_seq",
+                    values.peek()
+                );
+                selector_seq.push(parse_attrib(values)?);
             }
-            match c {
-                '+' => Ok(Combinator::Plus),
-                '>' => Ok(Combinator::GreaterThan),
-                '~' => Ok(Combinator::Tilde),
-                _ => unreachable!(),
-            }
-        } else if is_detected_space {
-            Ok(Combinator::Whitespace)
-        } else {
-            bail!(
-            "Expected \"+\", \">\", \"~\", or whitespace but found {:?} when parsing CSS selectors in parse_combinator",
-            self.input.front())
         }
+        Some(ComponentValue::PreservedToken(CssToken::Colon)) => {
+            while let Some(ComponentValue::PreservedToken(CssToken::Colon)) = values.peek() {
+                selector_seq.push(parse_pseudo(values)?);
+            }
+        }
+        _ => {}
     }
 
-    // simple_selector_sequence
-    //   : [ type_selector | universal ]
-    //     [ HASH | class | attrib | pseudo | negation ]*
-    //   | [ HASH | class | attrib | pseudo | negation ]+
-    //   ;
-    fn parse_simple_selector_seq(&mut self) -> Result<Vec<SimpleSelector>> {
-        // todo: parse pseudo and negation
+    ensure!(
+        !selector_seq.is_empty(),
+        "Expected type selector, universal selector, hash, class, attribute, pseudo, or negation but found {:?} when parsing CSS selectors in parse_simple_selector_seq",
+        values.peek()
+    );
 
-        let mut selector_seq = Vec::new();
+    Ok(selector_seq)
+}
 
-        match (self.input.front(), self.input.get(1), self.input.get(2)) {
-            (
-                Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))),
-                Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
-                Some(ComponentValue::PreservedToken(CssToken::Ident(_))),
-            )
-            | (
-                Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
-                Some(ComponentValue::PreservedToken(CssToken::Ident(_))),
-                _,
-            ) => selector_seq.push(self.parse_type_selector()?),
-            (
-                Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))),
-                Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
-                Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
-            )
-            | (
-                Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
-                Some(ComponentValue::PreservedToken(CssToken::Delim('*'))),
-                _,
-            ) => selector_seq.push(self.parse_universal()?),
-            (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _, _) => {
-                selector_seq.push(self.parse_type_selector()?)
-            }
-            (Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), _, _) => {
-                selector_seq.push(self.parse_universal()?)
-            }
-            _ => {}
+// type_selector
+//   : [ namespace_prefix ]? element_name
+//   ;
+fn parse_type_selector<I>(values: &mut Peekable<I>) -> Result<SimpleSelector>
+where
+    I: Iterator<Item = ComponentValue>,
+    I: Clone,
+{
+    let v = values.clone().take(2).collect::<Vec<_>>();
+    match (v.first(), v.get(1)) {
+        (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
+        | (Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
+            Ok(SimpleSelector::Type {
+                namespace_prefix: Some(parse_namespace_prefix(values)?),
+                name: parse_element_name(values)?,
+            })
         }
-
-        match self.input.front() {
-            Some(ComponentValue::PreservedToken(CssToken::Hash(..))) => {
-                while let Some(ComponentValue::PreservedToken(CssToken::Hash(s, ..))) =
-                    self.input.front()
-                {
-                    let s = s.clone();
-                    self.consume();
-                    selector_seq.push(SimpleSelector::Id(s.to_string()));
-                }
-            }
-            Some(ComponentValue::PreservedToken(CssToken::Delim('.'))) => {
-                while let Some(ComponentValue::PreservedToken(CssToken::Delim('.'))) =
-                    self.input.front()
-                {
-                    selector_seq.push(self.parse_class()?);
-                }
-            }
-            Some(ComponentValue::SimpleBlock { .. }) => {
-                while let Some(ComponentValue::SimpleBlock {
-                    associated_token: t,
-                    ..
-                }) = self.input.front()
-                {
-                    ensure!(
-                        t == &CssToken::OpenSquareBracket,
-                        "Expected \"[\" but found {:?} when parsing CSS selectors in parse_simple_selector_seq",
-                        self.input.front()
-                    );
-                    selector_seq.push(self.parse_attrib()?);
-                }
-            }
-            Some(ComponentValue::PreservedToken(CssToken::Colon)) => {
-                while let Some(ComponentValue::PreservedToken(CssToken::Colon)) = self.input.front()
-                {
-                    selector_seq.push(self.parse_pseudo()?);
-                }
-            }
-            _ => {}
+        (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _) => {
+            Ok(SimpleSelector::Type {
+                namespace_prefix: None,
+                name: parse_element_name(values)?,
+            })
         }
+        _ => bail!(
+            "Expected namespace prefix or element name but found {:?} when parsing CSS selectors in parse_type_selector",
+            values.peek())
+    }
+}
 
+// namespace_prefix
+//   : [ IDENT | '*' ]? '|'
+//   ;
+fn parse_namespace_prefix<I>(values: &mut Peekable<I>) -> Result<String>
+where
+    I: Iterator<Item = ComponentValue>,
+{
+    let v = values.next();
+    match v.as_ref() {
+        Some(ComponentValue::PreservedToken(CssToken::Delim('|'))) => {
+            Ok("".to_string())
+        }
+        Some(ComponentValue::PreservedToken(CssToken::Ident(s))) => {
+            let v = values.next();
+            if v.as_ref() == Some(&ComponentValue::PreservedToken(CssToken::Delim('|')))
+            {
+                Ok(s.clone())
+            } else {
+                bail!(
+                    "Expected \"|\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
+                    v);
+            }
+        }
+        Some(ComponentValue::PreservedToken(CssToken::Delim('*'))) => {
+            let v = values.next();
+            if v.as_ref() == Some(&ComponentValue::PreservedToken(CssToken::Delim('|')))
+            {
+                Ok("*".to_string())
+            } else {
+                bail!(
+                    "Expected \"|\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
+                    v);
+            }
+        }
+        _ => bail!(
+            "Expected \"|\", ident, or \"*\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
+            v)
+    }
+}
+
+// element_name
+//   : IDENT
+//   ;
+fn parse_element_name<I>(values: &mut Peekable<I>) -> Result<String>
+where
+    I: Iterator<Item = ComponentValue>,
+{
+    let v = values.next();
+    if let Some(ComponentValue::PreservedToken(CssToken::Ident(s))) = v {
+        Ok(s)
+    } else {
+        bail!(
+            "Expected ident but found {:?} when parsing CSS selectors in parse_element_name",
+            v
+        );
+    }
+}
+
+// universal
+//   : [ namespace_prefix ]? '*'
+//   ;
+fn parse_universal<I>(values: &mut Peekable<I>) -> Result<SimpleSelector>
+where
+    I: Iterator<Item = ComponentValue>,
+    I: Clone,
+{
+    let v = values.clone().take(2).collect::<Vec<_>>();
+    match (v.first(), v.get(1)) {
+        (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
+        | (Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
+            let prefix = parse_namespace_prefix(values)?;
+            values.next();
+            Ok(SimpleSelector::Universal(Some(prefix)))
+        }
+        (Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), _) => {
+            values.next();
+            Ok(SimpleSelector::Universal(None))
+        }
+        _ => bail!(
+            "Expected namespace prefix or \"*\" but found {:?} when parsing CSS selectors in parse_universal",
+            v.first())
+    }
+}
+
+// class
+//   : '.' IDENT
+//   ;
+fn parse_class<I>(values: &mut Peekable<I>) -> Result<SimpleSelector>
+where
+    I: Iterator<Item = ComponentValue>,
+{
+    let v = values.next();
+    if let Some(ComponentValue::PreservedToken(CssToken::Delim('.'))) = v {
+        Ok(SimpleSelector::Class(parse_element_name(values)?))
+    } else {
+        bail!(
+            "Expected \".\" but found {:?} when parsing CSS selectors in parse_class",
+            v
+        );
+    }
+}
+
+// attrib
+//   : '[' S* [ namespace_prefix ]? IDENT S*
+//         [ [ PREFIXMATCH |
+//             SUFFIXMATCH |
+//             SUBSTRINGMATCH |
+//             '=' |
+//             INCLUDES |
+//             DASHMATCH ] S* [ IDENT | STRING ] S*
+//         ]? ']'
+//   ;
+fn parse_attrib<I>(values: &mut Peekable<I>) -> Result<SimpleSelector>
+where
+    I: Iterator<Item = ComponentValue>,
+    I: Clone,
+{
+    let v = values.next();
+    let mut values_in_block = if let Some(ComponentValue::SimpleBlock {
+        associated_token: t,
+        values: values_in_block,
+    }) = v
+    {
         ensure!(
-            !selector_seq.is_empty(),
-            "Expected type selector, universal selector, hash, class, attribute, pseudo, or negation but found {:?} when parsing CSS selectors in parse_simple_selector_seq",
-            self.input.front()
+            t == CssToken::OpenSquareBracket,
+            "Expected \"[\" but found {:?} when parsing CSS selectors in parse_attrib",
+            t
         );
 
-        Ok(selector_seq)
-    }
+        values_in_block.clone().into_iter().peekable()
+    } else {
+        bail!(
+            "Expected simple block but found {:?} when parsing CSS selectors in parse_attrib",
+            v
+        );
+    };
 
-    // type_selector
-    //   : [ namespace_prefix ]? element_name
-    //   ;
-    fn parse_type_selector(&mut self) -> Result<SimpleSelector> {
-        match (self.input.front(), self.input.get(1)) {
-            (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
-            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
-                Ok(SimpleSelector::Type {
-                    namespace_prefix: Some(self.parse_namespace_prefix()?),
-                    name: self.parse_element_name()?,
-                })
-            }
-            (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _) => {
-                Ok(SimpleSelector::Type {
-                    namespace_prefix: None,
-                    name: self.parse_element_name()?,
-                })
-            }
-            _ => bail!(
-                "Expected namespace prefix or element name but found {:?} when parsing CSS selectors in parse_type_selector",
-                self.input.front())
+    while values_in_block
+        .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
+        .is_some()
+    {}
+
+    let v = values_in_block.clone().take(2).collect::<Vec<_>>();
+    let prefix = match (v.first(), v.get(1)) {
+        (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
+        | (Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
+            Some(parse_namespace_prefix(&mut values_in_block)?)
         }
-    }
+        (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _) => {
+            None
+        }
+        _ => bail!(
+            "Expected namespace prefix or ident but found {:?} when parsing CSS selectors in parse_attrib",
+            v.first(),)
+    };
 
-    // namespace_prefix
-    //   : [ IDENT | '*' ]? '|'
-    //   ;
-    fn parse_namespace_prefix(&mut self) -> Result<String> {
-        match self.input.front() {
-            Some(ComponentValue::PreservedToken(CssToken::Delim('|'))) => {
-                self.consume();
-                Ok("".to_string())
-            }
-            Some(ComponentValue::PreservedToken(CssToken::Ident(s))) => {
-                if self.input.get(1) == Some(&ComponentValue::PreservedToken(CssToken::Delim('|')))
+    let v = values_in_block.next();
+    let Some(ComponentValue::PreservedToken(CssToken::Ident(name))) = v else {
+        bail!(
+            "Expected ident but found {:?} when parsing CSS selectors in parse_attrib",
+            v
+        );
+    };
+    while values_in_block
+        .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
+        .is_some()
+    {}
+
+    match values_in_block.peek() {
+        Some(ComponentValue::PreservedToken(CssToken::Delim(c))) => {
+            let c = *c;
+            let op = if c == '=' {
+                values_in_block.next();
+                "=".to_string()
+            } else if matches!(c, '^' | '$' | '*' | '~' | '|') {
+                values_in_block.next();
+                if let Some(ComponentValue::PreservedToken(CssToken::Delim('='))) =
+                    values_in_block.peek()
                 {
-                    let s = s.clone();
-                    self.consume();
-                    self.consume();
-                    Ok(s)
+                    values_in_block.next();
+                    format!("{}=", c)
                 } else {
                     bail!(
-                        "Expected \"|\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
-                        self.input.front());
+                        "Expected \"=\" but found {:?} when parsing CSS selectors in parse_attrib",
+                        values_in_block.peek()
+                    )
                 }
-            }
-            Some(ComponentValue::PreservedToken(CssToken::Delim('*'))) => {
-                if self.input.get(1) == Some(&ComponentValue::PreservedToken(CssToken::Delim('|')))
-                {
-                    self.consume();
-                    self.consume();
-                    Ok("*".to_string())
-                } else {
-                    bail!(
-                        "Expected \"|\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
-                        self.input.front());
-                }
-            }
-            _ => bail!(
-                "Expected \"|\", ident, or \"*\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
-                self.input.front())
-        }
-    }
+            } else {
+                bail!(
+                    "Expected \"=\", \"^=\", \"$=\", \"*=\", \"~=\", \"|=\" but found {:?} when parsing CSS selectors in parse_attrib",
+                    values_in_block.peek()
+                );
+            };
 
-    // element_name
-    //   : IDENT
-    //   ;
-    fn parse_element_name(&mut self) -> Result<String> {
-        let comp = self.consume();
-        if let Some(ComponentValue::PreservedToken(CssToken::Ident(s))) = comp {
-            Ok(s)
-        } else {
-            bail!(
-                "Expected ident but found {:?} when parsing CSS selectors in parse_element_name",
-                comp
-            );
-        }
-    }
+            while values_in_block
+                .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
+                .is_some()
+            {}
 
-    // universal
-    //   : [ namespace_prefix ]? '*'
-    //   ;
-    fn parse_universal(&mut self) -> Result<SimpleSelector> {
-        match (self.input.front(), self.input.get(1)) {
-            (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
-            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
-                let prefix = self.parse_namespace_prefix()?;
-                self.consume();
-                Ok(SimpleSelector::Universal(Some(prefix)))
-            }
-            (Some(ComponentValue::PreservedToken(CssToken::Delim('*'))), _) => {
-                self.consume();
-                Ok(SimpleSelector::Universal(None))
-            }
-            _ => bail!(
-                "Expected namespace prefix or \"*\" but found {:?} when parsing CSS selectors in parse_universal",
-                self.input.front())
-        }
-    }
+            let v = values_in_block.next();
+            let value = if let Some(ComponentValue::PreservedToken(
+                CssToken::Ident(s) | CssToken::String(s),
+            )) = v
+            {
+                Some(s)
+            } else {
+                bail!("Expected ident or string but found {:?} when parsing CSS selectors in parse_attrib", v);
+            };
 
-    // class
-    //   : '.' IDENT
-    //   ;
-    fn parse_class(&mut self) -> Result<SimpleSelector> {
-        let comp = self.consume();
-        if let Some(ComponentValue::PreservedToken(CssToken::Delim('.'))) = comp {
-            Ok(SimpleSelector::Class(self.parse_element_name()?))
-        } else {
-            bail!(
-                "Expected \".\" but found {:?} when parsing CSS selectors in parse_class",
-                comp
-            );
-        }
-    }
+            while values_in_block
+                .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
+                .is_some()
+            {}
 
-    // attrib
-    //   : '[' S* [ namespace_prefix ]? IDENT S*
-    //         [ [ PREFIXMATCH |
-    //             SUFFIXMATCH |
-    //             SUBSTRINGMATCH |
-    //             '=' |
-    //             INCLUDES |
-    //             DASHMATCH ] S* [ IDENT | STRING ] S*
-    //         ]? ']'
-    //   ;
-    fn parse_attrib(&mut self) -> Result<SimpleSelector> {
-        if let Some(ComponentValue::SimpleBlock {
-            associated_token: t,
-            values,
-        }) = self.input.front()
-        {
-            ensure!(
-                t == &CssToken::OpenSquareBracket,
-                "Expected \"[\" but found {:?} when parsing CSS selectors in parse_attrib",
-                t
-            );
-
-            // Expand values in the simple block to the front of the input.
-            let values = values.clone().into_iter().rev();
-            self.consume();
-            for value in values {
-                self.input.push_front(value);
-            }
-        } else {
-            bail!(
-                "Expected simple block but found {:?} when parsing CSS selectors in parse_attrib",
-                self.input.front()
-            );
-        }
-
-        while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) = self.input.front() {
-            self.consume();
-        }
-
-        let prefix = match (self.input.front(), self.input.get(1)) {
-            (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
-            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
-                Some(self.parse_namespace_prefix()?)
-            }
-            (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _) => {
-                None
-            }
-            _ => bail!(
-                "Expected namespace prefix or ident but found {:?} when parsing CSS selectors in parse_attrib",
-                self.input.front(),)
-        };
-
-        let comp = self.consume();
-        let Some(ComponentValue::PreservedToken(CssToken::Ident(name))) = comp else {
-            bail!(
-                "Expected ident but found {:?} when parsing CSS selectors in parse_attrib",
-                comp
-            );
-        };
-        while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) = self.input.front() {
-            self.consume();
-        }
-
-        match self.input.front() {
-            Some(ComponentValue::PreservedToken(CssToken::Delim(c))) => {
-                let c = *c;
-                let op = if c == '=' {
-                    self.consume();
-                    "=".to_string()
-                } else if matches!(c, '^' | '$' | '*' | '~' | '|') {
-                    self.consume();
-                    if let Some(ComponentValue::PreservedToken(CssToken::Delim('='))) =
-                        self.input.front()
-                    {
-                        self.consume();
-                        format!("{}=", c)
-                    } else {
-                        bail!(
-                            "Expected \"=\" but found {:?} when parsing CSS selectors in parse_attrib",
-                            self.input.front())
-                    }
-                } else {
-                    bail!(
-                        "Expected \"=\", \"^=\", \"$=\", \"*=\", \"~=\", \"|=\" but found {:?} when parsing CSS selectors in parse_attrib",
-                        self.input.front()
-                    );
-                };
-
-                while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
-                    self.input.front()
-                {
-                    self.consume();
-                }
-
-                let comp = self.consume();
-                let value = if let Some(ComponentValue::PreservedToken(
-                    CssToken::Ident(s) | CssToken::String(s),
-                )) = comp
-                {
-                    Some(s)
-                } else {
-                    bail!("Expected ident or string but found {:?} when parsing CSS selectors in parse_attrib", comp);
-                };
-
-                while let Some(ComponentValue::PreservedToken(CssToken::Whitespace)) =
-                    self.input.front()
-                {
-                    self.consume();
-                }
-
-                Ok(SimpleSelector::Attribute {
-                    namespace_prefix: prefix,
-                    name,
-                    op: Some(op),
-                    value,
-                })
-            }
-            None => Ok(SimpleSelector::Attribute {
+            Ok(SimpleSelector::Attribute {
                 namespace_prefix: prefix,
                 name,
-                op: None,
-                value: None,
-            }),
-            _ => bail!(
-                "Unexpected token when parsing CSS selectors in parse_attrib: {:?}",
-                self.input.front()
-            ),
+                op: Some(op),
+                value,
+            })
         }
+        None => Ok(SimpleSelector::Attribute {
+            namespace_prefix: prefix,
+            name,
+            op: None,
+            value: None,
+        }),
+        _ => bail!(
+            "Unexpected token when parsing CSS selectors in parse_attrib: {:?}",
+            values_in_block.peek()
+        ),
+    }
+}
+
+// pseudo
+//     : ':' ':'? [ IDENT | functional_pseudo ]
+//     ;
+fn parse_pseudo<I>(values: &mut Peekable<I>) -> Result<SimpleSelector>
+where
+    I: Iterator<Item = ComponentValue>,
+    I: Clone,
+{
+    let v = values.clone().take(2).collect::<Vec<_>>();
+    match (v.first(), v.get(1)) {
+        (
+            Some(ComponentValue::PreservedToken(CssToken::Colon)),
+            Some(ComponentValue::PreservedToken(CssToken::Colon)),
+        ) => {
+            // pseudo-element
+            values.next();
+            values.next();
+        }
+        (Some(ComponentValue::PreservedToken(CssToken::Colon)), _) => {
+            // pseudo-class
+            values.next();
+        }
+        _ => bail!(
+            "Expected \":\" but found {:?} when parsing CSS selectors in parse_pseudo",
+            v.first()
+        ),
     }
 
-    // pseudo
-    //     : ':' ':'? [ IDENT | functional_pseudo ]
-    //     ;
-    fn parse_pseudo(&mut self) -> Result<SimpleSelector> {
-        match (self.input.front(), self.input.get(1)) {
-            (
-                Some(ComponentValue::PreservedToken(CssToken::Colon)),
-                Some(ComponentValue::PreservedToken(CssToken::Colon)),
-            ) => {
-                // pseudo-element
-                self.consume();
-                self.consume();
-            }
-            (Some(ComponentValue::PreservedToken(CssToken::Colon)), _) => {
-                // pseudo-class
-                self.consume();
-            }
-            _ => bail!(
-                "Expected \":\" but found {:?} when parsing CSS selectors in parse_pseudo",
-                self.input.front()
-            ),
-        }
-
-        // todo: handle functional-pseudo and pseudo-element
-        if let Some(ComponentValue::PreservedToken(CssToken::Ident(s))) = self.consume() {
-            Ok(SimpleSelector::PseudoClass(s))
-        } else {
-            bail!(
-                "Expected ident but found {:?} when parsing CSS selectors in parse_pseudo",
-                self.input.front()
-            );
-        }
+    // todo: handle functional-pseudo and pseudo-element
+    let v = values.next();
+    if let Some(ComponentValue::PreservedToken(CssToken::Ident(s))) = v {
+        Ok(SimpleSelector::PseudoClass(s))
+    } else {
+        bail!(
+            "Expected ident but found {:?} when parsing CSS selectors in parse_pseudo",
+            v
+        );
     }
 }
 
@@ -765,9 +785,8 @@ mod tests {
             ComponentValue::PreservedToken(CssToken::Whitespace),
             ComponentValue::PreservedToken(CssToken::Ident("p".to_string())),
         ];
-        let mut parser = SelectorParser::new(input);
         assert_eq!(
-            parser.parse_selectors_group().unwrap(),
+            parse(&input).unwrap(),
             vec![Selector::Complex(
                 Box::new(Selector::Simple(vec![SimpleSelector::Type {
                     namespace_prefix: None,
@@ -800,9 +819,8 @@ mod tests {
             ComponentValue::PreservedToken(CssToken::Whitespace),
             ComponentValue::PreservedToken(CssToken::Ident("b".to_string())),
         ];
-        let mut parser = SelectorParser::new(input);
         assert_eq!(
-            parser.parse_selectors_group().unwrap(),
+            parse(&input).unwrap(),
             vec![
                 Selector::Complex(
                     Box::new(Selector::Simple(vec![SimpleSelector::Type {
@@ -872,9 +890,8 @@ mod tests {
             ComponentValue::PreservedToken(CssToken::Delim('|')),
             ComponentValue::PreservedToken(CssToken::Ident("example".to_string())),
         ];
-        let mut parser = SelectorParser::new(input);
         assert_eq!(
-            parser.parse_selectors_group().unwrap(),
+            parse(&input).unwrap(),
             vec![
                 Selector::Complex(
                     Box::new(Selector::Simple(vec![
@@ -937,9 +954,8 @@ mod tests {
                 ],
             },
         ];
-        let mut parser = SelectorParser::new(input);
         assert_eq!(
-            parser.parse_selectors_group().unwrap(),
+            parse(&input).unwrap(),
             vec![Selector::Simple(vec![
                 SimpleSelector::Type {
                     namespace_prefix: None,
@@ -974,9 +990,8 @@ mod tests {
             ComponentValue::PreservedToken(CssToken::Delim('.')),
             ComponentValue::PreservedToken(CssToken::Ident("class3".to_string())),
         ];
-        let mut parser = SelectorParser::new(input);
         assert_eq!(
-            parser.parse_selectors_group().unwrap(),
+            parse(&input).unwrap(),
             vec![Selector::Simple(vec![
                 SimpleSelector::Type {
                     namespace_prefix: None,

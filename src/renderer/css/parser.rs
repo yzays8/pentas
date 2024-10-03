@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use anyhow::Result;
 
 use crate::renderer::css::cssom::{ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet};
-use crate::renderer::css::selector::SelectorParser;
+use crate::renderer::css::selector;
 use crate::renderer::css::tokenizer::CssToken;
 
 #[derive(Debug)]
@@ -113,7 +113,7 @@ impl CssParser {
                     // This implementation stops parsing the CSS and returns an error in this case, instead of ignoring the rule.
                     qualified_rule
                         .selectors
-                        .extend(SelectorParser::new(selectors_buf).parse()?);
+                        .extend(selector::parse(&selectors_buf)?);
 
                     return Ok(Some(qualified_rule));
                 }
