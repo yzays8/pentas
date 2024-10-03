@@ -7,7 +7,7 @@ use regex::Regex;
 
 use crate::renderer::css::property::display::DisplayOutside;
 use crate::renderer::html::dom::{Element, NodeType};
-use crate::renderer::style::render_tree::{RenderNode, RenderTree};
+use crate::renderer::style::{RenderNode, RenderTree};
 
 /// https://www.w3.org/TR/css-display-3/#box-tree
 #[derive(Debug)]
