@@ -978,7 +978,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_consume_token1() {
+    fn tokenize_only_html_tag() {
         let mut tokenizer = HtmlTokenizer::new("<html></html>");
         assert_eq!(
             tokenizer.consume_token(),
@@ -1000,7 +1000,7 @@ mod tests {
     }
 
     #[test]
-    fn test_consume_token2() {
+    fn tokenize_simple_html() {
         let mut tokenizer = HtmlTokenizer::new("<html><head><title></title></head></html>");
         assert_eq!(
             tokenizer.consume_token(),
@@ -1054,7 +1054,7 @@ mod tests {
     }
 
     #[test]
-    fn test_consume_token3() {
+    fn tokenize_complex_html() {
         let html = "<!DOCTYPE html><html lang=\"en\"><head><title>Test</title></head><body><div id=\'main\'><br/></div></body></html>";
         let mut tokenizer = HtmlTokenizer::new(html);
         assert_eq!(

@@ -157,12 +157,11 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::renderer::css::token::NumericType;
 
-    use super::*;
-
     #[test]
-    fn test_parse_font_size() {
+    fn parse_size() {
         let value = vec![ComponentValue::PreservedToken(CssToken::Ident(
             "small".to_string(),
         ))];

@@ -221,12 +221,11 @@ pub fn parse_margin_block(values: &[ComponentValue]) -> Result<MarginBlockProp> 
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::renderer::css::token::NumericType;
 
-    use super::*;
-
     #[test]
-    fn test_parse_margin() {
+    fn parse_valid_margin() {
         let value = vec![
             ComponentValue::PreservedToken(CssToken::Dimension(
                 NumericType::Number(10.0),

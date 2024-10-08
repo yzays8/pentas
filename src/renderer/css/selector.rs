@@ -768,7 +768,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_selector1() {
+    fn parse_selector_with_combinator() {
         // div > p
 
         let input = vec![
@@ -795,7 +795,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_selector2() {
+    fn parse_selectors_with_comma() {
         // div > p, a + b
 
         let input = vec![
@@ -842,7 +842,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_selector3() {
+    fn parse_complex_selectors() {
         // h1[title="hello"] > .myclass + p, example|*, *, *|*, *|example
 
         let input = vec![
@@ -923,7 +923,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_selector4() {
+    fn parse_selector_with_square_bracket() {
         // a[href^="https"][href$=".org"]
 
         let input = vec![
@@ -971,7 +971,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_selector5() {
+    fn parse_selector_linked_by_dots() {
         // p.class1.class2.class3
 
         let input = vec![
@@ -998,7 +998,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calc_specificity() {
+    fn calculate_specificity() {
         // *
         let selector = Selector::Simple(vec![SimpleSelector::Universal(None)]);
         assert_eq!(selector.calc_specificity(), 0);

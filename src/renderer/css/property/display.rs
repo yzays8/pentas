@@ -190,7 +190,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_display() {
+    fn parse_valid_display() {
         let values = vec![ComponentValue::PreservedToken(CssToken::Ident(
             "block".to_string(),
         ))];
@@ -228,7 +228,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_parse_display_invalid() {
+    fn parse_invalid_display() {
         let values = vec![
             ComponentValue::PreservedToken(CssToken::Ident("block".to_string())),
             ComponentValue::PreservedToken(CssToken::Whitespace),

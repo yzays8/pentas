@@ -720,7 +720,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse1() {
+    fn parse_simple_html() {
         // <!DOCTYPE html>
         // <html class=e>
         //     <head><title>Aliens?</title></head>
@@ -789,7 +789,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse2() {
+    fn parse_li_without_endtag() {
         // <!DOCTYPE html>
         // <html>
         //     <head><title>Lists</title></head>

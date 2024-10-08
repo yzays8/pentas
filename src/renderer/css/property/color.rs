@@ -511,12 +511,11 @@ fn hex_to_rgba(hex: &str) -> Result<(u8, u8, u8, u8)> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::renderer::css::token::HashType;
 
-    use super::*;
-
     #[test]
-    fn test_parse_named_color() {
+    fn parse_named_color() {
         assert_eq!(
             parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Ident(
                 "currentColor".to_string()
@@ -547,7 +546,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_color_function() {
+    fn parse_valid_rgb_function() {
         assert_eq!(
             parse_color(&mut vec![ComponentValue::Function {
                 name: "rgb".to_string(),
@@ -650,7 +649,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_parse_color_panic() {
+    fn parse_invalid_rgb_function() {
         parse_color(&mut vec![ComponentValue::Function {
             name: "rgb".to_string(),
             values: vec![
@@ -667,7 +666,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_hex_color() {
+    fn parse_hex() {
         assert_eq!(
             parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
                 "000000".to_string(),

@@ -216,12 +216,11 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::renderer::css::token::NumericType;
 
-    use super::*;
-
     #[test]
-    fn test_parse_text_decoration_line() {
+    fn parse_line() {
         let values = vec![
             ComponentValue::PreservedToken(CssToken::Ident("underline".to_string())),
             ComponentValue::PreservedToken(CssToken::Whitespace),
@@ -229,9 +228,8 @@ mod tests {
             ComponentValue::PreservedToken(CssToken::Whitespace),
             ComponentValue::PreservedToken(CssToken::Ident("line-through".to_string())),
         ];
-        let mut values = values.iter().cloned().peekable();
         assert_eq!(
-            parse_text_decoration_line_type(&mut values).unwrap(),
+            parse_text_decoration_line(&values).unwrap(),
             vec![
                 CssValue::Ident("underline".to_string()),
                 CssValue::Ident("overline".to_string()),
@@ -241,19 +239,18 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_text_decoration_style() {
+    fn parse_style() {
         let values = vec![ComponentValue::PreservedToken(CssToken::Ident(
             "dotted".to_string(),
         ))];
-        let mut values = values.iter().cloned().peekable();
         assert_eq!(
-            parse_text_decoration_style_type(&mut values).unwrap(),
+            parse_text_decoration_style(&values).unwrap(),
             CssValue::Ident("dotted".to_string())
         );
     }
 
     #[test]
-    fn test_parse_text_decoration() {
+    fn parse_valid_text_decoration_prop() {
         let values = vec![
             ComponentValue::PreservedToken(CssToken::Ident("red".to_string())),
             ComponentValue::PreservedToken(CssToken::Whitespace),
@@ -317,7 +314,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_parse_text_decoration_invalid() {
+    fn parse_invalid_text_decoration_prop() {
         let values = vec![
             ComponentValue::PreservedToken(CssToken::Ident("red".to_string())),
             ComponentValue::PreservedToken(CssToken::Whitespace),
