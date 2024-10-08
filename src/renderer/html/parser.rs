@@ -5,8 +5,8 @@ use anyhow::{bail, ensure, Ok, Result};
 use thiserror::Error;
 
 use crate::renderer::css::cssom::StyleSheet;
-use crate::renderer::css::parser::CssParser;
-use crate::renderer::css::tokenizer::CssTokenizer;
+use crate::renderer::css::parser::parse as css_parse;
+use crate::renderer::css::tokenizer::tokenize as css_tokenize;
 use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
 use crate::renderer::html::tokenizer::{HtmlToken, HtmlTokenizer, TokenizationState};
 
@@ -708,7 +708,7 @@ impl HtmlParser {
         // When the UA should parse the CSS for the new stylesheet is not clearly defined:
         // https://github.com/whatwg/html/issues/2997
         if let NodeType::Text(css) = &node.borrow().child_nodes.last().unwrap().borrow().node_type {
-            let style_sheet = CssParser::new(CssTokenizer::new(css).tokenize()?).parse()?;
+            let style_sheet = css_parse(&css_tokenize(css)?)?;
             style_sheets.push(style_sheet);
         }
         Ok(())

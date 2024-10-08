@@ -1,5 +1,7 @@
 use std::collections::VecDeque;
 
+use crate::renderer::util::TokenIterator;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum TokenizationState {
     Data,
@@ -35,9 +37,8 @@ pub enum TokenizationState {
 #[derive(Debug)]
 pub struct HtmlTokenizer {
     state: TokenizationState,
-    input: Vec<char>,
-    current_pos: usize,
     current_token: Option<HtmlToken>,
+    input: TokenIterator<char>,
     output: VecDeque<HtmlToken>,
 
     /// https://html.spec.whatwg.org/multipage/parsing.html#temporary-buffer
@@ -77,12 +78,11 @@ pub enum HtmlToken {
 }
 
 impl HtmlTokenizer {
-    pub fn new(input: &str) -> Self {
+    pub fn new(html: &str) -> Self {
         Self {
             state: TokenizationState::Data,
-            input: input.chars().collect(),
-            current_pos: 0,
             current_token: None,
+            input: TokenIterator::new(&html.chars().collect::<Vec<_>>()),
             output: VecDeque::new(),
             temp_buf: Vec::new(),
         }
@@ -91,20 +91,7 @@ impl HtmlTokenizer {
     /// https://html.spec.whatwg.org/multipage/parsing.html#reconsume
     fn allow_reconsume(&mut self, move_to: TokenizationState) {
         self.state = move_to;
-        self.current_pos -= 1;
-    }
-
-    /// Returns the next character in the input stream.
-    fn consume_char(&mut self) -> Option<char> {
-        let c = self.input.get(self.current_pos).copied();
-        self.current_pos += 1;
-        c
-    }
-
-    /// Returns the next `len` characters from the input stream without consuming them.
-    /// Even if the input stream is shorter than `len`, it will return the characters it can.
-    fn peek_str(&self, len: usize) -> String {
-        self.input.iter().skip(self.current_pos).take(len).collect()
+        self.input.rewind(1);
     }
 
     fn create_token(&mut self, token: HtmlToken) {
@@ -132,7 +119,7 @@ impl HtmlTokenizer {
         while self.output.is_empty() {
             match self.state {
                 // https://html.spec.whatwg.org/multipage/parsing.html#data-state
-                TokenizationState::Data => match self.consume_char() {
+                TokenizationState::Data => match self.input.next() {
                     Some(c) => match c {
                         '&' => {
                             unimplemented!();
@@ -154,7 +141,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#rawtext-state
-                TokenizationState::RawText => match self.consume_char() {
+                TokenizationState::RawText => match self.input.next() {
                     Some(c) => match c {
                         '<' => {
                             self.state = TokenizationState::RawTextLessThanSign;
@@ -173,7 +160,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#tag-open-state
-                TokenizationState::TagOpen => match self.consume_char() {
+                TokenizationState::TagOpen => match self.input.next() {
                     Some(c) => match c {
                         '!' => {
                             self.state = TokenizationState::MarkupDeclarationOpen;
@@ -202,7 +189,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#end-tag-open-state
-                TokenizationState::EndTagOpen => match self.consume_char() {
+                TokenizationState::EndTagOpen => match self.input.next() {
                     Some(c) => match c {
                         c if c.is_ascii_alphabetic() => {
                             self.create_token(HtmlToken::EndTag {
@@ -233,7 +220,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#tag-name-state
-                TokenizationState::TagName => match self.consume_char() {
+                TokenizationState::TagName => match self.input.next() {
                     Some(c) => match c {
                         '\t' | '\n' | '\x0C' | ' ' => {
                             self.state = TokenizationState::BeforeAttributeName;
@@ -281,7 +268,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#rawtext-less-than-sign-state
-                TokenizationState::RawTextLessThanSign => match self.consume_char() {
+                TokenizationState::RawTextLessThanSign => match self.input.next() {
                     Some('/') => {
                         self.temp_buf.clear();
                         self.state = TokenizationState::RawTextEndTagOpen;
@@ -292,7 +279,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#rawtext-end-tag-open-state
-                TokenizationState::RawTextEndTagOpen => match self.consume_char() {
+                TokenizationState::RawTextEndTagOpen => match self.input.next() {
                     Some(c) if c.is_ascii_alphabetic() => {
                         self.create_token(HtmlToken::EndTag {
                             tag_name: String::new(),
@@ -311,7 +298,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#rawtext-end-tag-name-state
-                TokenizationState::RawTextEndTagName => match self.consume_char() {
+                TokenizationState::RawTextEndTagName => match self.input.next() {
                     Some('\t' | '\n' | '\x0C' | ' ') => {
                         // todo: check if the current end tag token's tag name is an appropriate end tag name
                         self.state = TokenizationState::BeforeAttributeName;
@@ -344,7 +331,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#before-attribute-name-state
-                TokenizationState::BeforeAttributeName => match self.consume_char() {
+                TokenizationState::BeforeAttributeName => match self.input.next() {
                     Some(c) => match c {
                         '\t' | '\n' | '\x0C' | ' ' => {}
                         '/' | '>' => {
@@ -378,7 +365,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#attribute-name-state
-                TokenizationState::AttributeName => match self.consume_char() {
+                TokenizationState::AttributeName => match self.input.next() {
                     // todo: UA needs to check if current attribute's name is already in the attributes list before leaving this state
                     Some(c) => match c {
                         '\t' | '\n' | '\x0C' | ' ' | '/' | '>' => {
@@ -431,7 +418,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#after-attribute-name-state
-                TokenizationState::AfterAttributeName => match self.consume_char() {
+                TokenizationState::AfterAttributeName => match self.input.next() {
                     Some(c) => match c {
                         '\t' | '\n' | '\x0C' | ' ' => {}
                         '/' => {
@@ -462,7 +449,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#before-attribute-value-state
-                TokenizationState::BeforeAttributeValue => match self.consume_char() {
+                TokenizationState::BeforeAttributeValue => match self.input.next() {
                     Some('\t' | '\n' | '\x0C' | ' ') => {}
                     Some('"') => {
                         self.state = TokenizationState::AttributeValueDoubleQuoted;
@@ -481,7 +468,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#attribute-value-(double-quoted)-state
-                TokenizationState::AttributeValueDoubleQuoted => match self.consume_char() {
+                TokenizationState::AttributeValueDoubleQuoted => match self.input.next() {
                     Some(c) => match c {
                         '"' => {
                             self.state = TokenizationState::AfterAttributeValueQuoted;
@@ -516,7 +503,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#attribute-value-(single-quoted)-state
-                TokenizationState::AttributeValueSingleQuoted => match self.consume_char() {
+                TokenizationState::AttributeValueSingleQuoted => match self.input.next() {
                     Some(c) => match c {
                         '\'' => {
                             self.state = TokenizationState::AfterAttributeValueQuoted;
@@ -552,7 +539,7 @@ impl HtmlTokenizer {
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#attribute-value-(unquoted)-state
                 TokenizationState::AttributeValueUnquoted => {
-                    match self.consume_char() {
+                    match self.input.next() {
                         Some(c) => match c {
                             '\t' | '\n' | '\x0C' | ' ' => {
                                 self.state = TokenizationState::BeforeAttributeName;
@@ -595,7 +582,7 @@ impl HtmlTokenizer {
                 }
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#after-attribute-value-(quoted)-state
-                TokenizationState::AfterAttributeValueQuoted => match self.consume_char() {
+                TokenizationState::AfterAttributeValueQuoted => match self.input.next() {
                     Some(c) => match c {
                         '\t' | '\n' | '\x0C' | ' ' => {
                             self.state = TokenizationState::BeforeAttributeName;
@@ -619,7 +606,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#self-closing-start-tag-state
-                TokenizationState::SelfClosingStartTag => match self.consume_char() {
+                TokenizationState::SelfClosingStartTag => match self.input.next() {
                     Some(c) => match c {
                         '>' => {
                             if let Some(
@@ -644,7 +631,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#bogus-comment-state
-                TokenizationState::BogusComment => match self.consume_char() {
+                TokenizationState::BogusComment => match self.input.next() {
                     Some(c) => match c {
                         '>' => {
                             self.state = TokenizationState::Data;
@@ -669,14 +656,38 @@ impl HtmlTokenizer {
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#markup-declaration-open-state
                 TokenizationState::MarkupDeclarationOpen => {
-                    if self.peek_str(2) == "--" {
-                        self.current_pos += 2;
+                    if self
+                        .input
+                        .peek_chunk(2)
+                        .iter()
+                        .flatten()
+                        .copied()
+                        .collect::<String>()
+                        .eq_ignore_ascii_case("--")
+                    {
+                        self.input.forward(2);
                         self.create_token(HtmlToken::Comment(String::new()));
                         self.state = TokenizationState::CommentStart;
-                    } else if self.peek_str(7).to_uppercase() == "DOCTYPE" {
-                        self.current_pos += 7;
+                    } else if self
+                        .input
+                        .peek_chunk(7)
+                        .iter()
+                        .flatten()
+                        .copied()
+                        .collect::<String>()
+                        .eq_ignore_ascii_case("DOCTYPE")
+                    {
+                        self.input.forward(7);
                         self.state = TokenizationState::Doctype;
-                    } else if self.peek_str(7) == "[CDATA[" {
+                    } else if self
+                        .input
+                        .peek_chunk(7)
+                        .iter()
+                        .flatten()
+                        .copied()
+                        .collect::<String>()
+                        .eq_ignore_ascii_case("[CDATA[")
+                    {
                         unimplemented!();
                     } else {
                         eprintln!("incorrectly-opened-comment parse error");
@@ -686,7 +697,7 @@ impl HtmlTokenizer {
                 }
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#comment-start-state
-                TokenizationState::CommentStart => match self.consume_char() {
+                TokenizationState::CommentStart => match self.input.next() {
                     Some('-') => {
                         self.state = TokenizationState::CommentStartDash;
                     }
@@ -701,7 +712,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#comment-start-dash-state
-                TokenizationState::CommentStartDash => match self.consume_char() {
+                TokenizationState::CommentStartDash => match self.input.next() {
                     Some(c) => match c {
                         '-' => {
                             self.state = TokenizationState::CommentEnd;
@@ -725,7 +736,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#comment-state
-                TokenizationState::Comment => match self.consume_char() {
+                TokenizationState::Comment => match self.input.next() {
                     Some(c) => match c {
                         '<' => {
                             if let Some(HtmlToken::Comment(comment)) = &mut self.current_token {
@@ -755,7 +766,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#comment-end-dash-state
-                TokenizationState::CommentEndDash => match self.consume_char() {
+                TokenizationState::CommentEndDash => match self.input.next() {
                     Some(c) => match c {
                         '-' => {
                             self.state = TokenizationState::CommentEnd;
@@ -774,7 +785,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#comment-end-state
-                TokenizationState::CommentEnd => match self.consume_char() {
+                TokenizationState::CommentEnd => match self.input.next() {
                     Some(c) => match c {
                         '>' => {
                             self.state = TokenizationState::Data;
@@ -804,7 +815,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#doctype-state
-                TokenizationState::Doctype => match self.consume_char() {
+                TokenizationState::Doctype => match self.input.next() {
                     Some(c) => match c {
                         '\t' | '\n' | '\x0C' | ' ' => {
                             self.state = TokenizationState::BeforeDoctypeName;
@@ -830,7 +841,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#before-doctype-name-state
-                TokenizationState::BeforeDoctypeName => match self.consume_char() {
+                TokenizationState::BeforeDoctypeName => match self.input.next() {
                     Some(c) => match c {
                         '\t' | '\n' | '\x0C' | ' ' => {}
                         c if c.is_ascii_uppercase() => {
@@ -886,7 +897,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#doctype-name-state
-                TokenizationState::DoctypeName => match self.consume_char() {
+                TokenizationState::DoctypeName => match self.input.next() {
                     Some(c) => match c {
                         '\t' | '\n' | '\x0C' | ' ' => {
                             self.state = TokenizationState::AfterDoctypeName;
@@ -933,7 +944,7 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#after-doctype-name-state
-                TokenizationState::AfterDoctypeName => match self.consume_char() {
+                TokenizationState::AfterDoctypeName => match self.input.next() {
                     Some(c) => match c {
                         '\t' | '\n' | '\x0C' | ' ' => {}
                         '>' => {
@@ -965,38 +976,6 @@ impl HtmlTokenizer {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_consume_char() {
-        let mut tokenizer = HtmlTokenizer::new("he llo, world!\n");
-        assert_eq!(tokenizer.consume_char(), Some('h'));
-        assert_eq!(tokenizer.consume_char(), Some('e'));
-        assert_eq!(tokenizer.consume_char(), Some(' '));
-        assert_eq!(tokenizer.consume_char(), Some('l'));
-        assert_eq!(tokenizer.consume_char(), Some('l'));
-        assert_eq!(tokenizer.consume_char(), Some('o'));
-        assert_eq!(tokenizer.consume_char(), Some(','));
-        tokenizer.current_pos -= 1;
-        assert_eq!(tokenizer.consume_char(), Some(','));
-        assert_eq!(tokenizer.consume_char(), Some(' '));
-        assert_eq!(tokenizer.consume_char(), Some('w'));
-        assert_eq!(tokenizer.consume_char(), Some('o'));
-        assert_eq!(tokenizer.consume_char(), Some('r'));
-        assert_eq!(tokenizer.consume_char(), Some('l'));
-        tokenizer.current_pos -= 1;
-        assert_eq!(tokenizer.consume_char(), Some('l'));
-        assert_eq!(tokenizer.consume_char(), Some('d'));
-        assert_eq!(tokenizer.consume_char(), Some('!'));
-        assert_eq!(tokenizer.consume_char(), Some('\n'));
-        assert_eq!(tokenizer.consume_char(), None);
-    }
-
-    #[test]
-    fn test_peek_input_str() {
-        let tokenizer = HtmlTokenizer::new("hello");
-        assert_eq!(tokenizer.peek_str(5), "hello");
-        assert_eq!(tokenizer.peek_str(3), "hel");
-    }
 
     #[test]
     fn test_consume_token1() {

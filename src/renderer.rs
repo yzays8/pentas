@@ -2,12 +2,13 @@ mod css;
 mod html;
 mod layout;
 mod style;
+mod util;
 
 use anyhow::Result;
 
 use css::get_ua_style_sheet;
-use css::parser::CssParser;
-use css::tokenizer::CssTokenizer;
+use css::parser::parse;
+use css::tokenizer::tokenize;
 use html::dom::DocumentTree;
 use html::parser::HtmlParser;
 use html::tokenizer::HtmlTokenizer;
@@ -44,8 +45,6 @@ pub fn display_box_tree(html: String, trace: bool) -> Result<()> {
 }
 
 pub fn display_style_sheet(css: String) -> Result<()> {
-    CssParser::new(CssTokenizer::new(&std::fs::read_to_string(css)?).tokenize()?)
-        .parse()?
-        .print();
+    parse(&tokenize(&std::fs::read_to_string(css)?)?)?.print();
     Ok(())
 }
