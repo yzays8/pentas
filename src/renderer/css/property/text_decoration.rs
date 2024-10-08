@@ -7,7 +7,7 @@ use anyhow::{bail, Ok, Result};
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::dtype::CssValue;
 use crate::renderer::css::property::color::{parse_color_type, ColorProp};
-use crate::renderer::css::tokenizer::CssToken;
+use crate::renderer::css::token::CssToken;
 
 // todo: add TextDecorationColor, TextDecorationLine, TextDecorationStyle structs for each member
 #[derive(Clone, Debug, PartialEq)]
@@ -216,7 +216,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::renderer::css::tokenizer::NumericType;
+    use crate::renderer::css::token::NumericType;
 
     use super::*;
 

@@ -5,7 +5,7 @@ use anyhow::{anyhow, bail, ensure, Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::dtype::CssValue;
-use crate::renderer::css::tokenizer::{CssToken, NumericType};
+use crate::renderer::css::token::{CssToken, NumericType};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ColorProp {
@@ -511,7 +511,7 @@ fn hex_to_rgba(hex: &str) -> Result<(u8, u8, u8, u8)> {
 
 #[cfg(test)]
 mod tests {
-    use crate::renderer::css::tokenizer::HashType;
+    use crate::renderer::css::token::HashType;
 
     use super::*;
 

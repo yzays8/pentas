@@ -5,7 +5,7 @@ use anyhow::{bail, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::property::color::rgb_to_name;
-use crate::renderer::css::tokenizer::{CssToken, NumericType};
+use crate::renderer::css::token::{CssToken, NumericType};
 
 /// https://www.w3.org/TR/css-values-3/
 #[allow(dead_code)]

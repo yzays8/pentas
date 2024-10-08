@@ -8,7 +8,7 @@ use crate::renderer::css::dtype::{
     parse_length_percentage_type, AbsoluteLengthUnit, CssValue, LengthUnit, RelativeLengthUnit,
 };
 use crate::renderer::css::property::font_size;
-use crate::renderer::css::tokenizer::CssToken;
+use crate::renderer::css::token::CssToken;
 
 use super::font_size::FontSizeProp;
 
@@ -221,7 +221,7 @@ pub fn parse_margin_block(values: &[ComponentValue]) -> Result<MarginBlockProp> 
 
 #[cfg(test)]
 mod tests {
-    use crate::renderer::css::tokenizer::NumericType;
+    use crate::renderer::css::token::NumericType;
 
     use super::*;
 

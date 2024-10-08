@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::renderer::css::cssom::{ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet};
 use crate::renderer::css::selector;
-use crate::renderer::css::tokenizer::CssToken;
+use crate::renderer::css::token::CssToken;
 use crate::renderer::util::TokenIterator;
 
 /// Returns a stylesheet using the `Parse a stylesheet` entry point (normal parser entry point).
@@ -279,7 +279,7 @@ mod tests {
     use super::*;
     use crate::renderer::css::cssom::{ComponentValue, Declaration, QualifiedRule, Rule};
     use crate::renderer::css::selector::{Combinator, Selector, SimpleSelector};
-    use crate::renderer::css::tokenizer::{tokenize, CssToken, NumericType};
+    use crate::renderer::css::token::{tokenize, CssToken, NumericType};
 
     #[test]
     fn parse_simple_style() {

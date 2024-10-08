@@ -8,7 +8,7 @@ use crate::renderer::css::dtype::{
     parse_length_percentage_type, AbsoluteLengthUnit, CssValue, LengthUnit, RelativeLengthUnit,
 };
 use crate::renderer::css::property::font_size::{self, FontSizeProp};
-use crate::renderer::css::tokenizer::CssToken;
+use crate::renderer::css::token::CssToken;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PaddingProp {

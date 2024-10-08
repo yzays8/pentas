@@ -8,7 +8,7 @@ use crate::renderer::css::dtype::{
     self, parse_length_percentage_type, AbsoluteLengthUnit, CssValue, LengthUnit,
     RelativeLengthUnit,
 };
-use crate::renderer::css::tokenizer::CssToken;
+use crate::renderer::css::token::CssToken;
 
 pub const SMALL: f32 = 13.0;
 pub const MEDIUM: f32 = 16.0;
@@ -157,7 +157,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::renderer::css::tokenizer::NumericType;
+    use crate::renderer::css::token::NumericType;
 
     use super::*;
 

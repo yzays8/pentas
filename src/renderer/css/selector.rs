@@ -6,7 +6,7 @@ use std::rc::Rc;
 use anyhow::{bail, ensure, Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::tokenizer::CssToken;
+use crate::renderer::css::token::CssToken;
 use crate::renderer::html::dom::{DomNode, NodeType};
 
 /// - https://www.w3.org/TR/selectors-3/#simple-selectors

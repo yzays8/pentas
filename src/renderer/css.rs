@@ -3,13 +3,13 @@ pub mod dtype;
 pub mod parser;
 pub mod property;
 pub mod selector;
-pub mod tokenizer;
+pub mod token;
 
 use anyhow::Result;
 
 use cssom::StyleSheet;
 use parser::parse;
-use tokenizer::tokenize;
+use token::tokenize;
 
 const UA_CSS_PATH: &str = "src/renderer/css/ua.css";
 

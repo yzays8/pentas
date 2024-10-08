@@ -6,7 +6,7 @@ use thiserror::Error;
 
 use crate::renderer::css::cssom::StyleSheet;
 use crate::renderer::css::parser::parse as css_parse;
-use crate::renderer::css::tokenizer::tokenize as css_tokenize;
+use crate::renderer::css::token::tokenize as css_tokenize;
 use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
 use crate::renderer::html::tokenizer::{HtmlToken, HtmlTokenizer, TokenizationState};
 

@@ -8,7 +8,7 @@ use anyhow::Result;
 
 use css::get_ua_style_sheet;
 use css::parser::parse;
-use css::tokenizer::tokenize;
+use css::token::tokenize;
 use html::dom::DocumentTree;
 use html::parser::HtmlParser;
 use html::tokenizer::HtmlTokenizer;
