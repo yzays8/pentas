@@ -19,6 +19,7 @@ use crate::renderer::css::property::margin::{
 };
 use crate::renderer::css::property::padding::{parse_padding, PaddingProp};
 use crate::renderer::css::property::text_decoration::{parse_text_decoration, TextDecorationProp};
+use crate::renderer::css::property::width::{parse_width, WidthProp};
 use crate::renderer::css::selector::Selector;
 use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
 use crate::renderer::layout::BoxTree;
@@ -280,6 +281,7 @@ pub struct SpecifiedValues {
     pub margin_block: Option<MarginBlockProp>,
     pub border: Option<BorderProp>,
     pub padding: Option<PaddingProp>,
+    pub width: Option<WidthProp>,
 }
 
 impl SpecifiedValues {
@@ -378,6 +380,12 @@ impl SpecifiedValues {
                 "padding" => {
                     self.padding = parse_padding(values).ok();
                 }
+
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/width
+                "width" => {
+                    self.width = parse_width(values).ok();
+                }
+
                 _ => {}
             }
         }
@@ -419,6 +427,9 @@ impl SpecifiedValues {
         t.padding
             .as_mut()
             .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
+        t.width
+            .as_mut()
+            .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
 
         ComputedValues {
             background_color: t.background_color,
@@ -430,6 +441,7 @@ impl SpecifiedValues {
             margin_block: t.margin_block,
             border: t.border,
             padding: t.padding,
+            width: t.width,
         }
     }
 }
@@ -446,6 +458,7 @@ pub struct ComputedValues {
     pub margin_block: Option<MarginBlockProp>,
     pub border: Option<BorderProp>,
     pub padding: Option<PaddingProp>,
+    pub width: Option<WidthProp>,
 }
 
 impl fmt::Display for ComputedValues {
@@ -477,6 +490,9 @@ impl fmt::Display for ComputedValues {
         }
         if let Some(padding) = &self.padding {
             style_str.push_str(&format!("padding: {}; ", padding));
+        }
+        if let Some(width) = &self.width {
+            style_str.push_str(&format!("width: {}; ", width));
         }
         write!(f, "{}", style_str)
     }
