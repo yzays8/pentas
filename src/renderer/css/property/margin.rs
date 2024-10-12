@@ -8,9 +8,8 @@ use crate::renderer::css::dtype::{
     parse_length_percentage_type, AbsoluteLengthUnit, CssValue, LengthUnit, RelativeLengthUnit,
 };
 use crate::renderer::css::property::font_size;
+use crate::renderer::css::property::font_size::FontSizeProp;
 use crate::renderer::css::token::CssToken;
-
-use super::font_size::FontSizeProp;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MarginProp {
@@ -71,6 +70,12 @@ impl MarginProp {
             _ => bail!("Invalid font-size value: {:?}", current_font_size),
         };
         match &value {
+            CssValue::Ident(v) => {
+                if v != "auto" {
+                    unimplemented!()
+                }
+                Ok(value.clone())
+            }
             CssValue::Length(size, unit) => match unit {
                 LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px) => Ok(value.clone()),
                 LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Em) => Ok(CssValue::Length(
@@ -182,7 +187,10 @@ where
     {}
     match values.peek() {
         Some(ComponentValue::PreservedToken(CssToken::Ident(size))) => match size.as_str() {
-            "auto" => unimplemented!(),
+            "auto" => {
+                values.next();
+                Ok(CssValue::Ident("auto".to_string()))
+            }
             _ => unimplemented!(),
         },
         _ => parse_length_percentage_type(values),
