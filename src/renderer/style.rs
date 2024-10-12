@@ -14,6 +14,7 @@ use crate::renderer::css::property::display::{
     parse_display, DisplayBox, DisplayInside, DisplayOutside, DisplayProp,
 };
 use crate::renderer::css::property::font_size::{parse_font_size, FontSizeProp};
+use crate::renderer::css::property::height::{parse_height, HeightProp};
 use crate::renderer::css::property::margin::{
     parse_margin, parse_margin_block, MarginBlockProp, MarginProp,
 };
@@ -282,6 +283,7 @@ pub struct SpecifiedValues {
     pub border: Option<BorderProp>,
     pub padding: Option<PaddingProp>,
     pub width: Option<WidthProp>,
+    pub height: Option<HeightProp>,
 }
 
 impl SpecifiedValues {
@@ -386,6 +388,11 @@ impl SpecifiedValues {
                     self.width = parse_width(values).ok();
                 }
 
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/height
+                "height" => {
+                    self.height = parse_height(values).ok();
+                }
+
                 _ => {}
             }
         }
@@ -407,8 +414,9 @@ impl SpecifiedValues {
         t.font_size
             .as_mut()
             .map(|v| v.compute(parent_font_size_px.as_ref()).ok().cloned());
-
+        // The `display` value needs to be computed earlier because it is used to calculate other properties.
         t.display.as_mut().map(|v| v.compute().ok().cloned());
+
         t.background_color
             .as_mut()
             .map(|v| v.compute(t.color.as_ref()).ok().cloned());
@@ -430,6 +438,9 @@ impl SpecifiedValues {
         t.width
             .as_mut()
             .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
+        t.height
+            .as_mut()
+            .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
 
         ComputedValues {
             background_color: t.background_color,
@@ -442,6 +453,7 @@ impl SpecifiedValues {
             border: t.border,
             padding: t.padding,
             width: t.width,
+            height: t.height,
         }
     }
 }
@@ -459,6 +471,7 @@ pub struct ComputedValues {
     pub border: Option<BorderProp>,
     pub padding: Option<PaddingProp>,
     pub width: Option<WidthProp>,
+    pub height: Option<HeightProp>,
 }
 
 impl fmt::Display for ComputedValues {
@@ -485,15 +498,18 @@ impl fmt::Display for ComputedValues {
         // if let Some(margin_block) = &self.margin_block {
         //     style_str.push_str(&format!("margin-block: {}; ", margin_block));
         // }
-        if let Some(border) = &self.border {
-            style_str.push_str(&format!("border: {}; ", border));
-        }
-        if let Some(padding) = &self.padding {
-            style_str.push_str(&format!("padding: {}; ", padding));
-        }
-        if let Some(width) = &self.width {
-            style_str.push_str(&format!("width: {}; ", width));
-        }
+        // if let Some(border) = &self.border {
+        //     style_str.push_str(&format!("border: {}; ", border));
+        // }
+        // if let Some(padding) = &self.padding {
+        //     style_str.push_str(&format!("padding: {}; ", padding));
+        // }
+        // if let Some(width) = &self.width {
+        //     style_str.push_str(&format!("width: {}; ", width));
+        // }
+        // if let Some(height) = &self.height {
+        //     style_str.push_str(&format!("height: {}; ", height));
+        // }
         write!(f, "{}", style_str)
     }
 }
