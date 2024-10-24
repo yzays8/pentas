@@ -9,6 +9,7 @@ use anyhow::{Context, Ok, Result};
 use crate::renderer::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
 use crate::renderer::css::dtype::{AbsoluteSize, CssValue};
 use crate::renderer::css::property::border::{parse_border, BorderProp};
+use crate::renderer::css::property::border::{BorderStyleProp, BorderWidthProp};
 use crate::renderer::css::property::color::{parse_color, ColorProp};
 use crate::renderer::css::property::display::{
     parse_display, DisplayBox, DisplayInside, DisplayOutside, DisplayProp,
@@ -305,10 +306,82 @@ impl SpecifiedValues {
             size: CssValue::AbsoluteSize(AbsoluteSize::Medium),
         });
         self.text_decoration = None;
-        self.margin = None;
+        self.margin = Some(MarginProp {
+            top: CssValue::Length(
+                0.0,
+                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
+                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
+                ),
+            ),
+            right: CssValue::Length(
+                0.0,
+                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
+                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
+                ),
+            ),
+            bottom: CssValue::Length(
+                0.0,
+                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
+                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
+                ),
+            ),
+            left: CssValue::Length(
+                0.0,
+                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
+                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
+                ),
+            ),
+        });
         self.margin_block = None;
-        self.border = None;
-        self.padding = None;
+        self.border = Some(BorderProp {
+            border_color: ColorProp {
+                value: CssValue::Ident("currentColor".to_string()),
+            },
+            border_style: BorderStyleProp {
+                top: CssValue::Ident("none".to_string()),
+                right: CssValue::Ident("none".to_string()),
+                bottom: CssValue::Ident("none".to_string()),
+                left: CssValue::Ident("none".to_string()),
+            },
+            border_width: BorderWidthProp {
+                top: CssValue::Ident("medium".to_string()),
+                right: CssValue::Ident("medium".to_string()),
+                bottom: CssValue::Ident("medium".to_string()),
+                left: CssValue::Ident("medium".to_string()),
+            },
+        });
+        self.padding = Some(PaddingProp {
+            top: CssValue::Length(
+                0.0,
+                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
+                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
+                ),
+            ),
+            right: CssValue::Length(
+                0.0,
+                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
+                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
+                ),
+            ),
+            bottom: CssValue::Length(
+                0.0,
+                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
+                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
+                ),
+            ),
+            left: CssValue::Length(
+                0.0,
+                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
+                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
+                ),
+            ),
+        });
+        self.width = Some(WidthProp {
+            size: CssValue::Ident("auto".to_string()),
+        });
+        self.height = Some(HeightProp {
+            size: CssValue::Ident("auto".to_string()),
+        });
     }
 
     /// Sets the inherited values for all "inherited properties".
@@ -429,9 +502,11 @@ impl SpecifiedValues {
         t.margin_block
             .as_mut()
             .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
-        t.border
-            .as_mut()
-            .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
+        t.border.as_mut().map(|v| {
+            v.compute(t.font_size.as_ref(), t.color.as_ref())
+                .ok()
+                .cloned()
+        });
         t.padding
             .as_mut()
             .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());

@@ -36,9 +36,13 @@ pub fn display_box_tree(html: String, trace: bool) -> Result<()> {
         let mut box_tree = render_tree.to_box_tree()?;
         box_tree.print();
         println!("\n===============\n");
-        box_tree.clean_up()?.print();
+        box_tree.clean_up()?.layout(1200.0)?.print();
     } else {
-        render_tree.to_box_tree()?.clean_up()?.print();
+        render_tree
+            .to_box_tree()?
+            .clean_up()?
+            .layout(1200.0)?
+            .print();
     }
 
     Ok(())

@@ -121,7 +121,9 @@ where
 {
     match values.peek() {
         Some(v) => match v {
-            ComponentValue::PreservedToken(CssToken::Dimension(..) | CssToken::Number(..)) => parse_length_type(values),
+            ComponentValue::PreservedToken(CssToken::Dimension(..) | CssToken::Number(..)) => {
+                parse_length_type(values)
+            }
             ComponentValue::PreservedToken(CssToken::Percentage(..)) => {
                 parse_percentage_type(values)
             }
@@ -209,9 +211,9 @@ where
                     _ => unimplemented!(),
                 }
             }
-            ComponentValue::PreservedToken(CssToken::Number(NumericType::Integer(0))) => {
-                Ok(CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)))
-            }
+            ComponentValue::PreservedToken(CssToken::Number(NumericType::Integer(0))) => Ok(
+                CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
+            ),
             _ => bail!("Expected length value but found: {:?}", v),
         },
         None => bail!("Expected length value but found none"),

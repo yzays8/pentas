@@ -64,14 +64,45 @@ impl std::fmt::Display for BorderWidthProp {
 }
 
 impl BorderProp {
-    // todo
+    // todo: proper implementation
     #[allow(unused_variables)]
-    pub fn compute(&mut self, current_font_size: Option<&FontSizeProp>) -> Result<&Self> {
+    pub fn compute(
+        &mut self,
+        current_font_size: Option<&FontSizeProp>,
+        current_color: Option<&ColorProp>,
+    ) -> Result<&Self> {
+        self.border_color.compute(current_color)?;
+        self.border_width = BorderWidthProp {
+            top: CssValue::Length(
+                0.0,
+                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
+                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
+                ),
+            ),
+            right: CssValue::Length(
+                0.0,
+                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
+                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
+                ),
+            ),
+            bottom: CssValue::Length(
+                0.0,
+                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
+                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
+                ),
+            ),
+            left: CssValue::Length(
+                0.0,
+                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
+                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
+                ),
+            ),
+        };
         Ok(self)
     }
 }
 
-// todo
+// todo: proper implementation
 #[allow(unused_variables)]
 pub fn parse_border(values: &[ComponentValue]) -> Result<BorderProp> {
     Ok(BorderProp {
