@@ -63,7 +63,6 @@ impl BoxTree {
             },
             None,
             None,
-            None,
         )?;
         Ok(self)
     }
@@ -226,11 +225,47 @@ pub enum BoxKind {
 }
 
 /// Calculated width, height, and position of the BoxNode and its `used values` of the `width`, `margin`, `padding`, and `border` properties.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct LayoutInfo {
     pub size: BoxSize,
     pub pos: BoxPosition,
     pub used_values: UsedValues,
+}
+
+impl LayoutInfo {
+    /// Returns the width of the box after applying the margin, padding, and border properties.
+    pub fn get_expanded_size(&self) -> BoxSize {
+        BoxSize {
+            width: self.size.width
+                + self.used_values.margin.left
+                + self.used_values.margin.right
+                + self.used_values.padding.left
+                + self.used_values.padding.right
+                + self.used_values.border.left
+                + self.used_values.border.right,
+            height: self.size.height
+                + self.used_values.margin.top
+                + self.used_values.margin.bottom
+                + self.used_values.padding.top
+                + self.used_values.padding.bottom
+                + self.used_values.border.top
+                + self.used_values.border.bottom,
+        }
+    }
+
+    /// Returns the position of the box after applying the margin, padding, and border properties.
+    pub fn get_expanded_pos(&self) -> BoxPosition {
+        BoxPosition {
+            x: self.pos.x
+                - self.used_values.margin.left
+                - self.used_values.padding.left
+                - self.used_values.border.left,
+            y: self.pos.y
+                - self.used_values.margin.top
+                - self.used_values.padding.top
+                - self.used_values.border.top,
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -246,7 +281,7 @@ pub struct BoxPosition {
 }
 
 /// Used values for the `width`, `margin`, `padding`, and `border` properties.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct UsedValues {
     /// The `width` property won't be applied to non-replaced inline elements.
     pub width: Option<f32>,
@@ -255,7 +290,7 @@ pub struct UsedValues {
     pub border: Edge,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Edge {
     pub top: f32,
     pub right: f32,
@@ -411,61 +446,46 @@ impl BoxNode {
         })
     }
 
-    /// Returns the size of the box after applying the margin, padding, and border properties.
-    pub fn get_expanded_size(&self) -> BoxSize {
-        BoxSize {
-            width: self.layout_info.size.width
-                + self.layout_info.used_values.margin.left
-                + self.layout_info.used_values.margin.right
-                + self.layout_info.used_values.padding.left
-                + self.layout_info.used_values.padding.right
-                + self.layout_info.used_values.border.left
-                + self.layout_info.used_values.border.right,
-            height: self.layout_info.size.height
-                + self.layout_info.used_values.margin.top
-                + self.layout_info.used_values.margin.bottom
-                + self.layout_info.used_values.padding.top
-                + self.layout_info.used_values.padding.bottom
-                + self.layout_info.used_values.border.top
-                + self.layout_info.used_values.border.bottom,
-        }
-    }
-
-    /// Returns the position of the box after applying the margin, padding, and border properties.
-    pub fn get_expanded_pos(&self) -> BoxPosition {
-        BoxPosition {
-            x: self.layout_info.pos.x
-                - self.layout_info.used_values.margin.left
-                - self.layout_info.used_values.padding.left
-                - self.layout_info.used_values.border.left,
-            y: self.layout_info.pos.y
-                - self.layout_info.used_values.margin.top
-                - self.layout_info.used_values.padding.top
-                - self.layout_info.used_values.border.top,
-        }
-    }
-
     /// Sets the width, height, position, and used values for some properties of the box and its children.
     pub fn layout(
         &mut self,
         containing_block_info: &LayoutInfo,
         containing_block_style: Option<&ComputedValues>,
-        prev_sibling_pos: Option<BoxPosition>,
-        prev_sibling_size: Option<BoxSize>,
+        prev_sibling_info: Option<LayoutInfo>,
     ) -> Result<&mut Self> {
         match &self.box_kind {
             BoxKind::Block(_) | BoxKind::Anonymous(_) => {
-                self.layout_block(containing_block_info, prev_sibling_pos, prev_sibling_size)?;
+                self.layout_block(containing_block_info, prev_sibling_info)?;
             }
             BoxKind::Inline(_) => {
+                let (prev_sibling_pos, prev_sibling_size) =
+                    if let Some(prev_sibling_info) = prev_sibling_info {
+                        (
+                            Some(prev_sibling_info.get_expanded_pos()),
+                            Some(prev_sibling_info.get_expanded_size()),
+                        )
+                    } else {
+                        (None, None)
+                    };
                 self.layout_inline(containing_block_info, prev_sibling_pos, prev_sibling_size)?;
             }
-            BoxKind::Text(_) => self.layout_text(
-                containing_block_info,
-                containing_block_style,
-                prev_sibling_pos,
-                prev_sibling_size,
-            ),
+            BoxKind::Text(_) => {
+                let (prev_sibling_pos, prev_sibling_size) =
+                    if let Some(prev_sibling_info) = prev_sibling_info {
+                        (
+                            Some(prev_sibling_info.get_expanded_pos()),
+                            Some(prev_sibling_info.get_expanded_size()),
+                        )
+                    } else {
+                        (None, None)
+                    };
+                self.layout_text(
+                    containing_block_info,
+                    containing_block_style,
+                    prev_sibling_pos,
+                    prev_sibling_size,
+                )
+            }
         }
         Ok(self)
     }
@@ -473,8 +493,7 @@ impl BoxNode {
     fn layout_block(
         &mut self,
         containing_block_info: &LayoutInfo,
-        prev_sibling_pos: Option<BoxPosition>,
-        prev_sibling_size: Option<BoxSize>,
+        prev_sibling_info: Option<LayoutInfo>,
     ) -> Result<()> {
         self.calc_used_values_for_block(containing_block_info)?;
         if let BoxKind::Anonymous(_) = &self.box_kind {
@@ -482,7 +501,7 @@ impl BoxNode {
         } else {
             self.layout_info.size.width = self.layout_info.used_values.width.unwrap();
         }
-        self.calc_block_pos(containing_block_info, prev_sibling_pos, prev_sibling_size)?;
+        self.calc_block_pos(containing_block_info, prev_sibling_info)?;
         self.layout_children()?;
         Ok(())
     }
@@ -614,11 +633,8 @@ impl BoxNode {
 
         if is_first_child_block || is_first_child_anon {
             // If the first child is a block-level box, all children must be block-level boxes.
-            let mut prev_sib_pos = None;
-            let mut prev_sib_size = None;
 
-            // todo: Implement the collapsing margins:
-            // https://www.w3.org/TR/CSS22/box.html#collapsing-margins
+            let mut prev_sib_info = None;
 
             // If `height` is `auto`, the height of the box depends on whether the element
             // has any block-level children and whether it has padding or borders.
@@ -627,14 +643,28 @@ impl BoxNode {
                 child.borrow_mut().layout(
                     &self.layout_info,
                     self_style.as_ref(),
-                    prev_sib_pos,
-                    prev_sib_size,
+                    prev_sib_info.clone(),
                 )?;
-                let ch_ex_pos = child.borrow().get_expanded_pos();
-                let ch_ex_size = child.borrow().get_expanded_size();
-                self.layout_info.size.height += ch_ex_size.height;
-                prev_sib_pos = Some(ch_ex_pos);
-                prev_sib_size = Some(ch_ex_size);
+
+                // https://www.w3.org/TR/CSS22/box.html#collapsing-margins
+                if let Some(info) = &prev_sib_info {
+                    if child.borrow().layout_info.used_values.margin.top
+                        < info.used_values.margin.bottom
+                    {
+                        self.layout_info.size.height +=
+                            child.borrow().layout_info.get_expanded_size().height
+                                - child.borrow().layout_info.used_values.margin.top;
+                    } else {
+                        self.layout_info.size.height +=
+                            child.borrow().layout_info.get_expanded_size().height
+                                - info.used_values.margin.bottom;
+                    }
+                } else {
+                    self.layout_info.size.height +=
+                        child.borrow().layout_info.get_expanded_size().height;
+                }
+
+                prev_sib_info = Some(child.borrow().layout_info.clone());
             }
 
             // If `height` is not `auto`, the height of the box is the value of `height`.
@@ -651,27 +681,22 @@ impl BoxNode {
 
             let mut inline_width = 0.0;
             let mut inline_max_height = 0.0;
-            let mut prev_sib_pos = None;
-            let mut prev_sib_size = None;
+            let mut prev_sib_info = None;
 
             for child in self.child_nodes.iter_mut() {
                 if let BoxKind::Block(_) | BoxKind::Anonymous(_) = child.borrow().box_kind {
                     bail!("A block-level box cannot be a sibling of an inline-level box.");
                 }
-                child.borrow_mut().layout(
-                    &self.layout_info,
-                    self_style.as_ref(),
-                    prev_sib_pos,
-                    prev_sib_size,
-                )?;
-                let ch_exp_pos = child.borrow().get_expanded_pos();
-                let ch_exp_size = child.borrow().get_expanded_size();
-                inline_width += ch_exp_size.width;
-                if inline_max_height < ch_exp_size.height {
-                    inline_max_height = ch_exp_size.height;
+                child
+                    .borrow_mut()
+                    .layout(&self.layout_info, self_style.as_ref(), prev_sib_info)?;
+                let ch_exp_width = child.borrow().layout_info.get_expanded_size().width;
+                let ch_exp_height = child.borrow().layout_info.get_expanded_size().height;
+                inline_width += ch_exp_width;
+                if inline_max_height < ch_exp_height {
+                    inline_max_height = ch_exp_height;
                 }
-                prev_sib_pos = Some(ch_exp_pos);
-                prev_sib_size = Some(ch_exp_size);
+                prev_sib_info = Some(child.borrow().layout_info.clone());
             }
 
             // If parent is an inline-level box and children are inline-level boxes,
@@ -894,19 +919,15 @@ impl BoxNode {
     fn calc_block_pos(
         &mut self,
         containing_block_info: &LayoutInfo,
-        prev_sibling_pos: Option<BoxPosition>,
-        prev_sibling_size: Option<BoxSize>,
+        prev_sibling_info: Option<LayoutInfo>,
     ) -> Result<()> {
         if let BoxKind::Anonymous(_) = &self.box_kind {
             self.layout_info.pos.x = containing_block_info.pos.x;
-            self.layout_info.pos.y =
-                if let (Some(BoxPosition { y, .. }), Some(BoxSize { height, .. })) =
-                    (&prev_sibling_pos, &prev_sibling_size)
-                {
-                    y + height
-                } else {
-                    containing_block_info.pos.y
-                };
+            self.layout_info.pos.y = if let Some(info) = prev_sibling_info {
+                info.get_expanded_pos().y + info.get_expanded_size().height
+            } else {
+                containing_block_info.pos.y
+            };
             return Ok(());
         }
 
@@ -915,14 +936,23 @@ impl BoxNode {
             + self.layout_info.used_values.border.left
             + containing_block_info.used_values.padding.left
             + containing_block_info.pos.x;
-        self.layout_info.pos.y = self.layout_info.used_values.margin.top
-            + self.layout_info.used_values.border.top
-            + if let (Some(BoxPosition { y, .. }), Some(BoxSize { height, .. })) =
-                (&prev_sibling_pos, &prev_sibling_size)
-            {
-                y + height
+        self.layout_info.pos.y = self.layout_info.used_values.border.top
+            // This is where the margin collapse happens, which is tricky. This implementation is quite simple and does not cover complex cases.
+            // https://www.w3.org/TR/CSS22/box.html#collapsing-margins
+            // https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_box_model/Mastering_margin_collapsing
+            + if let Some(info) = prev_sibling_info {
+                if self.layout_info.used_values.margin.top < info.used_values.margin.bottom {
+                    info.get_expanded_pos().y + info.get_expanded_size().height
+                } else {
+                    self.layout_info.used_values.margin.top
+                        + info.get_expanded_pos().y
+                        + info.get_expanded_size().height
+                        - info.used_values.margin.bottom
+                }
             } else {
-                containing_block_info.pos.y + containing_block_info.used_values.padding.top
+                self.layout_info.used_values.margin.top
+                    + containing_block_info.pos.y
+                    + containing_block_info.used_values.padding.top
             };
 
         Ok(())
