@@ -29,12 +29,13 @@ impl BoxTree {
 
         // https://www.w3.org/TR/css-display-3/#root-element
         let mut root = None;
-        let _n = "html".to_string();
         for child in render_tree.root.borrow().child_nodes.iter() {
-            if let NodeType::Element(Element { tag_name: _n, .. }) =
+            if let NodeType::Element(Element { tag_name: n, .. }) =
                 &child.borrow().node.borrow().node_type
             {
-                root = Some(Rc::clone(child));
+                if n == "html" {
+                    root = Some(Rc::clone(child));
+                }
             }
         }
         ensure!(
@@ -475,7 +476,12 @@ impl BoxNode {
         prev_sibling_pos: Option<BoxPosition>,
         prev_sibling_size: Option<BoxSize>,
     ) -> Result<()> {
-        self.calc_block_width(containing_block_info)?;
+        self.calc_used_values_for_block(containing_block_info)?;
+        if let BoxKind::Anonymous(_) = &self.box_kind {
+            self.layout_info.size.width = containing_block_info.size.width;
+        } else {
+            self.layout_info.size.width = self.layout_info.used_values.width.unwrap();
+        }
         self.calc_block_pos(containing_block_info, prev_sibling_pos, prev_sibling_size)?;
         self.layout_children()?;
         Ok(())
@@ -487,6 +493,7 @@ impl BoxNode {
         prev_sibling_pos: Option<BoxPosition>,
         prev_sibling_size: Option<BoxSize>,
     ) -> Result<()> {
+        self.calc_used_values_for_inline()?;
         self.calc_inline_pos(containing_block_info, prev_sibling_pos, prev_sibling_size)?;
         self.layout_children()?;
         Ok(())
@@ -506,7 +513,6 @@ impl BoxNode {
             _ => unreachable!(),
         };
 
-        // todo: Use containing block's used values?
         // Set used values for the margin, padding, and border properties.
         self.layout_info.used_values.margin.left = match &margin.left {
             CssValue::Ident(v) if v == "auto" => 0.0,
@@ -568,6 +574,7 @@ impl BoxNode {
         }
         let max_height = (metrics.ascent - metrics.descent) * scale_factor;
 
+        // Set the width, height, and position of the text box.
         self.layout_info.size.width = total_width;
         self.layout_info.size.height = max_height;
         self.layout_info.pos.x = self.layout_info.used_values.margin.left
@@ -657,14 +664,14 @@ impl BoxNode {
                     prev_sib_pos,
                     prev_sib_size,
                 )?;
-                let ch_ex_pos = child.borrow().get_expanded_pos();
-                let ch_ex_size = child.borrow().get_expanded_size();
-                inline_width += ch_ex_size.width;
-                if inline_max_height < ch_ex_size.height {
-                    inline_max_height = ch_ex_size.height;
+                let ch_exp_pos = child.borrow().get_expanded_pos();
+                let ch_exp_size = child.borrow().get_expanded_size();
+                inline_width += ch_exp_size.width;
+                if inline_max_height < ch_exp_size.height {
+                    inline_max_height = ch_exp_size.height;
                 }
-                prev_sib_pos = Some(ch_ex_pos);
-                prev_sib_size = Some(ch_ex_size);
+                prev_sib_pos = Some(ch_exp_pos);
+                prev_sib_size = Some(ch_exp_size);
             }
 
             // If parent is an inline-level box and children are inline-level boxes,
@@ -683,14 +690,7 @@ impl BoxNode {
         Ok(())
     }
 
-    fn calc_inline_pos(
-        &mut self,
-        containing_block_info: &LayoutInfo,
-        prev_sibling_pos: Option<BoxPosition>,
-        prev_sibling_size: Option<BoxSize>,
-    ) -> Result<()> {
-        // todo: When the inline-level box runs over the edge of the line box, it is split into several boxes.
-        // https://www.w3.org/TR/CSS22/visuren.html#inline-formatting
+    fn calc_used_values_for_inline(&mut self) -> Result<()> {
         let (margin, display) = match &self.box_kind {
             BoxKind::Inline(node) | BoxKind::Text(node) => (
                 node.borrow().style.margin.as_ref().unwrap().clone(),
@@ -698,11 +698,9 @@ impl BoxNode {
             ),
             _ => unreachable!(),
         };
-
-        ensure!(
-            (display.outside, display.inside) == (DisplayOutside::Inline, DisplayInside::Flow),
-            "Currently, only inline-level boxes in normal flow are supported."
-        );
+        if (display.outside, display.inside) != (DisplayOutside::Inline, DisplayInside::Flow) {
+            unimplemented!("Currently, only inline-level boxes in normal flow are supported.");
+        }
 
         self.layout_info.used_values.margin.top = match margin.top {
             CssValue::Ident(v) if v == "auto" => 0.0,
@@ -716,7 +714,18 @@ impl BoxNode {
             CssValue::Percentage(_) => unimplemented!(),
             _ => unreachable!(),
         };
+        self.layout_info.used_values.width = None;
+        Ok(())
+    }
 
+    fn calc_inline_pos(
+        &mut self,
+        containing_block_info: &LayoutInfo,
+        prev_sibling_pos: Option<BoxPosition>,
+        prev_sibling_size: Option<BoxSize>,
+    ) -> Result<()> {
+        // todo: When the inline-level box runs over the edge of the line box, it is split into several boxes.
+        // https://www.w3.org/TR/CSS22/visuren.html#inline-formatting
         self.layout_info.pos.x = self.layout_info.used_values.margin.left
             + self.layout_info.used_values.border.left
             + self.layout_info.used_values.padding.left
@@ -735,11 +744,13 @@ impl BoxNode {
         Ok(())
     }
 
-    fn calc_block_width(&mut self, containing_block_info: &LayoutInfo) -> Result<()> {
+    fn calc_used_values_for_block(&mut self, containing_block_info: &LayoutInfo) -> Result<()> {
         if let BoxKind::Anonymous(_) = &self.box_kind {
             self.layout_info.used_values.width = Some(containing_block_info.size.width);
-            self.layout_info.used_values.margin.left = 0.0;
+            self.layout_info.used_values.margin.top = 0.0;
             self.layout_info.used_values.margin.right = 0.0;
+            self.layout_info.used_values.margin.bottom = 0.0;
+            self.layout_info.used_values.margin.left = 0.0;
             self.layout_info.size.width = containing_block_info.size.width;
             return Ok(());
         }
@@ -855,10 +866,28 @@ impl BoxNode {
                 self.layout_info.used_values.width = Some(width_px);
                 self.layout_info.used_values.margin.left = margin_left_px;
                 self.layout_info.used_values.margin.right = margin_right_px;
-                self.layout_info.size.width = width_px;
+                self.layout_info.used_values.margin.top = match margin.top {
+                    CssValue::Ident(v) if v == "auto" => 0.0,
+                    CssValue::Length(
+                        size,
+                        LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                    ) => size,
+                    CssValue::Percentage(_) => unimplemented!(),
+                    _ => unreachable!(),
+                };
+                self.layout_info.used_values.margin.bottom = match margin.bottom {
+                    CssValue::Ident(v) if v == "auto" => 0.0,
+                    CssValue::Length(
+                        size,
+                        LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                    ) => size,
+                    CssValue::Percentage(_) => unimplemented!(),
+                    _ => unreachable!(),
+                };
+                // self.layout_info.size.width = width_px;
             }
 
-            _ => unimplemented!(),
+            _ => unimplemented!("Currently, only block-level boxes in normal flow are supported."),
         }
         Ok(())
     }
@@ -871,8 +900,6 @@ impl BoxNode {
         prev_sibling_size: Option<BoxSize>,
     ) -> Result<()> {
         if let BoxKind::Anonymous(_) = &self.box_kind {
-            self.layout_info.used_values.margin.top = 0.0;
-            self.layout_info.used_values.margin.bottom = 0.0;
             self.layout_info.pos.x = containing_block_info.pos.x;
             self.layout_info.pos.y =
                 if let (Some(BoxPosition { y, .. }), Some(BoxSize { height, .. })) =
@@ -884,35 +911,6 @@ impl BoxNode {
                 };
             return Ok(());
         }
-
-        let (margin, display) = match &self.box_kind {
-            BoxKind::Block(node) | BoxKind::Inline(node) | BoxKind::Text(node) => (
-                node.borrow().style.margin.as_ref().unwrap().clone(),
-                node.borrow().style.display.as_ref().unwrap().clone(),
-            ),
-            BoxKind::Anonymous(style) => (
-                style.margin.as_ref().unwrap().clone(),
-                style.display.as_ref().unwrap().clone(),
-            ),
-        };
-
-        ensure!(
-            (display.outside, display.inside) == (DisplayOutside::Block, DisplayInside::Flow),
-            "Currently, only block-level boxes in normal flow are supported."
-        );
-
-        self.layout_info.used_values.margin.top = match margin.top {
-            CssValue::Ident(v) if v == "auto" => 0.0,
-            CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)) => size,
-            CssValue::Percentage(_) => unimplemented!(),
-            _ => unreachable!(),
-        };
-        self.layout_info.used_values.margin.bottom = match margin.bottom {
-            CssValue::Ident(v) if v == "auto" => 0.0,
-            CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)) => size,
-            CssValue::Percentage(_) => unimplemented!(),
-            _ => unreachable!(),
-        };
 
         // Note that the padding used to calculate the coordinates of a block-level box is not the padding of the current box.
         self.layout_info.pos.x = self.layout_info.used_values.margin.left
