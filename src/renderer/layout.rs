@@ -919,13 +919,12 @@ impl BoxNode {
             + containing_block_info.pos.x;
         self.layout_info.pos.y = self.layout_info.used_values.margin.top
             + self.layout_info.used_values.border.top
-            + containing_block_info.used_values.padding.top
             + if let (Some(BoxPosition { y, .. }), Some(BoxSize { height, .. })) =
                 (&prev_sibling_pos, &prev_sibling_size)
             {
                 y + height
             } else {
-                containing_block_info.pos.y
+                containing_block_info.pos.y + containing_block_info.used_values.padding.top
             };
 
         Ok(())
