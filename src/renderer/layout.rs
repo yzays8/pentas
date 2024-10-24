@@ -751,7 +751,6 @@ impl BoxNode {
             self.layout_info.used_values.margin.right = 0.0;
             self.layout_info.used_values.margin.bottom = 0.0;
             self.layout_info.used_values.margin.left = 0.0;
-            self.layout_info.size.width = containing_block_info.size.width;
             return Ok(());
         }
 
@@ -884,7 +883,6 @@ impl BoxNode {
                     CssValue::Percentage(_) => unimplemented!(),
                     _ => unreachable!(),
                 };
-                // self.layout_info.size.width = width_px;
             }
 
             _ => unimplemented!("Currently, only block-level boxes in normal flow are supported."),
