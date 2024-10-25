@@ -60,6 +60,12 @@ impl DomNode {
             _ => None,
         }
     }
+
+    pub fn set_inside_text(&mut self, text: &str) {
+        if let NodeType::Text(t) = &mut self.node_type {
+            *t = text.to_string();
+        }
+    }
 }
 
 impl fmt::Display for DomNode {

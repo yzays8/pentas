@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::cmp::max_by;
 use std::fmt;
 use std::rc::Rc;
 
@@ -509,7 +510,7 @@ impl BoxNode {
             self.layout_info.size.width = self.layout_info.used_values.width.unwrap();
         }
         self.calc_block_pos(containing_block_info, prev_sibling_info)?;
-        self.layout_children()?;
+        self.layout_children(containing_block_info)?;
         Ok(())
     }
 
@@ -521,7 +522,7 @@ impl BoxNode {
     ) -> Result<()> {
         self.calc_used_values_for_inline()?;
         self.calc_inline_pos(containing_block_info, prev_sibling_pos, prev_sibling_size)?;
-        self.layout_children()?;
+        self.layout_children(containing_block_info)?;
         Ok(())
     }
 
@@ -579,20 +580,66 @@ impl BoxNode {
         };
         let metrics: Metrics = font.metrics();
         let scale_factor = font_size / metrics.units_per_em as f32;
-
-        let mut total_width = 0.0;
-        for c in text.chars() {
-            let glyph_id = font
-                .glyph_for_char(c)
-                .unwrap_or(font.glyph_for_char('?').unwrap());
-            let advance = font.advance(glyph_id);
-            total_width += advance.unwrap().x() * scale_factor;
-        }
         let max_height = (metrics.ascent - metrics.descent) * scale_factor;
 
+        // Wrap the text.
+        // This implementation is quite simple and doesn't take into account the line box system
+        // and Unicode line-break rules. It also assumes that a text node is the only child of
+        // a block-level box (if it isn't, the line breaks won't work properly).
+        // https://drafts.csswg.org/css-text/#line-breaking
+        let mut new_text = String::new();
+        let mut curr_width = 0.0;
+        let mut max_line_width = 0.0;
+        let space_width =
+            font.advance(
+                font.glyph_for_char(' ')
+                    .unwrap_or(font.glyph_for_char('?').unwrap()),
+            )
+            .unwrap()
+            .x() * scale_factor;
+        let mut line_num = 1;
+        text.split(' ').for_each(|word| {
+            let word_width = word
+                .chars()
+                .map(|c| {
+                    let glyph_id = font
+                        .glyph_for_char(c)
+                        .unwrap_or(font.glyph_for_char('?').unwrap());
+                    let advance = font.advance(glyph_id);
+                    advance.unwrap().x() * scale_factor
+                })
+                .sum::<f32>();
+            curr_width += word_width;
+            if containing_block_info.size.width < curr_width {
+                curr_width -= word_width;
+                if new_text.ends_with(' ') {
+                    new_text.pop();
+                    curr_width -= space_width;
+                }
+                new_text.push_str(format!("\n{word} ").as_str());
+                max_line_width =
+                    max_by(max_line_width, curr_width, |a, b| a.partial_cmp(b).unwrap());
+                curr_width = word_width;
+                line_num += 1;
+            } else {
+                new_text.push_str(format!("{word} ").as_str());
+                curr_width += space_width;
+            }
+        });
+        if new_text.ends_with(' ') {
+            new_text.pop();
+            curr_width -= space_width;
+        }
+        max_line_width = max_by(max_line_width, curr_width, |a, b| a.partial_cmp(b).unwrap());
+        if let BoxKind::Text(n) = &self.box_kind {
+            n.borrow().node.borrow_mut().set_inside_text(&new_text);
+        } else {
+            unreachable!()
+        }
+
         // Set the width, height, and position of the text box.
-        self.layout_info.size.width = total_width;
-        self.layout_info.size.height = max_height;
+        self.layout_info.size.width = max_line_width;
+        self.layout_info.size.height = max_height * line_num as f32;
         self.layout_info.pos.x = self.layout_info.used_values.margin.left
             + self.layout_info.used_values.border.left
             + self.layout_info.used_values.padding.left
@@ -609,7 +656,7 @@ impl BoxNode {
             + containing_block_info.pos.y;
     }
 
-    fn layout_children(&mut self) -> Result<()> {
+    fn layout_children(&mut self, containing_block_info: &LayoutInfo) -> Result<()> {
         if self.child_nodes.is_empty() {
             return Ok(());
         }
@@ -680,9 +727,22 @@ impl BoxNode {
                 if let BoxKind::Block(_) | BoxKind::Anonymous(_) = child.borrow().box_kind {
                     bail!("A block-level box cannot be a sibling of an inline-level box.");
                 }
-                child
-                    .borrow_mut()
-                    .layout(&self.layout_info, Some(&self_style), prev_sib_info)?;
+
+                // The containing block of an inline-level box is the nearest block-level ancestor box.
+                if let BoxKind::Block(_) = &self.box_kind {
+                    child.borrow_mut().layout(
+                        &self.layout_info,
+                        Some(&self_style),
+                        prev_sib_info,
+                    )?;
+                } else {
+                    child.borrow_mut().layout(
+                        containing_block_info,
+                        Some(&self_style),
+                        prev_sib_info,
+                    )?;
+                }
+
                 let ch_exp_width = child.borrow().layout_info.get_expanded_size().width;
                 let ch_exp_height = child.borrow().layout_info.get_expanded_size().height;
                 inline_width += ch_exp_width;
