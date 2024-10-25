@@ -446,6 +446,13 @@ impl BoxNode {
         })
     }
 
+    pub fn get_style(&self) -> ComputedValues {
+        match &self.box_kind {
+            BoxKind::Block(n) | BoxKind::Inline(n) | BoxKind::Text(n) => n.borrow().style.clone(),
+            BoxKind::Anonymous(s) => *s.clone(),
+        }
+    }
+
     /// Sets the width, height, position, and used values for some properties of the box and its children.
     pub fn layout(
         &mut self,
@@ -527,36 +534,26 @@ impl BoxNode {
     ) {
         assert!(self.child_nodes.is_empty());
         let style = containing_block_style.unwrap();
-        let margin = match &self.box_kind {
-            BoxKind::Text(_) => style.margin.as_ref().unwrap().clone(),
-            _ => unreachable!(),
-        };
+        let margin = style.margin.as_ref().unwrap().clone();
 
         // Set used values for the margin, padding, and border properties.
-        self.layout_info.used_values.margin.left = match &margin.left {
-            CssValue::Ident(v) if v == "auto" => 0.0,
-            CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)) => *size,
-            CssValue::Percentage(_) => unimplemented!(),
-            _ => unreachable!(),
-        };
-        self.layout_info.used_values.margin.right = match &margin.right {
-            CssValue::Ident(v) if v == "auto" => 0.0,
-            CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)) => *size,
-            CssValue::Percentage(_) => unimplemented!(),
-            _ => unreachable!(),
-        };
-        self.layout_info.used_values.margin.top = match &margin.right {
-            CssValue::Ident(v) if v == "auto" => 0.0,
-            CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)) => *size,
-            CssValue::Percentage(_) => unimplemented!(),
-            _ => unreachable!(),
-        };
-        self.layout_info.used_values.margin.bottom = match &margin.right {
-            CssValue::Ident(v) if v == "auto" => 0.0,
-            CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)) => *size,
-            CssValue::Percentage(_) => unimplemented!(),
-            _ => unreachable!(),
-        };
+        [
+            (self.layout_info.used_values.margin.left, margin.left),
+            (self.layout_info.used_values.margin.right, margin.right),
+            (self.layout_info.used_values.margin.top, margin.top),
+            (self.layout_info.used_values.margin.bottom, margin.bottom),
+        ]
+        .iter_mut()
+        .for_each(|(used_margin, comp_margin)| {
+            *used_margin = match comp_margin {
+                CssValue::Ident(v) if v == "auto" => 0.0,
+                CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)) => {
+                    *size
+                }
+                CssValue::Percentage(_) => unimplemented!(),
+                _ => unreachable!(),
+            };
+        });
         self.layout_info.used_values.width = None;
 
         // Calculate the width and height of the text box.
@@ -617,23 +614,21 @@ impl BoxNode {
             return Ok(());
         }
 
-        let self_style = match &self.box_kind {
-            BoxKind::Block(node) | BoxKind::Inline(node) => Some(node.borrow().style.clone()),
-            BoxKind::Anonymous(style) => Some(*style.clone()),
-            _ => None,
-        };
+        let self_style = self.get_style();
+        let is_every_child_block = self.child_nodes.iter().all(|child| {
+            matches!(
+                child.borrow().box_kind,
+                BoxKind::Block(_) | BoxKind::Anonymous(_)
+            )
+        });
+        let is_every_child_inline = self.child_nodes.iter().all(|child| {
+            matches!(
+                child.borrow().box_kind,
+                BoxKind::Inline(_) | BoxKind::Text(_)
+            )
+        });
 
-        let (is_first_child_block, is_first_child_anon, is_first_child_inline, is_first_child_text) =
-            match self.child_nodes.first().unwrap().borrow().box_kind {
-                BoxKind::Block(_) => (true, false, false, false),
-                BoxKind::Anonymous(_) => (false, true, false, false),
-                BoxKind::Inline(_) => (false, false, true, false),
-                BoxKind::Text(_) => (false, false, false, true),
-            };
-
-        if is_first_child_block || is_first_child_anon {
-            // If the first child is a block-level box, all children must be block-level boxes.
-
+        if is_every_child_block {
             let mut prev_sib_info = None;
 
             // If `height` is `auto`, the height of the box depends on whether the element
@@ -642,7 +637,7 @@ impl BoxNode {
             for child in self.child_nodes.iter_mut() {
                 child.borrow_mut().layout(
                     &self.layout_info,
-                    self_style.as_ref(),
+                    Some(&self_style),
                     prev_sib_info.clone(),
                 )?;
 
@@ -676,9 +671,7 @@ impl BoxNode {
             if let CssValue::Length(height, _) = height.size {
                 self.layout_info.size.height = height;
             }
-        } else if is_first_child_inline || is_first_child_text {
-            // If the first child is an inline-level box, all children must be inline-level boxes.
-
+        } else if is_every_child_inline {
             let mut inline_width = 0.0;
             let mut inline_max_height = 0.0;
             let mut prev_sib_info = None;
@@ -689,7 +682,7 @@ impl BoxNode {
                 }
                 child
                     .borrow_mut()
-                    .layout(&self.layout_info, self_style.as_ref(), prev_sib_info)?;
+                    .layout(&self.layout_info, Some(&self_style), prev_sib_info)?;
                 let ch_exp_width = child.borrow().layout_info.get_expanded_size().width;
                 let ch_exp_height = child.borrow().layout_info.get_expanded_size().height;
                 inline_width += ch_exp_width;
@@ -709,20 +702,17 @@ impl BoxNode {
 
             self.layout_info.size.height = inline_max_height;
         } else {
-            unreachable!();
+            unreachable!()
         }
 
         Ok(())
     }
 
     fn calc_used_values_for_inline(&mut self) -> Result<()> {
-        let (margin, display) = match &self.box_kind {
-            BoxKind::Inline(node) | BoxKind::Text(node) => (
-                node.borrow().style.margin.as_ref().unwrap().clone(),
-                node.borrow().style.display.as_ref().unwrap().clone(),
-            ),
-            _ => unreachable!(),
-        };
+        let self_style = self.get_style();
+        let margin = self_style.margin.as_ref().unwrap().clone();
+        let display = self_style.display.as_ref().unwrap().clone();
+
         if (display.outside, display.inside) != (DisplayOutside::Inline, DisplayInside::Flow) {
             unimplemented!("Currently, only inline-level boxes in normal flow are supported.");
         }
