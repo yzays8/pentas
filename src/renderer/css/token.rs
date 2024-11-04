@@ -2,7 +2,7 @@ use std::vec;
 
 use anyhow::{ensure, Ok, Result};
 
-use crate::renderer::util::TokenIterator;
+use crate::renderer::utils::TokenIterator;
 
 /// https://www.w3.org/TR/css-syntax-3/#tokenization
 #[derive(Clone, Debug, PartialEq)]

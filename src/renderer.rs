@@ -2,7 +2,7 @@ mod css;
 mod html;
 mod layout;
 mod style;
-mod util;
+mod utils;
 
 use anyhow::Result;
 

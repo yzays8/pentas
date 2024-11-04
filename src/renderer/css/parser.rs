@@ -5,7 +5,7 @@ use anyhow::Result;
 use crate::renderer::css::cssom::{ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet};
 use crate::renderer::css::selector;
 use crate::renderer::css::token::CssToken;
-use crate::renderer::util::TokenIterator;
+use crate::renderer::utils::TokenIterator;
 
 /// Returns a stylesheet using the `Parse a stylesheet` entry point (normal parser entry point).
 /// https://www.w3.org/TR/css-syntax-3/#parse-stylesheet
