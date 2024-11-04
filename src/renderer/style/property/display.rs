@@ -4,8 +4,8 @@ use std::iter::Peekable;
 use anyhow::{bail, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::dtype::CssValue;
 use crate::renderer::css::token::CssToken;
+use crate::renderer::style::value_type::CssValue;
 
 /// https://drafts.csswg.org/css-display/#the-display-properties
 #[derive(Clone, Debug, PartialEq)]

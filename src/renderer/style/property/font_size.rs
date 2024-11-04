@@ -4,11 +4,11 @@ use std::iter::Peekable;
 use anyhow::{bail, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::dtype::{
-    self, parse_length_percentage_type, AbsoluteLengthUnit, CssValue, LengthUnit,
-    RelativeLengthUnit,
-};
 use crate::renderer::css::token::CssToken;
+use crate::renderer::style::value_type::{
+    parse_length_percentage_type, AbsoluteLengthUnit, AbsoluteSize, CssValue, LengthUnit,
+    RelativeLengthUnit, RelativeSize,
+};
 
 pub const SMALL: f32 = 13.0;
 pub const MEDIUM: f32 = 16.0;
@@ -36,19 +36,19 @@ impl FontSizeProp {
 
         match &self.size {
             CssValue::AbsoluteSize(size) => match size {
-                dtype::AbsoluteSize::Small => {
+                AbsoluteSize::Small => {
                     self.size = CssValue::Length(
                         SMALL,
                         LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
                     );
                 }
-                dtype::AbsoluteSize::Medium => {
+                AbsoluteSize::Medium => {
                     self.size = CssValue::Length(
                         MEDIUM,
                         LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
                     );
                 }
-                dtype::AbsoluteSize::Large => {
+                AbsoluteSize::Large => {
                     self.size = CssValue::Length(
                         LARGE,
                         LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
@@ -122,13 +122,13 @@ where
     match values.next() {
         Some(v) => match &v {
             ComponentValue::PreservedToken(CssToken::Ident(size)) => match size.as_str() {
-                "xx-small" => Ok(CssValue::AbsoluteSize(dtype::AbsoluteSize::XXSmall)),
-                "x-small" => Ok(CssValue::AbsoluteSize(dtype::AbsoluteSize::XSmall)),
-                "small" => Ok(CssValue::AbsoluteSize(dtype::AbsoluteSize::Small)),
-                "medium" => Ok(CssValue::AbsoluteSize(dtype::AbsoluteSize::Medium)),
-                "large" => Ok(CssValue::AbsoluteSize(dtype::AbsoluteSize::Large)),
-                "x-large" => Ok(CssValue::AbsoluteSize(dtype::AbsoluteSize::XLarge)),
-                "xx-large" => Ok(CssValue::AbsoluteSize(dtype::AbsoluteSize::XXLarge)),
+                "xx-small" => Ok(CssValue::AbsoluteSize(AbsoluteSize::XXSmall)),
+                "x-small" => Ok(CssValue::AbsoluteSize(AbsoluteSize::XSmall)),
+                "small" => Ok(CssValue::AbsoluteSize(AbsoluteSize::Small)),
+                "medium" => Ok(CssValue::AbsoluteSize(AbsoluteSize::Medium)),
+                "large" => Ok(CssValue::AbsoluteSize(AbsoluteSize::Large)),
+                "x-large" => Ok(CssValue::AbsoluteSize(AbsoluteSize::XLarge)),
+                "xx-large" => Ok(CssValue::AbsoluteSize(AbsoluteSize::XXLarge)),
                 _ => bail!("Invalid absolute size value: {:?}", v),
             },
             _ => bail!("Expected absolute size value but found: {:?}", v),
@@ -145,8 +145,8 @@ where
     match values.next() {
         Some(v) => match &v {
             ComponentValue::PreservedToken(CssToken::Ident(size)) => match size.as_str() {
-                "larger" => Ok(CssValue::RelativeSize(dtype::RelativeSize::Larger)),
-                "smaller" => Ok(CssValue::RelativeSize(dtype::RelativeSize::Smaller)),
+                "larger" => Ok(CssValue::RelativeSize(RelativeSize::Larger)),
+                "smaller" => Ok(CssValue::RelativeSize(RelativeSize::Smaller)),
                 _ => bail!("Invalid relative size value: {:?}", v),
             },
             _ => bail!("Expected relative size value but found: {:?}", v),
@@ -168,7 +168,7 @@ mod tests {
         assert_eq!(
             parse_font_size(&value).unwrap(),
             FontSizeProp {
-                size: CssValue::AbsoluteSize(dtype::AbsoluteSize::Small)
+                size: CssValue::AbsoluteSize(AbsoluteSize::Small)
             }
         );
 
@@ -178,7 +178,7 @@ mod tests {
         assert_eq!(
             parse_font_size(&value).unwrap(),
             FontSizeProp {
-                size: CssValue::AbsoluteSize(dtype::AbsoluteSize::Medium)
+                size: CssValue::AbsoluteSize(AbsoluteSize::Medium)
             }
         );
 
@@ -188,7 +188,7 @@ mod tests {
         assert_eq!(
             parse_font_size(&value).unwrap(),
             FontSizeProp {
-                size: CssValue::AbsoluteSize(dtype::AbsoluteSize::Large)
+                size: CssValue::AbsoluteSize(AbsoluteSize::Large)
             }
         );
 
@@ -198,7 +198,7 @@ mod tests {
         assert_eq!(
             parse_font_size(&value).unwrap(),
             FontSizeProp {
-                size: CssValue::RelativeSize(dtype::RelativeSize::Larger)
+                size: CssValue::RelativeSize(RelativeSize::Larger)
             }
         );
 
@@ -208,7 +208,7 @@ mod tests {
         assert_eq!(
             parse_font_size(&value).unwrap(),
             FontSizeProp {
-                size: CssValue::RelativeSize(dtype::RelativeSize::Smaller)
+                size: CssValue::RelativeSize(RelativeSize::Smaller)
             }
         );
 

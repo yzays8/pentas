@@ -3,32 +3,32 @@ use std::fmt;
 use anyhow::{bail, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::dtype::{
+use crate::renderer::css::token::CssToken;
+use crate::renderer::style::property::font_size::{self, FontSizeProp};
+use crate::renderer::style::value_type::{
     parse_length_percentage_type, AbsoluteLengthUnit, CssValue, LengthUnit, RelativeLengthUnit,
 };
-use crate::renderer::css::property::font_size::{self, FontSizeProp};
-use crate::renderer::css::token::CssToken;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct WidthProp {
+pub struct HeightProp {
     pub size: CssValue,
 }
 
-impl fmt::Display for WidthProp {
+impl fmt::Display for HeightProp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.size)
     }
 }
 
-impl Default for WidthProp {
+impl Default for HeightProp {
     fn default() -> Self {
-        WidthProp {
+        HeightProp {
             size: CssValue::Ident("auto".to_string()),
         }
     }
 }
 
-impl WidthProp {
+impl HeightProp {
     pub fn compute(&mut self, current_font_size: Option<&FontSizeProp>) -> Result<&Self> {
         let current_font_size = match current_font_size {
             Some(FontSizeProp {
@@ -66,7 +66,7 @@ impl WidthProp {
     }
 }
 
-// width =
+// height =
 //   auto                                      |
 //   <length-percentage [0,∞]>                 |
 //   min-content                               |
@@ -74,18 +74,18 @@ impl WidthProp {
 //   fit-content( <length-percentage [0,∞]> )  |
 //   <calc-size()>                             |
 //   <anchor-size()>
-pub fn parse_width(values: &[ComponentValue]) -> Result<WidthProp> {
+pub fn parse_height(values: &[ComponentValue]) -> Result<HeightProp> {
     let mut values = values.iter().cloned().peekable();
     // todo: implement the rest of the values
     if let Some(ComponentValue::PreservedToken(CssToken::Ident(size))) = values.peek() {
         match size.as_str() {
-            "auto" => Ok(WidthProp {
+            "auto" => Ok(HeightProp {
                 size: CssValue::Ident(size.to_string()),
             }),
             _ => unimplemented!(),
         }
     } else {
-        Ok(WidthProp {
+        Ok(HeightProp {
             size: parse_length_percentage_type(&mut values)?,
         })
     }

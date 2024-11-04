@@ -4,8 +4,8 @@ use std::iter::Peekable;
 use anyhow::{anyhow, bail, ensure, Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::dtype::CssValue;
 use crate::renderer::css::token::{CssToken, NumericType};
+use crate::renderer::style::value_type::CssValue;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ColorProp {

@@ -10,10 +10,10 @@ use font_kit::properties::Properties;
 use font_kit::source::SystemSource;
 use regex::Regex;
 
-use crate::renderer::css::dtype::{AbsoluteLengthUnit, CssValue, LengthUnit};
-use crate::renderer::css::property::display::{DisplayInside, DisplayOutside};
 use crate::renderer::html::dom::{Element, NodeType};
-use crate::renderer::style::{ComputedValues, RenderNode, RenderTree};
+use crate::renderer::style::property::display::{DisplayInside, DisplayOutside};
+use crate::renderer::style::render_tree::{ComputedValues, RenderNode, RenderTree};
+use crate::renderer::style::value_type::{AbsoluteLengthUnit, CssValue, LengthUnit};
 
 /// https://www.w3.org/TR/css-display-3/#box-tree
 #[derive(Debug)]

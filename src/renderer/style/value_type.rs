@@ -4,8 +4,8 @@ use std::iter::Peekable;
 use anyhow::{bail, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::property::color::rgb_to_name;
 use crate::renderer::css::token::{CssToken, NumericType};
+use crate::renderer::style::property::color::rgb_to_name;
 
 /// https://www.w3.org/TR/css-values-3/
 #[allow(dead_code)]

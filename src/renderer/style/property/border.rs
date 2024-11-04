@@ -1,9 +1,9 @@
 use anyhow::{Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::dtype::CssValue;
-use crate::renderer::css::property::color::ColorProp;
-use crate::renderer::css::property::font_size::FontSizeProp;
+use crate::renderer::style::property::color::ColorProp;
+use crate::renderer::style::property::font_size::FontSizeProp;
+use crate::renderer::style::value_type::{AbsoluteLengthUnit, CssValue, LengthUnit};
 
 // The values of these properties are not clearly defined in the CSS specification.
 // const THIN: f32 = 1.0;
@@ -73,30 +73,10 @@ impl BorderProp {
     ) -> Result<&Self> {
         self.border_color.compute(current_color)?;
         self.border_width = BorderWidthProp {
-            top: CssValue::Length(
-                0.0,
-                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
-                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
-                ),
-            ),
-            right: CssValue::Length(
-                0.0,
-                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
-                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
-                ),
-            ),
-            bottom: CssValue::Length(
-                0.0,
-                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
-                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
-                ),
-            ),
-            left: CssValue::Length(
-                0.0,
-                crate::renderer::css::dtype::LengthUnit::AbsoluteLengthUnit(
-                    crate::renderer::css::dtype::AbsoluteLengthUnit::Px,
-                ),
-            ),
+            top: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
+            right: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
+            bottom: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
+            left: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
         };
         Ok(self)
     }

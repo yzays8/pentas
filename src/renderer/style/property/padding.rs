@@ -4,11 +4,11 @@ use std::iter::Peekable;
 use anyhow::{bail, Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::dtype::{
+use crate::renderer::css::token::CssToken;
+use crate::renderer::style::property::font_size::{self, FontSizeProp};
+use crate::renderer::style::value_type::{
     parse_length_percentage_type, AbsoluteLengthUnit, CssValue, LengthUnit, RelativeLengthUnit,
 };
-use crate::renderer::css::property::font_size::{self, FontSizeProp};
-use crate::renderer::css::token::CssToken;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PaddingProp {

@@ -5,9 +5,9 @@ use std::iter::Peekable;
 use anyhow::{bail, Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::dtype::CssValue;
-use crate::renderer::css::property::color::{parse_color_type, ColorProp};
 use crate::renderer::css::token::CssToken;
+use crate::renderer::style::property::color::{parse_color_type, ColorProp};
+use crate::renderer::style::value_type::CssValue;
 
 // todo: add TextDecorationColor, TextDecorationLine, TextDecorationStyle structs for each member
 #[derive(Clone, Debug, PartialEq)]
