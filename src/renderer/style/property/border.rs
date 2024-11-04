@@ -17,22 +17,6 @@ pub struct BorderProp {
     pub border_width: BorderWidthProp,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct BorderStyleProp {
-    pub top: CssValue,
-    pub right: CssValue,
-    pub bottom: CssValue,
-    pub left: CssValue,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct BorderWidthProp {
-    pub top: CssValue,
-    pub right: CssValue,
-    pub bottom: CssValue,
-    pub left: CssValue,
-}
-
 impl std::fmt::Display for BorderProp {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
@@ -43,27 +27,41 @@ impl std::fmt::Display for BorderProp {
     }
 }
 
-impl std::fmt::Display for BorderStyleProp {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{} {} {} {}",
-            self.top, self.right, self.bottom, self.left
-        )
-    }
-}
-
-impl std::fmt::Display for BorderWidthProp {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{} {} {} {}",
-            self.top, self.right, self.bottom, self.left
-        )
+impl Default for BorderProp {
+    fn default() -> Self {
+        Self {
+            border_color: ColorProp {
+                value: CssValue::Ident("currentColor".to_string()),
+            },
+            border_style: BorderStyleProp::default(),
+            border_width: BorderWidthProp::default(),
+        }
     }
 }
 
 impl BorderProp {
+    // todo: proper implementation
+    #[allow(unused_variables)]
+    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+        Ok(Self {
+            border_color: ColorProp {
+                value: CssValue::Ident("currentColor".to_string()),
+            },
+            border_style: BorderStyleProp {
+                top: CssValue::Ident("none".to_string()),
+                right: CssValue::Ident("none".to_string()),
+                bottom: CssValue::Ident("none".to_string()),
+                left: CssValue::Ident("none".to_string()),
+            },
+            border_width: BorderWidthProp {
+                top: CssValue::Ident("medium".to_string()),
+                right: CssValue::Ident("medium".to_string()),
+                bottom: CssValue::Ident("medium".to_string()),
+                left: CssValue::Ident("medium".to_string()),
+            },
+        })
+    }
+
     // todo: proper implementation
     #[allow(unused_variables)]
     pub fn compute(
@@ -82,24 +80,60 @@ impl BorderProp {
     }
 }
 
-// todo: proper implementation
-#[allow(unused_variables)]
-pub fn parse_border(values: &[ComponentValue]) -> Result<BorderProp> {
-    Ok(BorderProp {
-        border_color: ColorProp {
-            value: CssValue::Ident("currentColor".to_string()),
-        },
-        border_style: BorderStyleProp {
+#[derive(Clone, Debug, PartialEq)]
+pub struct BorderStyleProp {
+    pub top: CssValue,
+    pub right: CssValue,
+    pub bottom: CssValue,
+    pub left: CssValue,
+}
+
+impl std::fmt::Display for BorderStyleProp {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{} {} {} {}",
+            self.top, self.right, self.bottom, self.left
+        )
+    }
+}
+
+impl Default for BorderStyleProp {
+    fn default() -> Self {
+        Self {
             top: CssValue::Ident("none".to_string()),
             right: CssValue::Ident("none".to_string()),
             bottom: CssValue::Ident("none".to_string()),
             left: CssValue::Ident("none".to_string()),
-        },
-        border_width: BorderWidthProp {
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BorderWidthProp {
+    pub top: CssValue,
+    pub right: CssValue,
+    pub bottom: CssValue,
+    pub left: CssValue,
+}
+
+impl std::fmt::Display for BorderWidthProp {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{} {} {} {}",
+            self.top, self.right, self.bottom, self.left
+        )
+    }
+}
+
+impl Default for BorderWidthProp {
+    fn default() -> Self {
+        Self {
             top: CssValue::Ident("medium".to_string()),
             right: CssValue::Ident("medium".to_string()),
             bottom: CssValue::Ident("medium".to_string()),
             left: CssValue::Ident("medium".to_string()),
-        },
-    })
+        }
+    }
 }

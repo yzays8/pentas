@@ -22,13 +22,38 @@ impl fmt::Display for WidthProp {
 
 impl Default for WidthProp {
     fn default() -> Self {
-        WidthProp {
+        Self {
             size: CssValue::Ident("auto".to_string()),
         }
     }
 }
 
 impl WidthProp {
+    // width =
+    //   auto                                      |
+    //   <length-percentage [0,∞]>                 |
+    //   min-content                               |
+    //   max-content                               |
+    //   fit-content( <length-percentage [0,∞]> )  |
+    //   <calc-size()>                             |
+    //   <anchor-size()>
+    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+        let mut values = values.iter().cloned().peekable();
+        // todo: implement the rest of the values
+        if let Some(ComponentValue::PreservedToken(CssToken::Ident(size))) = values.peek() {
+            match size.as_str() {
+                "auto" => Ok(Self {
+                    size: CssValue::Ident(size.to_string()),
+                }),
+                _ => unimplemented!(),
+            }
+        } else {
+            Ok(Self {
+                size: parse_length_percentage_type(&mut values)?,
+            })
+        }
+    }
+
     pub fn compute(&mut self, current_font_size: Option<&FontSizeProp>) -> Result<&Self> {
         let current_font_size = match current_font_size {
             Some(FontSizeProp {
@@ -63,30 +88,5 @@ impl WidthProp {
         }
 
         Ok(self)
-    }
-}
-
-// width =
-//   auto                                      |
-//   <length-percentage [0,∞]>                 |
-//   min-content                               |
-//   max-content                               |
-//   fit-content( <length-percentage [0,∞]> )  |
-//   <calc-size()>                             |
-//   <anchor-size()>
-pub fn parse_width(values: &[ComponentValue]) -> Result<WidthProp> {
-    let mut values = values.iter().cloned().peekable();
-    // todo: implement the rest of the values
-    if let Some(ComponentValue::PreservedToken(CssToken::Ident(size))) = values.peek() {
-        match size.as_str() {
-            "auto" => Ok(WidthProp {
-                size: CssValue::Ident(size.to_string()),
-            }),
-            _ => unimplemented!(),
-        }
-    } else {
-        Ok(WidthProp {
-            size: parse_length_percentage_type(&mut values)?,
-        })
     }
 }

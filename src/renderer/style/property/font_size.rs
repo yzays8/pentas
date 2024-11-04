@@ -25,7 +25,44 @@ impl fmt::Display for FontSizeProp {
     }
 }
 
+impl Default for FontSizeProp {
+    fn default() -> Self {
+        Self {
+            size: CssValue::AbsoluteSize(AbsoluteSize::Medium),
+        }
+    }
+}
+
 impl FontSizeProp {
+    // font-size =
+    //   <absolute-size>            |
+    //   <relative-size>            |
+    //   <length-percentage [0,∞]>  |
+    //   math
+    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+        let mut values = values.iter().cloned().peekable();
+        if let Some(ComponentValue::PreservedToken(CssToken::Ident(size))) = values.peek() {
+            match size.as_str() {
+                "xx-small" | "x-small" | "small" | "medium" | "large" | "x-large" | "xx-large" => {
+                    Ok(Self {
+                        size: parse_absolute_size_type(&mut values)?,
+                    })
+                }
+                "larger" | "smaller" => Ok(Self {
+                    size: parse_relative_size_type(&mut values)?,
+                }),
+                _ => bail!(
+                    "Expected absolute or relative size value but found: {:?}",
+                    values
+                ),
+            }
+        } else {
+            Ok(Self {
+                size: parse_length_percentage_type(&mut values)?,
+            })
+        }
+    }
+
     pub fn compute(&mut self, parent_px: Option<&Self>) -> Result<&Self> {
         let parent_px = match parent_px {
             Some(FontSizeProp {
@@ -85,35 +122,6 @@ impl FontSizeProp {
     }
 }
 
-// font-size =
-//   <absolute-size>            |
-//   <relative-size>            |
-//   <length-percentage [0,∞]>  |
-//   math
-pub fn parse_font_size(values: &[ComponentValue]) -> Result<FontSizeProp> {
-    let mut values = values.iter().cloned().peekable();
-    if let Some(ComponentValue::PreservedToken(CssToken::Ident(size))) = values.peek() {
-        match size.as_str() {
-            "xx-small" | "x-small" | "small" | "medium" | "large" | "x-large" | "xx-large" => {
-                Ok(FontSizeProp {
-                    size: parse_absolute_size_type(&mut values)?,
-                })
-            }
-            "larger" | "smaller" => Ok(FontSizeProp {
-                size: parse_relative_size_type(&mut values)?,
-            }),
-            _ => bail!(
-                "Expected absolute or relative size value but found: {:?}",
-                values
-            ),
-        }
-    } else {
-        Ok(FontSizeProp {
-            size: parse_length_percentage_type(&mut values)?,
-        })
-    }
-}
-
 // <absolute-size> = xx-small | x-small | small | medium | large | x-large | xx-large | xxx-large
 pub fn parse_absolute_size_type<I>(values: &mut Peekable<I>) -> Result<CssValue>
 where
@@ -166,7 +174,7 @@ mod tests {
             "small".to_string(),
         ))];
         assert_eq!(
-            parse_font_size(&value).unwrap(),
+            FontSizeProp::parse(&value).unwrap(),
             FontSizeProp {
                 size: CssValue::AbsoluteSize(AbsoluteSize::Small)
             }
@@ -176,7 +184,7 @@ mod tests {
             "medium".to_string(),
         ))];
         assert_eq!(
-            parse_font_size(&value).unwrap(),
+            FontSizeProp::parse(&value).unwrap(),
             FontSizeProp {
                 size: CssValue::AbsoluteSize(AbsoluteSize::Medium)
             }
@@ -186,7 +194,7 @@ mod tests {
             "large".to_string(),
         ))];
         assert_eq!(
-            parse_font_size(&value).unwrap(),
+            FontSizeProp::parse(&value).unwrap(),
             FontSizeProp {
                 size: CssValue::AbsoluteSize(AbsoluteSize::Large)
             }
@@ -196,7 +204,7 @@ mod tests {
             "larger".to_string(),
         ))];
         assert_eq!(
-            parse_font_size(&value).unwrap(),
+            FontSizeProp::parse(&value).unwrap(),
             FontSizeProp {
                 size: CssValue::RelativeSize(RelativeSize::Larger)
             }
@@ -206,7 +214,7 @@ mod tests {
             "smaller".to_string(),
         ))];
         assert_eq!(
-            parse_font_size(&value).unwrap(),
+            FontSizeProp::parse(&value).unwrap(),
             FontSizeProp {
                 size: CssValue::RelativeSize(RelativeSize::Smaller)
             }
@@ -217,7 +225,7 @@ mod tests {
             "px".to_string(),
         ))];
         assert_eq!(
-            parse_font_size(&value).unwrap(),
+            FontSizeProp::parse(&value).unwrap(),
             FontSizeProp {
                 size: CssValue::Length(
                     12.0,
@@ -231,7 +239,7 @@ mod tests {
             "em".to_string(),
         ))];
         assert_eq!(
-            parse_font_size(&value).unwrap(),
+            FontSizeProp::parse(&value).unwrap(),
             FontSizeProp {
                 size: CssValue::Length(1.5, LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Em))
             }
@@ -239,7 +247,7 @@ mod tests {
 
         let value = vec![ComponentValue::PreservedToken(CssToken::Percentage(50.0))];
         assert_eq!(
-            parse_font_size(&value).unwrap(),
+            FontSizeProp::parse(&value).unwrap(),
             FontSizeProp {
                 size: CssValue::Percentage(50.0,)
             }

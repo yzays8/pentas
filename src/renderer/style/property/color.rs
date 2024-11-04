@@ -32,6 +32,14 @@ impl Default for ColorProp {
 }
 
 impl ColorProp {
+    // color =
+    //   <color>
+    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+        Ok(Self {
+            value: parse_color_type(&mut values.iter().cloned().peekable())?,
+        })
+    }
+
     pub fn compute(&mut self, current_color: Option<&Self>) -> Result<&Self> {
         match &self.value {
             CssValue::Ident(name) => match name.to_ascii_lowercase().as_str() {
@@ -77,14 +85,6 @@ impl ColorProp {
         }
         Ok(self)
     }
-}
-
-// color =
-//   <color>
-pub fn parse_color(values: &[ComponentValue]) -> Result<ColorProp> {
-    Ok(ColorProp {
-        value: parse_color_type(&mut values.iter().cloned().peekable())?,
-    })
 }
 
 // <color> =
@@ -517,7 +517,7 @@ mod tests {
     #[test]
     fn parse_named_color() {
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Ident(
+            ColorProp::parse(&mut vec![ComponentValue::PreservedToken(CssToken::Ident(
                 "currentColor".to_string()
             ))])
             .unwrap(),
@@ -526,7 +526,7 @@ mod tests {
             }
         );
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Ident(
+            ColorProp::parse(&mut vec![ComponentValue::PreservedToken(CssToken::Ident(
                 "transparent".to_string()
             ))])
             .unwrap(),
@@ -535,7 +535,7 @@ mod tests {
             }
         );
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Ident(
+            ColorProp::parse(&mut vec![ComponentValue::PreservedToken(CssToken::Ident(
                 "black".to_string()
             ))])
             .unwrap(),
@@ -548,7 +548,7 @@ mod tests {
     #[test]
     fn parse_valid_rgb_function() {
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::Function {
+            ColorProp::parse(&mut vec![ComponentValue::Function {
                 name: "rgb".to_string(),
                 values: vec![
                     ComponentValue::PreservedToken(CssToken::Number(NumericType::Integer(255))),
@@ -569,7 +569,7 @@ mod tests {
             }
         );
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::Function {
+            ColorProp::parse(&mut vec![ComponentValue::Function {
                 name: "rgb".to_string(),
                 values: vec![
                     ComponentValue::PreservedToken(CssToken::Number(NumericType::Integer(255))),
@@ -595,7 +595,7 @@ mod tests {
         );
 
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::Function {
+            ColorProp::parse(&mut vec![ComponentValue::Function {
                 name: "rgb".to_string(),
                 values: vec![
                     ComponentValue::PreservedToken(CssToken::Number(NumericType::Integer(255))),
@@ -622,7 +622,7 @@ mod tests {
         );
 
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::Function {
+            ColorProp::parse(&mut vec![ComponentValue::Function {
                 name: "rgb".to_string(),
                 values: vec![
                     ComponentValue::PreservedToken(CssToken::Number(NumericType::Number(10.3))),
@@ -650,7 +650,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn parse_invalid_rgb_function() {
-        parse_color(&mut vec![ComponentValue::Function {
+        ColorProp::parse(&mut vec![ComponentValue::Function {
             name: "rgb".to_string(),
             values: vec![
                 ComponentValue::PreservedToken(CssToken::Number(NumericType::Integer(255))),
@@ -668,7 +668,7 @@ mod tests {
     #[test]
     fn parse_hex() {
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
+            ColorProp::parse(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
                 "000000".to_string(),
                 HashType::Unrestricted
             ))])
@@ -678,7 +678,7 @@ mod tests {
             }
         );
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
+            ColorProp::parse(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
                 "000".to_string(),
                 HashType::Unrestricted
             ))])
@@ -688,7 +688,7 @@ mod tests {
             }
         );
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
+            ColorProp::parse(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
                 "00000000".to_string(),
                 HashType::Unrestricted
             ))])
@@ -698,7 +698,7 @@ mod tests {
             }
         );
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
+            ColorProp::parse(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
                 "0000".to_string(),
                 HashType::Unrestricted
             ))])
@@ -708,7 +708,7 @@ mod tests {
             }
         );
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
+            ColorProp::parse(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
                 "ffffff".to_string(),
                 HashType::Unrestricted
             ))])
@@ -718,7 +718,7 @@ mod tests {
             }
         );
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
+            ColorProp::parse(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
                 "fff".to_string(),
                 HashType::Unrestricted
             ))])
@@ -729,7 +729,7 @@ mod tests {
         );
 
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
+            ColorProp::parse(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
                 "ff0000".to_string(),
                 HashType::Unrestricted
             ))])
@@ -739,7 +739,7 @@ mod tests {
             }
         );
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
+            ColorProp::parse(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
                 "f00".to_string(),
                 HashType::Unrestricted
             ))])
@@ -749,7 +749,7 @@ mod tests {
             }
         );
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
+            ColorProp::parse(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
                 "ff000000".to_string(),
                 HashType::Unrestricted
             ))])
@@ -759,7 +759,7 @@ mod tests {
             }
         );
         assert_eq!(
-            parse_color(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
+            ColorProp::parse(&mut vec![ComponentValue::PreservedToken(CssToken::Hash(
                 "f000".to_string(),
                 HashType::Unrestricted
             ))])

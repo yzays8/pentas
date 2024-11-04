@@ -7,14 +7,6 @@ use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::CssToken;
 use crate::renderer::style::value_type::CssValue;
 
-/// https://drafts.csswg.org/css-display/#the-display-properties
-#[derive(Clone, Debug, PartialEq)]
-pub struct DisplayProp {
-    pub inside: DisplayInside,
-    pub outside: DisplayOutside,
-    pub display_box: Option<DisplayBox>,
-}
-
 #[derive(Clone, Debug, Copy, PartialEq)]
 pub enum DisplayInside {
     Flow,
@@ -33,87 +25,105 @@ pub enum DisplayBox {
     Contents,
 }
 
+/// https://drafts.csswg.org/css-display/#the-display-properties
+#[derive(Clone, Debug, PartialEq)]
+pub struct DisplayProp {
+    pub inside: DisplayInside,
+    pub outside: DisplayOutside,
+    pub display_box: Option<DisplayBox>,
+}
+
 impl fmt::Display for DisplayProp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self.outside)
     }
 }
 
-impl DisplayProp {
-    pub fn compute(&self) -> Result<&Self> {
-        Ok(self)
+impl Default for DisplayProp {
+    fn default() -> Self {
+        Self {
+            inside: DisplayInside::Flow,
+            outside: DisplayOutside::Inline,
+            display_box: None,
+        }
     }
 }
 
-pub fn parse_display(values: &[ComponentValue]) -> Result<DisplayProp> {
-    let mut values = values.iter().cloned().peekable();
-    let mut ret = DisplayProp {
-        inside: DisplayInside::Flow,
-        outside: DisplayOutside::Inline,
-        display_box: None,
-    };
+impl DisplayProp {
+    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+        let mut values = values.iter().cloned().peekable();
+        let mut ret = Self {
+            inside: DisplayInside::Flow,
+            outside: DisplayOutside::Inline,
+            display_box: None,
+        };
 
-    if let Some(ComponentValue::PreservedToken(CssToken::Ident(ident))) = values.peek() {
-        match ident.as_str() {
-            "flow" | "table" | "block" | "inline" => {
-                let mut is_inside_parsed = false;
-                let mut is_outside_parsed = false;
+        if let Some(ComponentValue::PreservedToken(CssToken::Ident(ident))) = values.peek() {
+            match ident.as_str() {
+                "flow" | "table" | "block" | "inline" => {
+                    let mut is_inside_parsed = false;
+                    let mut is_outside_parsed = false;
 
-                while values.peek().is_some() {
-                    while values
-                        .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
-                        .is_some()
-                    {}
-                    if let Some(ComponentValue::PreservedToken(CssToken::Ident(ident))) =
-                        values.peek()
-                    {
-                        match ident.as_str() {
-                            "flow" | "table" => {
-                                if is_inside_parsed {
-                                    bail!("Inside display value is already parsed");
+                    while values.peek().is_some() {
+                        while values
+                            .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
+                            .is_some()
+                        {}
+                        if let Some(ComponentValue::PreservedToken(CssToken::Ident(ident))) =
+                            values.peek()
+                        {
+                            match ident.as_str() {
+                                "flow" | "table" => {
+                                    if is_inside_parsed {
+                                        bail!("Inside display value is already parsed");
+                                    }
+                                    match parse_display_inside_type(&mut values)? {
+                                        CssValue::Ident(v) => match v.as_str() {
+                                            "flow" => ret.inside = DisplayInside::Flow,
+                                            "table" => ret.inside = DisplayInside::Table,
+                                            _ => unimplemented!(),
+                                        },
+                                        _ => unreachable!(),
+                                    }
+                                    is_inside_parsed = true;
                                 }
-                                match parse_display_inside_type(&mut values)? {
-                                    CssValue::Ident(v) => match v.as_str() {
-                                        "flow" => ret.inside = DisplayInside::Flow,
-                                        "table" => ret.inside = DisplayInside::Table,
-                                        _ => unimplemented!(),
-                                    },
-                                    _ => unreachable!(),
+                                "block" | "inline" => {
+                                    if is_outside_parsed {
+                                        bail!("Outside display value is already parsed");
+                                    }
+                                    match parse_display_outside_type(&mut values)? {
+                                        CssValue::Ident(v) => match v.as_str() {
+                                            "block" => ret.outside = DisplayOutside::Block,
+                                            "inline" => ret.outside = DisplayOutside::Inline,
+                                            _ => unimplemented!(),
+                                        },
+                                        _ => unreachable!(),
+                                    }
+                                    is_outside_parsed = true;
                                 }
-                                is_inside_parsed = true;
+                                _ => unimplemented!(),
                             }
-                            "block" | "inline" => {
-                                if is_outside_parsed {
-                                    bail!("Outside display value is already parsed");
-                                }
-                                match parse_display_outside_type(&mut values)? {
-                                    CssValue::Ident(v) => match v.as_str() {
-                                        "block" => ret.outside = DisplayOutside::Block,
-                                        "inline" => ret.outside = DisplayOutside::Inline,
-                                        _ => unimplemented!(),
-                                    },
-                                    _ => unreachable!(),
-                                }
-                                is_outside_parsed = true;
-                            }
-                            _ => unimplemented!(),
                         }
                     }
                 }
-            }
-            "none" | "contents" => match parse_display_box_type(&mut values)? {
-                CssValue::Ident(v) => match v.as_str() {
-                    "none" => ret.display_box = Some(DisplayBox::None),
-                    "contents" => ret.display_box = Some(DisplayBox::Contents),
-                    _ => bail!("Invalid display box value: {:?}", v),
+                "none" | "contents" => match parse_display_box_type(&mut values)? {
+                    CssValue::Ident(v) => match v.as_str() {
+                        "none" => ret.display_box = Some(DisplayBox::None),
+                        "contents" => ret.display_box = Some(DisplayBox::Contents),
+                        _ => bail!("Invalid display box value: {:?}", v),
+                    },
+                    _ => bail!("Invalid display box value"),
                 },
-                _ => bail!("Invalid display box value"),
-            },
-            _ => unimplemented!(),
+                _ => unimplemented!(),
+            }
         }
+
+        Ok(ret)
     }
 
-    Ok(ret)
+    pub fn compute(&self) -> Result<&Self> {
+        Ok(self)
+    }
 }
 
 fn parse_display_inside_type<I>(values: &mut Peekable<I>) -> Result<CssValue>
@@ -194,7 +204,7 @@ mod tests {
         let values = vec![ComponentValue::PreservedToken(CssToken::Ident(
             "block".to_string(),
         ))];
-        let display = parse_display(&values).unwrap();
+        let display = DisplayProp::parse(&values).unwrap();
         assert_eq!(display.inside, DisplayInside::Flow);
         assert_eq!(display.outside, DisplayOutside::Block);
         assert_eq!(display.display_box, None);
@@ -204,7 +214,7 @@ mod tests {
             ComponentValue::PreservedToken(CssToken::Whitespace),
             ComponentValue::PreservedToken(CssToken::Ident("block".to_string())),
         ];
-        let display = parse_display(&values).unwrap();
+        let display = DisplayProp::parse(&values).unwrap();
         assert_eq!(display.inside, DisplayInside::Table);
         assert_eq!(display.outside, DisplayOutside::Block);
         assert_eq!(display.display_box, None);
@@ -212,7 +222,7 @@ mod tests {
         let values = vec![ComponentValue::PreservedToken(CssToken::Ident(
             "none".to_string(),
         ))];
-        let display = parse_display(&values).unwrap();
+        let display = DisplayProp::parse(&values).unwrap();
         assert_eq!(display.inside, DisplayInside::Flow);
         assert_eq!(display.outside, DisplayOutside::Inline);
         assert_eq!(display.display_box, Some(DisplayBox::None));
@@ -220,7 +230,7 @@ mod tests {
         let values = vec![ComponentValue::PreservedToken(CssToken::Ident(
             "contents".to_string(),
         ))];
-        let display = parse_display(&values).unwrap();
+        let display = DisplayProp::parse(&values).unwrap();
         assert_eq!(display.inside, DisplayInside::Flow);
         assert_eq!(display.outside, DisplayOutside::Inline);
         assert_eq!(display.display_box, Some(DisplayBox::Contents));
@@ -234,6 +244,6 @@ mod tests {
             ComponentValue::PreservedToken(CssToken::Whitespace),
             ComponentValue::PreservedToken(CssToken::Ident("inline".to_string())),
         ];
-        parse_display(&values).unwrap();
+        DisplayProp::parse(&values).unwrap();
     }
 }

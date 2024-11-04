@@ -10,23 +10,10 @@ use crate::renderer::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet}
 use crate::renderer::css::selector::Selector;
 use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
 use crate::renderer::layout::BoxTree;
-use crate::renderer::style::property::border::{parse_border, BorderProp};
-use crate::renderer::style::property::border::{BorderStyleProp, BorderWidthProp};
-use crate::renderer::style::property::color::{parse_color, ColorProp};
-use crate::renderer::style::property::display::{
-    parse_display, DisplayBox, DisplayInside, DisplayOutside, DisplayProp,
+use crate::renderer::style::property::{
+    BorderProp, ColorProp, DisplayBox, DisplayOutside, DisplayProp, FontSizeProp, HeightProp,
+    MarginBlockProp, MarginProp, PaddingProp, TextDecorationProp, WidthProp,
 };
-use crate::renderer::style::property::font_size::{parse_font_size, FontSizeProp};
-use crate::renderer::style::property::height::{parse_height, HeightProp};
-use crate::renderer::style::property::margin::{
-    parse_margin, parse_margin_block, MarginBlockProp, MarginProp,
-};
-use crate::renderer::style::property::padding::{parse_padding, PaddingProp};
-use crate::renderer::style::property::text_decoration::{
-    parse_text_decoration, TextDecorationProp,
-};
-use crate::renderer::style::property::width::{parse_width, WidthProp};
-use crate::renderer::style::value_type::{AbsoluteLengthUnit, AbsoluteSize, CssValue, LengthUnit};
 
 #[derive(Debug)]
 pub struct RenderTree {
@@ -296,54 +283,18 @@ impl SpecifiedValues {
 
     /// Sets the initial values for the properties.
     pub fn initialize(&mut self) {
-        // todo: Add more properties and set correct initial values
+        // todo: Add more properties and replace None with the correct initial values.
         self.background_color = None;
         self.color = Some(ColorProp::default());
-        self.display = Some(DisplayProp {
-            inside: DisplayInside::Flow,
-            outside: DisplayOutside::Inline,
-            display_box: None,
-        });
-        self.font_size = Some(FontSizeProp {
-            size: CssValue::AbsoluteSize(AbsoluteSize::Medium),
-        });
+        self.display = Some(DisplayProp::default());
+        self.font_size = Some(FontSizeProp::default());
         self.text_decoration = None;
-        self.margin = Some(MarginProp {
-            top: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
-            right: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
-            bottom: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
-            left: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
-        });
+        self.margin = Some(MarginProp::default());
         self.margin_block = None;
-        self.border = Some(BorderProp {
-            border_color: ColorProp {
-                value: CssValue::Ident("currentColor".to_string()),
-            },
-            border_style: BorderStyleProp {
-                top: CssValue::Ident("none".to_string()),
-                right: CssValue::Ident("none".to_string()),
-                bottom: CssValue::Ident("none".to_string()),
-                left: CssValue::Ident("none".to_string()),
-            },
-            border_width: BorderWidthProp {
-                top: CssValue::Ident("medium".to_string()),
-                right: CssValue::Ident("medium".to_string()),
-                bottom: CssValue::Ident("medium".to_string()),
-                left: CssValue::Ident("medium".to_string()),
-            },
-        });
-        self.padding = Some(PaddingProp {
-            top: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
-            right: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
-            bottom: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
-            left: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
-        });
-        self.width = Some(WidthProp {
-            size: CssValue::Ident("auto".to_string()),
-        });
-        self.height = Some(HeightProp {
-            size: CssValue::Ident("auto".to_string()),
-        });
+        self.border = Some(BorderProp::default());
+        self.padding = Some(PaddingProp::default());
+        self.width = Some(WidthProp::default());
+        self.height = Some(HeightProp::default());
     }
 
     /// Sets the inherited values for all "inherited properties".
@@ -363,35 +314,35 @@ impl SpecifiedValues {
         for (name, values) in &cascaded_values.values {
             match name.as_str() {
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/background-color
-                "background-color" => self.background_color = parse_color(values).ok(),
+                "background-color" => self.background_color = ColorProp::parse(values).ok(),
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/color
-                "color" => self.color = parse_color(values).ok(),
+                "color" => self.color = ColorProp::parse(values).ok(),
 
                 // https://drafts.csswg.org/css-display/#the-display-properties
                 "display" => {
-                    self.display = parse_display(values).ok();
+                    self.display = DisplayProp::parse(values).ok();
                 }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/font-size
                 "font-size" => {
-                    self.font_size = parse_font_size(values).ok();
+                    self.font_size = FontSizeProp::parse(values).ok();
                 }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration
                 "text-decoration" => {
-                    self.text_decoration = parse_text_decoration(values).ok();
+                    self.text_decoration = TextDecorationProp::parse(values).ok();
                 }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/margin
-                "margin" => self.margin = parse_margin(values).ok(),
+                "margin" => self.margin = MarginProp::parse(values).ok(),
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/margin-block
                 "margin-block" => {
                     // Assume that the margin-block-start and margin-block-end values
                     // are the same as the margin-top and margin-bottom values.
                     // todo: Handle the direction of the text
-                    self.margin_block = parse_margin_block(values).ok();
+                    self.margin_block = MarginBlockProp::parse(values).ok();
                     if self.margin_block.is_some() {
                         if self.margin.is_some() {
                             self.margin.as_mut().unwrap().top =
@@ -410,22 +361,22 @@ impl SpecifiedValues {
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/border
                 "border" => {
-                    self.border = parse_border(values).ok();
+                    self.border = BorderProp::parse(values).ok();
                 }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/padding
                 "padding" => {
-                    self.padding = parse_padding(values).ok();
+                    self.padding = PaddingProp::parse(values).ok();
                 }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/width
                 "width" => {
-                    self.width = parse_width(values).ok();
+                    self.width = WidthProp::parse(values).ok();
                 }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/height
                 "height" => {
-                    self.height = parse_height(values).ok();
+                    self.height = HeightProp::parse(values).ok();
                 }
 
                 _ => {}

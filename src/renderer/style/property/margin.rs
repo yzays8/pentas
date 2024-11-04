@@ -18,12 +18,6 @@ pub struct MarginProp {
     pub left: CssValue,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct MarginBlockProp {
-    pub start: CssValue,
-    pub end: CssValue,
-}
-
 impl fmt::Display for MarginProp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -34,15 +28,9 @@ impl fmt::Display for MarginProp {
     }
 }
 
-impl fmt::Display for MarginBlockProp {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} {}", self.start, self.end)
-    }
-}
-
 impl Default for MarginProp {
     fn default() -> Self {
-        MarginProp {
+        Self {
             top: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
             right: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
             bottom: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
@@ -52,6 +40,59 @@ impl Default for MarginProp {
 }
 
 impl MarginProp {
+    // margin =
+    //   <'margin-top'>{1,4}
+    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+        let mut values = values.iter().cloned().peekable();
+        let mut trbl = vec![];
+        while values.peek().is_some() {
+            while values
+                .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
+                .is_some()
+            {}
+            if values.peek().is_some() {
+                trbl.push(parse_margin_top_type(&mut values)?);
+            }
+        }
+        match trbl.len() {
+            1 => {
+                let v = trbl.first().unwrap().clone();
+                Ok(Self {
+                    top: v.clone(),
+                    right: v.clone(),
+                    bottom: v.clone(),
+                    left: v,
+                })
+            }
+            2 => {
+                let top = trbl.first().unwrap().clone();
+                let right = trbl.get(1).unwrap().clone();
+                Ok(Self {
+                    top: top.clone(),
+                    right: right.clone(),
+                    bottom: top,
+                    left: right,
+                })
+            }
+            3 => {
+                let right = trbl.get(1).unwrap().clone();
+                Ok(Self {
+                    top: trbl.first().unwrap().clone(),
+                    right: right.clone(),
+                    bottom: trbl.get(2).unwrap().clone(),
+                    left: right,
+                })
+            }
+            4 => Ok(Self {
+                top: trbl.first().unwrap().clone(),
+                right: trbl.get(1).unwrap().clone(),
+                bottom: trbl.get(2).unwrap().clone(),
+                left: trbl.get(3).unwrap().clone(),
+            }),
+            _ => bail!("Invalid margin declaration: {:?}", values),
+        }
+    }
+
     pub fn compute(&mut self, current_font_size: Option<&FontSizeProp>) -> Result<&Self> {
         self.top = Self::compute_top(&self.top, current_font_size)?;
         self.right = Self::compute_top(&self.right, current_font_size)?;
@@ -89,7 +130,58 @@ impl MarginProp {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct MarginBlockProp {
+    pub start: CssValue,
+    pub end: CssValue,
+}
+
+impl fmt::Display for MarginBlockProp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {}", self.start, self.end)
+    }
+}
+
+impl Default for MarginBlockProp {
+    fn default() -> Self {
+        Self {
+            start: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
+            end: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
+        }
+    }
+}
+
 impl MarginBlockProp {
+    // margin-block =
+    //   <'margin-top'>{1,2}
+    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+        let mut values = values.iter().cloned().peekable();
+        let mut start_end = vec![];
+        while values.peek().is_some() {
+            while values
+                .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
+                .is_some()
+            {}
+            if values.peek().is_some() {
+                start_end.push(parse_margin_top_type(&mut values)?);
+            }
+        }
+        match start_end.len() {
+            1 => {
+                let v = start_end.first().unwrap().clone();
+                Ok(Self {
+                    start: v.clone(),
+                    end: v,
+                })
+            }
+            2 => Ok(Self {
+                start: start_end.first().unwrap().clone(),
+                end: start_end.get(1).unwrap().clone(),
+            }),
+            _ => bail!("Invalid margin-block declaration: {:?}", start_end),
+        }
+    }
+
     pub fn compute(&mut self, current_font_size: Option<&FontSizeProp>) -> Result<&Self> {
         self.start = Self::compute_top(&self.start, current_font_size)?;
         self.end = Self::compute_top(&self.end, current_font_size)?;
@@ -119,59 +211,6 @@ impl MarginBlockProp {
     }
 }
 
-// margin =
-//   <'margin-top'>{1,4}
-pub fn parse_margin(values: &[ComponentValue]) -> Result<MarginProp> {
-    let mut values = values.iter().cloned().peekable();
-    let mut trbl = vec![];
-    while values.peek().is_some() {
-        while values
-            .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
-            .is_some()
-        {}
-        if values.peek().is_some() {
-            trbl.push(parse_margin_top_type(&mut values)?);
-        }
-    }
-    match trbl.len() {
-        1 => {
-            let v = trbl.first().unwrap().clone();
-            Ok(MarginProp {
-                top: v.clone(),
-                right: v.clone(),
-                bottom: v.clone(),
-                left: v,
-            })
-        }
-        2 => {
-            let top = trbl.first().unwrap().clone();
-            let right = trbl.get(1).unwrap().clone();
-            Ok(MarginProp {
-                top: top.clone(),
-                right: right.clone(),
-                bottom: top,
-                left: right,
-            })
-        }
-        3 => {
-            let right = trbl.get(1).unwrap().clone();
-            Ok(MarginProp {
-                top: trbl.first().unwrap().clone(),
-                right: right.clone(),
-                bottom: trbl.get(2).unwrap().clone(),
-                left: right,
-            })
-        }
-        4 => Ok(MarginProp {
-            top: trbl.first().unwrap().clone(),
-            right: trbl.get(1).unwrap().clone(),
-            bottom: trbl.get(2).unwrap().clone(),
-            left: trbl.get(3).unwrap().clone(),
-        }),
-        _ => bail!("Invalid margin declaration: {:?}", values),
-    }
-}
-
 // <margin-top> =
 //   <length-percentage>  |
 //   auto                 |
@@ -193,36 +232,6 @@ where
             _ => unimplemented!(),
         },
         _ => parse_length_percentage_type(values),
-    }
-}
-
-// margin-block =
-//   <'margin-top'>{1,2}
-pub fn parse_margin_block(values: &[ComponentValue]) -> Result<MarginBlockProp> {
-    let mut values = values.iter().cloned().peekable();
-    let mut start_end = vec![];
-    while values.peek().is_some() {
-        while values
-            .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
-            .is_some()
-        {}
-        if values.peek().is_some() {
-            start_end.push(parse_margin_top_type(&mut values)?);
-        }
-    }
-    match start_end.len() {
-        1 => {
-            let v = start_end.first().unwrap().clone();
-            Ok(MarginBlockProp {
-                start: v.clone(),
-                end: v,
-            })
-        }
-        2 => Ok(MarginBlockProp {
-            start: start_end.first().unwrap().clone(),
-            end: start_end.get(1).unwrap().clone(),
-        }),
-        _ => bail!("Invalid margin-block declaration: {:?}", start_end),
     }
 }
 
@@ -252,7 +261,7 @@ mod tests {
             )),
         ];
         assert_eq!(
-            parse_margin(&value).unwrap(),
+            MarginProp::parse(&value).unwrap(),
             MarginProp {
                 top: CssValue::Length(10.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
                 right: CssValue::Length(

@@ -33,50 +33,68 @@ impl fmt::Display for TextDecorationProp {
     }
 }
 
-impl TextDecorationProp {
-    pub fn compute(&mut self, current_color: Option<&ColorProp>) -> Result<&Self> {
-        self.color.compute(current_color)?;
-        Ok(self)
+impl Default for TextDecorationProp {
+    fn default() -> Self {
+        TextDecorationProp {
+            color: ColorProp {
+                value: CssValue::Ident("currentColor".to_string()),
+            },
+            line: vec![CssValue::Ident("none".to_string())],
+            style: CssValue::Ident("solid".to_string()),
+        }
     }
 }
 
-// text-decoration =
-//   <'text-decoration-line'>   ||
-//   <'text-decoration-style'>  ||
-//   <'text-decoration-color'>
-pub fn parse_text_decoration(values: &[ComponentValue]) -> Result<TextDecorationProp> {
-    let mut values = values.iter().cloned().peekable();
-    let mut ret = TextDecorationProp {
-        color: ColorProp {
-            value: CssValue::Ident("currentColor".to_string()),
-        },
-        line: vec![CssValue::Ident("none".to_string())],
-        style: CssValue::Ident("solid".to_string()),
-    };
-    let mut is_color_parsed = false;
-    let mut is_line_parsed = false;
-    let mut is_style_parsed = false;
+impl TextDecorationProp {
+    // text-decoration =
+    //   <'text-decoration-line'>   ||
+    //   <'text-decoration-style'>  ||
+    //   <'text-decoration-color'>
+    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+        let mut values = values.iter().cloned().peekable();
+        let mut ret = Self {
+            color: ColorProp {
+                value: CssValue::Ident("currentColor".to_string()),
+            },
+            line: vec![CssValue::Ident("none".to_string())],
+            style: CssValue::Ident("solid".to_string()),
+        };
+        let mut is_color_parsed = false;
+        let mut is_line_parsed = false;
+        let mut is_style_parsed = false;
 
-    while values.peek().is_some() {
-        while values
-            .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
-            .is_some()
-        {}
-        match values.peek() {
-            Some(ComponentValue::PreservedToken(CssToken::Ident(ident))) => match ident.as_str() {
-                "none" | "underline" | "overline" | "line-through" => {
-                    if is_line_parsed {
-                        bail!("text-decoration-line is already parsed");
+        while values.peek().is_some() {
+            while values
+                .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
+                .is_some()
+            {}
+            match values.peek() {
+                Some(ComponentValue::PreservedToken(CssToken::Ident(ident))) => {
+                    match ident.as_str() {
+                        "none" | "underline" | "overline" | "line-through" => {
+                            if is_line_parsed {
+                                bail!("text-decoration-line is already parsed");
+                            }
+                            ret.line = parse_text_decoration_line_type(&mut values)?;
+                            is_line_parsed = true;
+                        }
+                        "solid" | "double" | "dotted" | "dashed" | "wavy" => {
+                            if is_style_parsed {
+                                bail!("text-decoration-style is already parsed");
+                            }
+                            ret.style = parse_text_decoration_style_type(&mut values)?;
+                            is_style_parsed = true;
+                        }
+                        _ => {
+                            if is_color_parsed {
+                                bail!("text-decoration-color is already parsed");
+                            }
+                            ret.color = ColorProp {
+                                value: parse_text_decoration_color_type(&mut values)?,
+                            };
+                            is_color_parsed = true;
+                        }
                     }
-                    ret.line = parse_text_decoration_line_type(&mut values)?;
-                    is_line_parsed = true;
-                }
-                "solid" | "double" | "dotted" | "dashed" | "wavy" => {
-                    if is_style_parsed {
-                        bail!("text-decoration-style is already parsed");
-                    }
-                    ret.style = parse_text_decoration_style_type(&mut values)?;
-                    is_style_parsed = true;
                 }
                 _ => {
                     if is_color_parsed {
@@ -87,48 +105,16 @@ pub fn parse_text_decoration(values: &[ComponentValue]) -> Result<TextDecoration
                     };
                     is_color_parsed = true;
                 }
-            },
-            _ => {
-                if is_color_parsed {
-                    bail!("text-decoration-color is already parsed");
-                }
-                ret.color = ColorProp {
-                    value: parse_text_decoration_color_type(&mut values)?,
-                };
-                is_color_parsed = true;
             }
         }
+
+        Ok(ret)
     }
 
-    Ok(ret)
-}
-
-// text-decoration-color =
-//   <color>
-#[allow(dead_code)]
-pub fn parse_text_decoration_color(values: &[ComponentValue]) -> Result<ColorProp> {
-    Ok(ColorProp {
-        value: parse_text_decoration_color_type(&mut values.iter().cloned().peekable())?,
-    })
-}
-
-// text-decoration-style =
-//   solid   |
-//   double  |
-//   dotted  |
-//   dashed  |
-//   wavy
-#[allow(dead_code)]
-pub fn parse_text_decoration_style(values: &[ComponentValue]) -> Result<CssValue> {
-    parse_text_decoration_style_type(&mut values.iter().cloned().peekable())
-}
-
-// text-decoration-line =
-//   none                                                |
-//   [ underline || overline || line-through || blink ]
-#[allow(dead_code)]
-pub fn parse_text_decoration_line(values: &[ComponentValue]) -> Result<Vec<CssValue>> {
-    parse_text_decoration_line_type(&mut values.iter().cloned().peekable())
+    pub fn compute(&mut self, current_color: Option<&ColorProp>) -> Result<&Self> {
+        self.color.compute(current_color)?;
+        Ok(self)
+    }
 }
 
 // <text-decoration-line> =
@@ -229,12 +215,18 @@ mod tests {
             ComponentValue::PreservedToken(CssToken::Ident("line-through".to_string())),
         ];
         assert_eq!(
-            parse_text_decoration_line(&values).unwrap(),
-            vec![
-                CssValue::Ident("underline".to_string()),
-                CssValue::Ident("overline".to_string()),
-                CssValue::Ident("line-through".to_string())
-            ]
+            TextDecorationProp::parse(&values).unwrap(),
+            TextDecorationProp {
+                color: ColorProp {
+                    value: CssValue::Ident("currentColor".to_string())
+                },
+                line: vec![
+                    CssValue::Ident("underline".to_string()),
+                    CssValue::Ident("overline".to_string()),
+                    CssValue::Ident("line-through".to_string())
+                ],
+                style: CssValue::Ident("solid".to_string())
+            }
         );
     }
 
@@ -244,8 +236,14 @@ mod tests {
             "dotted".to_string(),
         ))];
         assert_eq!(
-            parse_text_decoration_style(&values).unwrap(),
-            CssValue::Ident("dotted".to_string())
+            TextDecorationProp::parse(&values).unwrap(),
+            TextDecorationProp {
+                color: ColorProp {
+                    value: CssValue::Ident("currentColor".to_string())
+                },
+                line: vec![CssValue::Ident("none".to_string())],
+                style: CssValue::Ident("dotted".to_string())
+            }
         );
     }
 
@@ -261,7 +259,7 @@ mod tests {
             ComponentValue::PreservedToken(CssToken::Ident("dotted".to_string())),
         ];
         assert_eq!(
-            parse_text_decoration(&values).unwrap(),
+            TextDecorationProp::parse(&values).unwrap(),
             TextDecorationProp {
                 color: ColorProp {
                     value: CssValue::Ident("red".to_string())
@@ -293,7 +291,7 @@ mod tests {
             ComponentValue::PreservedToken(CssToken::Ident("dotted".to_string())),
         ];
         assert_eq!(
-            parse_text_decoration(&values).unwrap(),
+            TextDecorationProp::parse(&values).unwrap(),
             TextDecorationProp {
                 color: ColorProp {
                     value: CssValue::Color {
@@ -326,6 +324,6 @@ mod tests {
             ComponentValue::PreservedToken(CssToken::Whitespace),
             ComponentValue::PreservedToken(CssToken::Ident("dotted".to_string())),
         ];
-        parse_text_decoration(&values).unwrap();
+        TextDecorationProp::parse(&values).unwrap();
     }
 }
