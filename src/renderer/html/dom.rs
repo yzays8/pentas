@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::fmt;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 use anyhow::{ensure, Result};
 
@@ -8,12 +8,12 @@ use crate::renderer::css::cssom::StyleSheet;
 use crate::renderer::style::render_tree::RenderTree;
 
 /// https://dom.spec.whatwg.org/#node
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct DomNode {
     pub node_type: NodeType,
     pub child_nodes: Vec<Rc<RefCell<Self>>>,
-    pub parent_node: Option<Rc<RefCell<Self>>>,
-    pub previous_sibling: Option<Rc<RefCell<Self>>>,
+    pub parent_node: Option<Weak<RefCell<Self>>>,
+    pub previous_sibling: Option<Weak<RefCell<Self>>>,
     pub next_sibling: Option<Rc<RefCell<Self>>>,
 }
 
@@ -39,13 +39,13 @@ impl DomNode {
 
     pub fn append_child(node_ref: &Rc<RefCell<DomNode>>, child: Self) -> Rc<RefCell<DomNode>> {
         let child = Rc::new(RefCell::new(child));
-        child.borrow_mut().parent_node = Some(Rc::clone(node_ref));
+        child.borrow_mut().parent_node = Some(Rc::downgrade(node_ref));
         if node_ref.borrow().child_nodes.is_empty() {
             child.borrow_mut().previous_sibling = None;
             child.borrow_mut().next_sibling = None;
         } else {
             let last_child = Rc::clone(node_ref.borrow().child_nodes.last().unwrap());
-            child.borrow_mut().previous_sibling = Some(Rc::clone(&last_child));
+            child.borrow_mut().previous_sibling = Some(Rc::downgrade(&last_child));
             last_child.borrow_mut().next_sibling = Some(Rc::clone(&child));
         }
         node_ref.borrow_mut().child_nodes.push(Rc::clone(&child));

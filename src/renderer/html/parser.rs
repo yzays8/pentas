@@ -785,7 +785,7 @@ mod tests {
             dfs_iter.next().unwrap().borrow().node_type,
             NodeType::Text("Why yes.\n".to_string())
         );
-        assert_eq!(dfs_iter.next(), None);
+        assert!(dfs_iter.next().is_none());
     }
 
     #[test]
