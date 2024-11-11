@@ -9,7 +9,7 @@ use anyhow::{Context, Ok, Result};
 use crate::renderer::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
 use crate::renderer::css::selector::Selector;
 use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
-use crate::renderer::layout::BoxTree;
+use crate::renderer::layout::box_model::BoxTree;
 use crate::renderer::style::property::{
     BorderProp, ColorProp, DisplayBox, DisplayOutside, DisplayProp, FontSizeProp, HeightProp,
     MarginBlockProp, MarginProp, PaddingProp, TextDecorationProp, WidthProp,
