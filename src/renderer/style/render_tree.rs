@@ -14,6 +14,7 @@ use crate::renderer::style::property::{
     BorderProp, ColorProp, DisplayBox, DisplayOutside, DisplayProp, FontSizeProp, HeightProp,
     MarginBlockProp, MarginProp, PaddingProp, TextDecorationProp, WidthProp,
 };
+use crate::renderer::style::value_type::CssValue;
 
 #[derive(Debug)]
 pub struct RenderTree {
@@ -284,7 +285,10 @@ impl SpecifiedValues {
     /// Sets the initial values for the properties.
     pub fn initialize(&mut self) {
         // todo: Add more properties and replace None with the correct initial values.
-        self.background_color = None;
+        self.background_color = Some(ColorProp {
+            // todo: should implement module for bg color
+            value: CssValue::Ident("transparent".to_string()),
+        });
         self.color = Some(ColorProp::default());
         self.display = Some(DisplayProp::default());
         self.font_size = Some(FontSizeProp::default());
@@ -317,7 +321,11 @@ impl SpecifiedValues {
                 "background-color" => self.background_color = ColorProp::parse(values).ok(),
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/color
-                "color" => self.color = ColorProp::parse(values).ok(),
+                "color" => {
+                    if let std::result::Result::Ok(color) = ColorProp::parse(values) {
+                        self.color = Some(color);
+                    }
+                }
 
                 // https://drafts.csswg.org/css-display/#the-display-properties
                 "display" => {
@@ -393,9 +401,14 @@ impl SpecifiedValues {
         let mut t = self.clone();
 
         // The `color` value needs to be computed earlier because it is used to calculate other properties.
-        t.color
-            .as_mut()
-            .map(|v| v.compute(parent_color.as_ref()).ok().cloned());
+        // t.color
+        //     .as_mut()
+        //     .map(|v| v.compute(parent_color.as_ref()).ok().cloned());
+        if let std::result::Result::Ok(color) =
+            t.color.as_mut().unwrap().compute(parent_color.as_ref())
+        {
+            t.color = Some(color.clone());
+        }
         // The `font-size` value needs to be computed earlier because it is used to calculate other properties.
         t.font_size
             .as_mut()

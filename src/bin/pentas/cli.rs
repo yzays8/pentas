@@ -11,4 +11,7 @@ pub struct Args {
 
     #[arg(long, help = "Display all intermediate steps")]
     pub trace: bool,
+
+    #[arg(long, help = "Do not render the output")]
+    pub no_rendering: bool,
 }

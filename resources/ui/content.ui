@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="ContentArea" parent="GtkBox">
+    <property name="orientation">vertical</property>
+    <child>
+        <object class="GtkScrolledWindow">
+          <property name="vexpand">true</property>
+          <property name="hexpand">true</property>
+          <child>
+            <object class="GtkViewport" id="viewport">
+              <child>
+                <object class="GtkDrawingArea" id="drawing_area">
+                  <property name="height-request">2048</property>
+                </object>
+              </child>
+            </object>
+          </child>
+        </object>
+    </child>
+  </template>
+</interface>

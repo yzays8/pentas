@@ -22,7 +22,12 @@ impl BlockBox {
         prev_sibling_info: Option<LayoutInfo>,
     ) {
         self.calc_used_values(containing_block_info);
-        self.layout_info.size.width = self.layout_info.used_values.width.unwrap();
+        // self.layout_info.size.width = self.layout_info.used_values.width.unwrap();
+        self.layout_info.size.width = self.layout_info.used_values.width.unwrap()
+            + self.layout_info.used_values.padding.left
+            + self.layout_info.used_values.padding.right
+            + self.layout_info.used_values.border.left
+            + self.layout_info.used_values.border.right;
         self.calc_pos(containing_block_info, prev_sibling_info);
         self.layout_children();
     }
@@ -210,9 +215,11 @@ impl BlockBox {
             // has any block-level children and whether it has padding or borders.
             // https://www.w3.org/TR/CSS22/visudet.html#normal-block
             for child in self.child_nodes.iter_mut() {
-                child
-                    .borrow_mut()
-                    .layout(&self.layout_info, prev_sib_info.clone());
+                child.borrow_mut().layout(
+                    &self.layout_info,
+                    prev_sib_info.clone(),
+                    Some(self.layout_info.pos),
+                );
 
                 let child_ref = child.borrow();
                 let child_layout_info = match *child_ref {
@@ -243,6 +250,11 @@ impl BlockBox {
                 prev_sib_info = Some(child_layout_info.clone());
             }
 
+            self.layout_info.size.height += self.layout_info.used_values.padding.top
+                + self.layout_info.used_values.border.top
+                + self.layout_info.used_values.padding.bottom
+                + self.layout_info.used_values.border.bottom;
+
             // If `height` is not `auto`, the height of the box is the value of `height`.
             let height = self.node.borrow().style.height.as_ref().unwrap().clone();
             if let CssValue::Length(height, _) = height.size {
@@ -253,7 +265,11 @@ impl BlockBox {
             let mut prev_sib_info = None;
 
             for child in self.child_nodes.iter_mut() {
-                child.borrow_mut().layout(&self.layout_info, prev_sib_info);
+                child.borrow_mut().layout(
+                    &self.layout_info,
+                    prev_sib_info,
+                    Some(self.layout_info.pos),
+                );
 
                 let child_ref = child.borrow();
                 let child_layout_info = match *child_ref {
@@ -275,7 +291,13 @@ impl BlockBox {
 
             // If parent is a block-level box and children are inline-level boxes, the parent's width
             // is defined by the parent itself (so the width is not determined here by the children).
-            self.layout_info.size.height = inline_max_height;
+
+            // self.layout_info.size.height = inline_max_height;
+            self.layout_info.size.height = inline_max_height
+                + self.layout_info.used_values.padding.top
+                + self.layout_info.used_values.padding.bottom
+                + self.layout_info.used_values.border.top
+                + self.layout_info.used_values.border.bottom;
         } else {
             unreachable!()
         }
@@ -341,7 +363,9 @@ impl AnonymousBox {
         // Assume that all children are inline-level boxes or text nodes.
         for child in self.child_nodes.iter_mut() {
             // The containing block of an inline-level box is the nearest block-level ancestor box.
-            child.borrow_mut().layout(&self.layout_info, prev_sib_info);
+            child
+                .borrow_mut()
+                .layout(&self.layout_info, prev_sib_info, Some(self.layout_info.pos));
 
             let child_ref = child.borrow();
             let child_layout_info = match *child_ref {

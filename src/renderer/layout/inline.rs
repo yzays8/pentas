@@ -100,9 +100,12 @@ impl InlineBox {
 
         for child in self.child_nodes.iter_mut() {
             // The containing block of an inline-level box is the nearest block-level ancestor box.
-            child
-                .borrow_mut()
-                .layout(containing_block_info, prev_sib_info);
+            // todo: Implement the line box system for simplification.
+            child.borrow_mut().layout(
+                containing_block_info,
+                prev_sib_info,
+                Some(self.layout_info.pos),
+            );
 
             let child_ref = child.borrow();
             let child_layout_info = match *child_ref {

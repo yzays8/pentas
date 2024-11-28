@@ -1,11 +1,12 @@
-mod css;
-mod html;
-mod layout;
-mod style;
-mod utils;
+pub mod css;
+pub mod html;
+pub mod layout;
+pub mod style;
+pub mod utils;
 
 use anyhow::Result;
 
+use crate::app::DEFAULT_WINDOW_WIDTH;
 use css::get_ua_style_sheet;
 use css::parser::parse;
 use css::token::tokenize;
@@ -36,12 +37,15 @@ pub fn display_box_tree(html: String, trace: bool) -> Result<()> {
         let mut box_tree = render_tree.to_box_tree()?;
         box_tree.print();
         println!("\n===============\n");
-        box_tree.clean_up()?.layout(1200.0)?.print();
+        box_tree
+            .clean_up()?
+            .layout(DEFAULT_WINDOW_WIDTH as f32)?
+            .print();
     } else {
         render_tree
             .to_box_tree()?
             .clean_up()?
-            .layout(1200.0)?
+            .layout(DEFAULT_WINDOW_WIDTH as f32)?
             .print();
     }
 

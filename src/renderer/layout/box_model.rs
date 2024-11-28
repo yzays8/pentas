@@ -12,11 +12,12 @@ use crate::renderer::layout::text::Text;
 use crate::renderer::style::property::display::DisplayOutside;
 use crate::renderer::style::render_tree::{RenderNode, RenderTree};
 use crate::renderer::style::value_type::CssValue;
+use crate::ui::object::RenderObject;
 
 /// https://www.w3.org/TR/css-display-3/#box-tree
 #[derive(Debug)]
 pub struct BoxTree {
-    root: Rc<RefCell<BoxNode>>,
+    pub root: Rc<RefCell<BoxNode>>,
 }
 
 impl BoxTree {
@@ -60,6 +61,7 @@ impl BoxTree {
                 pos: BoxPosition { x: 0.0, y: 0.0 },
                 used_values: UsedValues::default(),
             },
+            None,
             None,
         );
         Ok(self)
@@ -213,6 +215,12 @@ impl BoxTree {
 
         helper(&mut self.root);
         self
+    }
+
+    pub fn to_render_objects(&self) -> Vec<RenderObject> {
+        let mut objects = Vec::new();
+        self.root.borrow().to_render_objects(&mut objects);
+        objects
     }
 }
 
@@ -531,6 +539,7 @@ impl BoxNode {
         &mut self,
         containing_block_info: &LayoutInfo,
         prev_sibling_info: Option<LayoutInfo>,
+        parent_pos: Option<BoxPosition>,
     ) -> &mut Self {
         match self {
             Self::BlockBox(b) => {
@@ -543,10 +552,102 @@ impl BoxNode {
                 b.layout(containing_block_info, prev_sibling_info);
             }
             Self::Text(t) => {
-                t.layout(containing_block_info, prev_sibling_info);
+                t.layout(
+                    containing_block_info,
+                    prev_sibling_info,
+                    &parent_pos.unwrap(),
+                );
             }
         }
         self
+    }
+
+    pub fn to_render_objects(&self, objects: &mut Vec<RenderObject>) {
+        match self {
+            BoxNode::Text(t) => {
+                let parent_font_size = if let CssValue::Length(size, _) = t
+                    .parent
+                    .upgrade()
+                    .unwrap()
+                    .borrow()
+                    .style
+                    .font_size
+                    .as_ref()
+                    .unwrap()
+                    .size
+                {
+                    size
+                } else {
+                    unreachable!()
+                };
+                let (r, g, b, _a) = if let CssValue::Color { r, g, b, a } = t
+                    .parent
+                    .upgrade()
+                    .unwrap()
+                    .borrow()
+                    .style
+                    .color
+                    .as_ref()
+                    .unwrap()
+                    .value
+                {
+                    (r, g, b, a)
+                } else {
+                    return;
+                };
+                objects.push(RenderObject::Text {
+                    text: t.node.borrow().node.borrow().get_inside_text().unwrap(),
+                    // x: t.layout_info.get_expanded_pos().x as f64,
+                    // y: t.layout_info.get_expanded_pos().y as f64 + parent_font_size as f64,
+                    x: t.layout_info.pos.x as f64,
+                    y: t.layout_info.pos.y as f64 + parent_font_size as f64,
+                    size: parent_font_size as f64,
+                    color: (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0),
+                });
+            }
+            BoxNode::BlockBox(block) => {
+                let (r, g, b, a) = if let CssValue::Color { r, g, b, a } = block
+                    .node
+                    .borrow()
+                    .style
+                    .background_color
+                    .as_ref()
+                    .unwrap()
+                    .value
+                {
+                    (r, g, b, a)
+                } else {
+                    for child in block.child_nodes.iter() {
+                        child.borrow().to_render_objects(objects);
+                    }
+                    return;
+                };
+                // transparent
+                // todo: should implement module for bg color
+                if a != 0.0 {
+                    objects.push(RenderObject::Rectangle {
+                        x: block.layout_info.pos.x as f64,
+                        y: block.layout_info.pos.y as f64,
+                        width: block.layout_info.size.width as f64,
+                        height: block.layout_info.size.height as f64,
+                        color: (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0),
+                    });
+                }
+                for child in block.child_nodes.iter() {
+                    child.borrow().to_render_objects(objects);
+                }
+            }
+            BoxNode::InlineBox(inline) => {
+                for child in inline.child_nodes.iter() {
+                    child.borrow().to_render_objects(objects);
+                }
+            }
+            BoxNode::AnonymousBox(anonymous) => {
+                for child in anonymous.child_nodes.iter() {
+                    child.borrow().to_render_objects(objects);
+                }
+            }
+        }
     }
 }
 

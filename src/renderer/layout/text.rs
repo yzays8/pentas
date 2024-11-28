@@ -7,7 +7,7 @@ use font_kit::metrics::Metrics;
 use font_kit::properties::Properties;
 use font_kit::source::SystemSource;
 
-use crate::renderer::layout::box_model::{BoxPosition, BoxSize, LayoutInfo};
+use crate::renderer::layout::box_model::{BoxPosition, LayoutInfo};
 use crate::renderer::style::render_tree::RenderNode;
 use crate::renderer::style::value_type::{AbsoluteLengthUnit, CssValue, LengthUnit};
 
@@ -23,20 +23,17 @@ impl Text {
         &mut self,
         containing_block_info: &LayoutInfo,
         prev_sibling_info: Option<LayoutInfo>,
+        parent_info: &BoxPosition,
     ) {
-        let (prev_sibling_pos, prev_sibling_size) =
-            if let Some(prev_sibling_info) = prev_sibling_info {
-                (
-                    Some(prev_sibling_info.get_expanded_pos()),
-                    Some(prev_sibling_info.get_expanded_size()),
-                )
-            } else {
-                (None, None)
-            };
+        let orig_x = if let Some(prev_sibling_info) = prev_sibling_info {
+            prev_sibling_info.pos.x + prev_sibling_info.size.width
+        } else {
+            parent_info.x
+        };
 
         self.calc_used_values();
         self.calc_width_and_height(containing_block_info);
-        self.calc_pos(containing_block_info, prev_sibling_pos, prev_sibling_size);
+        self.calc_pos(containing_block_info, orig_x);
     }
 
     fn calc_used_values(&mut self) {
@@ -71,22 +68,11 @@ impl Text {
         self.layout_info.used_values.width = None;
     }
 
-    fn calc_pos(
-        &mut self,
-        containing_block_info: &LayoutInfo,
-        prev_sibling_pos: Option<BoxPosition>,
-        prev_sibling_size: Option<BoxSize>,
-    ) {
+    fn calc_pos(&mut self, containing_block_info: &LayoutInfo, orig_x: f32) {
         self.layout_info.pos.x = self.layout_info.used_values.margin.left
             + self.layout_info.used_values.border.left
             + self.layout_info.used_values.padding.left
-            + if let (Some(BoxPosition { x, .. }), Some(BoxSize { width, .. })) =
-                (&prev_sibling_pos, &prev_sibling_size)
-            {
-                x + width
-            } else {
-                containing_block_info.pos.x
-            };
+            + orig_x;
         self.layout_info.pos.y = self.layout_info.used_values.margin.top
             + self.layout_info.used_values.border.top
             + self.layout_info.used_values.padding.top
@@ -147,6 +133,7 @@ impl Text {
                 .sum::<f32>();
             curr_width += word_width;
             if containing_block_info.size.width < curr_width {
+                // println!("{} {}", curr_width, containing_block_info.size.width);
                 curr_width -= word_width;
                 if new_text.ends_with(' ') {
                     new_text.pop();

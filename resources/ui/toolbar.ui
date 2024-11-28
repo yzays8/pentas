@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="Toolbar" parent="GtkBox">
+    <property name="orientation">horizontal</property>
+    <child>
+      <object class="GtkButton" id="backward_button">
+        <property name="label">←</property>
+        <property name="margin-top">12</property>
+        <property name="margin-bottom">12</property>
+        <property name="margin-start">6</property>
+        <property name="margin-end">6</property>
+        <property name="css-classes">circular</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkButton" id="forward_button">
+        <property name="label">→</property>
+        <property name="margin-top">12</property>
+        <property name="margin-bottom">12</property>
+        <property name="margin-start">6</property>
+        <property name="margin-end">6</property>
+        <property name="css-classes">circular</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkEntry" id="entry">
+        <property name="placeholder-text">Type a URL</property>
+        <property name="margin-start">6</property>
+        <property name="margin-end">6</property>
+      </object>
+    </child>
+  </template>
+</interface>

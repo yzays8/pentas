@@ -9,5 +9,9 @@ edition = "2021"
 anyhow = "1.0.82"
 clap = { version = "4.5.4", features = ["derive"] }
 font-kit = "0.14.2"
+gtk4 = "0.9.4"
 regex = "1.10.6"
 thiserror = "1.0.59"
+
+[build-dependencies]
+glib-build-tools = "0.20.0"
