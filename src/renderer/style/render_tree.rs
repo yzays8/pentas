@@ -31,8 +31,15 @@ impl RenderTree {
         })
     }
 
+    #[allow(dead_code)]
     pub fn print(&self) {
         println!("{}", self);
+    }
+
+    pub fn print_in_chain(&mut self) -> &mut Self {
+        println!("{}", self);
+        println!("\n===============\n");
+        self
     }
 
     pub fn to_box_tree(&self) -> Result<BoxTree> {

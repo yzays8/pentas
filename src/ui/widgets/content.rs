@@ -1,12 +1,7 @@
 use gtk4::glib;
 use gtk4::subclass::prelude::ObjectSubclassIsExt;
 
-use crate::app::DEFAULT_WINDOW_WIDTH;
-use crate::renderer::css::get_ua_style_sheet;
-use crate::renderer::html::dom::DocumentTree;
-use crate::renderer::html::parser::HtmlParser;
-use crate::renderer::html::tokenizer::HtmlTokenizer;
-use crate::ui::object::RenderObject;
+use crate::renderer::{RenderObject, Renderer};
 
 mod imp {
     use std::cell::RefCell;
@@ -144,29 +139,8 @@ impl ContentArea {
     pub fn on_toolbar_entry_activated(&self, query: &str) {
         self.imp().clear();
 
-        let (doc_root, style_sheets) = HtmlParser::new(HtmlTokenizer::new(
-            &std::fs::read_to_string("demo/test_html.html").unwrap(),
-        ))
-        .parse()
-        .unwrap();
-        let doc_tree = DocumentTree::build(doc_root).unwrap();
-
-        let style_sheets = std::iter::once(get_ua_style_sheet().unwrap())
-            .chain(style_sheets)
-            .collect::<Vec<_>>();
-
-        let mut box_tree = doc_tree
-            .to_render_tree(style_sheets)
-            .unwrap()
-            .to_box_tree()
-            .unwrap();
-
-        *self.imp().objects.borrow_mut() = box_tree
-            .clean_up()
-            .unwrap()
-            .layout(DEFAULT_WINDOW_WIDTH as f32)
-            .unwrap()
-            .to_render_objects();
+        let renderer = Renderer::new(Some("demo/test_html.html".to_string()), None);
+        *self.imp().objects.borrow_mut() = renderer.run().unwrap();
 
         self.imp()
             .history

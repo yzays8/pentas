@@ -2,12 +2,12 @@ use anyhow::{bail, Ok, Result};
 use gtk4::prelude::*;
 use gtk4::{gio, glib, Application};
 
-use crate::renderer::{display_box_tree, display_style_sheet};
+use crate::renderer::Renderer;
 use crate::ui::widgets::window::Window;
 
 const APP_ID: &str = "app.pentas";
-pub const DEFAULT_WINDOW_WIDTH: i32 = 1200;
-pub const DEFAULT_WINDOW_HEIGHT: i32 = 800;
+pub const DEFAULT_WINDOW_WIDTH: usize = 1200;
+pub const DEFAULT_WINDOW_HEIGHT: usize = 800;
 
 pub struct Config {
     pub html_path: Option<String>,
@@ -27,12 +27,14 @@ impl Runner {
 
     pub fn run(&self) -> Result<()> {
         if self.config.is_rendering_disabled {
+            let renderer =
+                Renderer::new(self.config.html_path.clone(), self.config.css_path.clone());
             match (&self.config.html_path, &self.config.css_path) {
-                (Some(html_path), None) => {
-                    display_box_tree(html_path.to_owned(), self.config.is_tracing_enabled)?;
+                (Some(_), None) => {
+                    renderer.display_html(self.config.is_tracing_enabled)?;
                 }
-                (None, Some(css_path)) => {
-                    display_style_sheet(css_path.to_owned())?;
+                (None, Some(_)) => {
+                    renderer.display_css()?;
                 }
                 _ => bail!("Provide either HTML or CSS file."),
             }
@@ -56,7 +58,7 @@ impl Runner {
     fn build_ui(app: &Application) {
         let window = Window::new(app);
         window.set_title(Some("pentas"));
-        window.set_default_size(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
+        window.set_default_size(DEFAULT_WINDOW_WIDTH as i32, DEFAULT_WINDOW_HEIGHT as i32);
         window.present();
     }
 }

@@ -12,7 +12,7 @@ use crate::renderer::layout::text::Text;
 use crate::renderer::style::property::display::DisplayOutside;
 use crate::renderer::style::render_tree::{RenderNode, RenderTree};
 use crate::renderer::style::value_type::CssValue;
-use crate::ui::object::RenderObject;
+use crate::renderer::RenderObject;
 
 /// https://www.w3.org/TR/css-display-3/#box-tree
 #[derive(Debug)]
@@ -69,6 +69,12 @@ impl BoxTree {
 
     pub fn print(&self) {
         println!("{}", self);
+    }
+
+    pub fn print_in_chain(&mut self) -> &mut Self {
+        println!("{}", self);
+        println!("\n===============\n");
+        self
     }
 
     /// Removes unnecessary whitespace from all text nodes in the tree.

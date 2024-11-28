@@ -1,10 +1,10 @@
-pub mod css;
-pub mod html;
-pub mod layout;
-pub mod style;
-pub mod utils;
+mod css;
+mod html;
+mod layout;
+mod style;
+mod utils;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use crate::app::DEFAULT_WINDOW_WIDTH;
 use css::get_ua_style_sheet;
@@ -14,45 +14,110 @@ use html::dom::DocumentTree;
 use html::parser::HtmlParser;
 use html::tokenizer::HtmlTokenizer;
 
-pub fn display_box_tree(html: String, trace: bool) -> Result<()> {
-    let (doc_root, style_sheets) =
-        HtmlParser::new(HtmlTokenizer::new(&std::fs::read_to_string(html)?)).parse()?;
-    let doc_tree = DocumentTree::build(doc_root)?;
-    if trace {
-        doc_tree.print();
-        println!("\n===============\n");
+#[derive(Debug, Clone)]
+pub enum RenderObject {
+    Text {
+        text: String,
+        x: f64,
+        y: f64,
+        size: f64,
+        color: (f64, f64, f64),
+    },
+    Rectangle {
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        color: (f64, f64, f64),
+    },
+}
+
+#[derive(Debug)]
+pub struct Renderer {
+    html_path: Option<String>,
+    css_path: Option<String>,
+}
+
+impl Renderer {
+    pub fn new(html_path: Option<String>, css_path: Option<String>) -> Self {
+        Self {
+            html_path,
+            css_path,
+        }
     }
 
-    let style_sheets = std::iter::once(get_ua_style_sheet()?)
-        .chain(style_sheets)
-        .collect::<Vec<_>>();
-
-    let render_tree = doc_tree.to_render_tree(style_sheets)?;
-    if trace {
-        render_tree.print();
-        println!("\n===============\n");
+    #[allow(dead_code)]
+    pub fn set_html_path(&mut self, html_path: String) {
+        self.html_path = Some(html_path);
     }
 
-    if trace {
-        let mut box_tree = render_tree.to_box_tree()?;
-        box_tree.print();
-        println!("\n===============\n");
-        box_tree
-            .clean_up()?
-            .layout(DEFAULT_WINDOW_WIDTH as f32)?
-            .print();
-    } else {
-        render_tree
+    #[allow(dead_code)]
+    pub fn set_css_path(&mut self, css_path: String) {
+        self.css_path = Some(css_path);
+    }
+
+    // Returns the render objects.
+    pub fn run(&self) -> Result<Vec<RenderObject>> {
+        let html_path = self
+            .html_path
+            .as_ref()
+            .context("HTML file path is not provided.")?;
+        let (doc_root, style_sheets) =
+            HtmlParser::new(HtmlTokenizer::new(&std::fs::read_to_string(html_path)?)).parse()?;
+
+        let style_sheets = std::iter::once(get_ua_style_sheet()?)
+            .chain(style_sheets)
+            .collect::<Vec<_>>();
+        Ok(DocumentTree::build(doc_root)?
+            .to_render_tree(style_sheets)?
             .to_box_tree()?
             .clean_up()?
             .layout(DEFAULT_WINDOW_WIDTH as f32)?
-            .print();
+            .to_render_objects())
     }
 
-    Ok(())
-}
+    /// Displays the HTML as a box tree.
+    pub fn display_html(&self, trace: bool) -> Result<()> {
+        let html_path = self
+            .html_path
+            .as_ref()
+            .context("HTML file path is not provided.")?;
+        let (doc_root, style_sheets) =
+            HtmlParser::new(HtmlTokenizer::new(&std::fs::read_to_string(html_path)?)).parse()?;
 
-pub fn display_style_sheet(css: String) -> Result<()> {
-    parse(&tokenize(&std::fs::read_to_string(css)?)?)?.print();
-    Ok(())
+        let style_sheets = std::iter::once(get_ua_style_sheet()?)
+            .chain(style_sheets)
+            .collect::<Vec<_>>();
+
+        if trace {
+            DocumentTree::build(doc_root)?
+                .print_in_chain()
+                .to_render_tree(style_sheets)?
+                .print_in_chain()
+                .to_box_tree()?
+                .print_in_chain()
+                .clean_up()?
+                .layout(DEFAULT_WINDOW_WIDTH as f32)?
+                .print();
+        } else {
+            DocumentTree::build(doc_root)?
+                .to_render_tree(style_sheets)?
+                .to_box_tree()?
+                .clean_up()?
+                .layout(DEFAULT_WINDOW_WIDTH as f32)?
+                .print();
+        }
+
+        Ok(())
+    }
+
+    /// Displays the CSS as a style sheet.
+    pub fn display_css(&self) -> Result<()> {
+        let css_path = self
+            .css_path
+            .as_ref()
+            .context("CSS file path is not provided.")?;
+        parse(&tokenize(&std::fs::read_to_string(css_path)?)?)?.print();
+        Ok(())
+    }
 }
