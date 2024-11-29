@@ -9,7 +9,7 @@ pub mod text_decoration;
 pub mod width;
 
 pub use border::BorderProp;
-pub use color::ColorProp;
+pub use color::{BackGroundColorProp, ColorProp};
 pub use display::{DisplayBox, DisplayOutside, DisplayProp};
 pub use font_size::FontSizeProp;
 pub use height::HeightProp;

@@ -11,10 +11,10 @@ use crate::renderer::css::selector::Selector;
 use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
 use crate::renderer::layout::box_model::BoxTree;
 use crate::renderer::style::property::{
-    BorderProp, ColorProp, DisplayBox, DisplayOutside, DisplayProp, FontSizeProp, HeightProp,
-    MarginBlockProp, MarginProp, PaddingProp, TextDecorationProp, WidthProp,
+    BackGroundColorProp, BorderProp, ColorProp, DisplayBox, DisplayOutside, DisplayProp,
+    FontSizeProp, HeightProp, MarginBlockProp, MarginProp, PaddingProp, TextDecorationProp,
+    WidthProp,
 };
-use crate::renderer::style::value_type::CssValue;
 
 #[derive(Debug)]
 pub struct RenderTree {
@@ -271,7 +271,7 @@ impl CascadedValues {
 
 #[derive(Clone, Debug, Default)]
 pub struct SpecifiedValues {
-    pub background_color: Option<ColorProp>,
+    pub background_color: Option<BackGroundColorProp>,
     pub color: Option<ColorProp>,
     pub display: Option<DisplayProp>,
     pub font_size: Option<FontSizeProp>,
@@ -292,10 +292,7 @@ impl SpecifiedValues {
     /// Sets the initial values for the properties.
     pub fn initialize(&mut self) {
         // todo: Add more properties and replace None with the correct initial values.
-        self.background_color = Some(ColorProp {
-            // todo: should implement module for bg color
-            value: CssValue::Ident("transparent".to_string()),
-        });
+        self.background_color = Some(BackGroundColorProp::default());
         self.color = Some(ColorProp::default());
         self.display = Some(DisplayProp::default());
         self.font_size = Some(FontSizeProp::default());
@@ -325,7 +322,9 @@ impl SpecifiedValues {
         for (name, values) in &cascaded_values.values {
             match name.as_str() {
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/background-color
-                "background-color" => self.background_color = ColorProp::parse(values).ok(),
+                "background-color" => {
+                    self.background_color = BackGroundColorProp::parse(values).ok()
+                }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/color
                 "color" => {
@@ -469,7 +468,7 @@ impl SpecifiedValues {
 #[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
 pub struct ComputedValues {
-    pub background_color: Option<ColorProp>,
+    pub background_color: Option<BackGroundColorProp>,
     pub color: Option<ColorProp>,
     pub display: Option<DisplayProp>,
     pub font_size: Option<FontSizeProp>,

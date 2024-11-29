@@ -87,6 +87,81 @@ impl ColorProp {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct BackGroundColorProp {
+    pub value: CssValue,
+}
+
+impl fmt::Display for BackGroundColorProp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+impl Default for BackGroundColorProp {
+    fn default() -> Self {
+        BackGroundColorProp {
+            value: CssValue::Ident("transparent".to_string()),
+        }
+    }
+}
+
+impl BackGroundColorProp {
+    // background-color =
+    //   <color>
+    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+        Ok(Self {
+            value: parse_color_type(&mut values.iter().cloned().peekable())?,
+        })
+    }
+
+    pub fn compute(&mut self, current_color: Option<&ColorProp>) -> Result<&Self> {
+        match &self.value {
+            CssValue::Ident(name) => match name.to_ascii_lowercase().as_str() {
+                "currentcolor" => {
+                    if let Some(curr) = current_color {
+                        self.value = curr.value.clone();
+                    } else {
+                        self.value = CssValue::Color {
+                            r: 0,
+                            g: 0,
+                            b: 0,
+                            a: 1.0,
+                        };
+                    }
+                }
+                "transparent" => {
+                    self.value = CssValue::Color {
+                        r: 0,
+                        g: 0,
+                        b: 0,
+                        a: 0.0,
+                    };
+                }
+                _ => {
+                    if let Some((r, g, b)) = name_to_rgb(name) {
+                        self.value = CssValue::Color { r, g, b, a: 1.0 };
+                    } else {
+                        bail!("Failed to compute color: {}", name);
+                    }
+                }
+            },
+            CssValue::HexColor(hex) => {
+                let (r, g, b, a) = hex_to_rgba(hex)?;
+                self.value = CssValue::Color {
+                    r,
+                    g,
+                    b,
+                    a: a as f32 / 255.0,
+                };
+            }
+            CssValue::Color { .. } => {}
+            _ => bail!("Failed to compute color: {:?}", self.value),
+        }
+        Ok(self)
+    }
+}
+
 // <color> =
 //   <color-base>    |
 //   currentColor    |
