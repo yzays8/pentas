@@ -8,11 +8,11 @@ use anyhow::{Context, Result};
 
 use crate::app::DEFAULT_WINDOW_WIDTH;
 use css::get_ua_style_sheet;
-use css::parser::parse;
-use css::token::tokenize;
+use css::parser::parse_css;
+use css::token::tokenize_css;
 use html::dom::DocumentTree;
 use html::parser::HtmlParser;
-use html::tokenizer::HtmlTokenizer;
+use html::token::HtmlTokenizer;
 
 #[derive(Debug, Clone)]
 pub enum RenderObject {
@@ -143,7 +143,7 @@ impl Renderer {
             .css_path
             .as_ref()
             .context("CSS file path is not provided.")?;
-        parse(&tokenize(&std::fs::read_to_string(css_path)?)?)?.print();
+        parse_css(&tokenize_css(&std::fs::read_to_string(css_path)?)?)?.print();
         Ok(())
     }
 }

@@ -8,7 +8,7 @@ use font_kit::properties::Properties;
 use font_kit::source::SystemSource;
 
 use crate::renderer::layout::box_model::{BoxPosition, LayoutInfo};
-use crate::renderer::style::render_tree::RenderNode;
+use crate::renderer::style::style_model::RenderNode;
 use crate::renderer::style::value_type::{AbsoluteLengthUnit, CssValue, LengthUnit};
 
 #[derive(Debug)]

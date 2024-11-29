@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-/// Peekable, rewindable, and forwardable iterator for tokenizer/parser.
+/// Peekable and bidirectional iterator for tokenizer/parser.
 #[derive(Debug)]
 pub struct TokenIterator<I>
 where
@@ -32,13 +32,14 @@ where
         }
     }
 
-    // pub fn next_chunk(&mut self, size: usize) -> Vec<Option<I>> {
-    //     let mut chunk = Vec::new();
-    //     for _ in 0..size {
-    //         chunk.push(self.next());
-    //     }
-    //     chunk
-    // }
+    #[allow(dead_code)]
+    pub fn next_chunk(&mut self, size: usize) -> Vec<Option<I>> {
+        let mut chunk = Vec::new();
+        for _ in 0..size {
+            chunk.push(self.next());
+        }
+        chunk
+    }
 
     pub fn peek(&self) -> Option<&I> {
         self.buf.get(self.pos)

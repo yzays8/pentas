@@ -9,7 +9,7 @@ use crate::renderer::utils::TokenIterator;
 
 /// Returns a stylesheet using the `Parse a stylesheet` entry point (normal parser entry point).
 /// https://www.w3.org/TR/css-syntax-3/#parse-stylesheet
-pub fn parse(tokens: &[CssToken]) -> Result<StyleSheet> {
+pub fn parse_css(tokens: &[CssToken]) -> Result<StyleSheet> {
     let mut tokens = TokenIterator::new(tokens);
     Ok(StyleSheet::new(consume_list_of_rules(&mut tokens)?))
 }
@@ -53,7 +53,7 @@ fn consume_qualified_rule(tokens: &mut TokenIterator<CssToken>) -> Result<Option
                 eprintln!("parse error in consume_qualified_rule");
                 return Ok(None);
             }
-            Some(CssToken::OpenBrace) => {
+            Some(CssToken::OpenCurlyBrace) => {
                 // Here, the consume-list-of-declarations algorithm should be called on the
                 // result (a list of ComponentValue) after calling the consume-simple-block algorithm,
                 // but for the sake of simplicity, the consume-list-of-declarations algorithm is called from the beginning.
@@ -89,10 +89,10 @@ fn consume_qualified_rule(tokens: &mut TokenIterator<CssToken>) -> Result<Option
 fn consume_simple_block(tokens: &mut TokenIterator<CssToken>) -> ComponentValue {
     assert!(tokens.get_last_consumed().is_some_and(|t| matches!(
         t,
-        CssToken::OpenBrace | CssToken::OpenParenthesis | CssToken::OpenSquareBracket
+        CssToken::OpenCurlyBrace | CssToken::OpenParenthesis | CssToken::OpenSquareBracket
     )));
     let ending_token = match tokens.get_last_consumed().unwrap() {
-        CssToken::OpenBrace => CssToken::CloseBrace,
+        CssToken::OpenCurlyBrace => CssToken::CloseCurlyBrace,
         CssToken::OpenParenthesis => CssToken::CloseParenthesis,
         CssToken::OpenSquareBracket => CssToken::CloseSquareBracket,
         _ => {
@@ -125,13 +125,13 @@ fn consume_simple_block(tokens: &mut TokenIterator<CssToken>) -> ComponentValue 
 fn consume_list_of_declarations(tokens: &mut TokenIterator<CssToken>) -> Vec<Declaration> {
     assert!(tokens.get_last_consumed().is_some_and(|t| matches!(
         t,
-        CssToken::OpenBrace | CssToken::OpenParenthesis | CssToken::OpenSquareBracket
+        CssToken::OpenCurlyBrace | CssToken::OpenParenthesis | CssToken::OpenSquareBracket
     )));
     let mut declarations = Vec::new();
 
     // Partially follows the consume-simple-block algorithm.
     let ending_token = match tokens.get_last_consumed().unwrap() {
-        CssToken::OpenBrace => CssToken::CloseBrace,
+        CssToken::OpenCurlyBrace => CssToken::CloseCurlyBrace,
         CssToken::OpenParenthesis => CssToken::CloseParenthesis,
         CssToken::OpenSquareBracket => CssToken::CloseSquareBracket,
         _ => {
@@ -235,9 +235,9 @@ fn consume_declaration(component_values: Vec<ComponentValue>) -> Option<Declarat
 /// https://www.w3.org/TR/css-syntax-3/#consume-a-component-value
 fn consume_component_value(tokens: &mut TokenIterator<CssToken>) -> ComponentValue {
     match tokens.next() {
-        Some(CssToken::OpenParenthesis | CssToken::OpenSquareBracket | CssToken::OpenBrace) => {
-            consume_simple_block(tokens)
-        }
+        Some(
+            CssToken::OpenParenthesis | CssToken::OpenSquareBracket | CssToken::OpenCurlyBrace,
+        ) => consume_simple_block(tokens),
         Some(CssToken::Function(_)) => consume_function(tokens),
         Some(t) => ComponentValue::PreservedToken(t),
         None => ComponentValue::PreservedToken(CssToken::Eof),
@@ -279,7 +279,7 @@ mod tests {
     use super::*;
     use crate::renderer::css::cssom::{ComponentValue, Declaration, QualifiedRule, Rule};
     use crate::renderer::css::selector::{Combinator, Selector, SimpleSelector};
-    use crate::renderer::css::token::{tokenize, CssToken, NumericType};
+    use crate::renderer::css::token::{tokenize_css, CssToken, NumericType};
 
     #[test]
     fn parse_simple_style() {
@@ -292,7 +292,7 @@ mod tests {
                 color: blue;
             }
         "#;
-        let style_sheet = parse(&tokenize(css).unwrap()).unwrap();
+        let style_sheet = parse_css(&tokenize_css(css).unwrap()).unwrap();
         let mut rules = style_sheet.rules.iter();
         assert_eq!(
             rules.next().unwrap(),
@@ -338,7 +338,7 @@ mod tests {
                 font-size: 16px;
             }
         "#;
-        let style_sheet = parse(&tokenize(css).unwrap()).unwrap();
+        let style_sheet = parse_css(&tokenize_css(css).unwrap()).unwrap();
         let mut rules = style_sheet.rules.iter();
         assert_eq!(
             rules.next().unwrap(),

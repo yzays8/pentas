@@ -29,8 +29,8 @@ pub enum CssToken {
     CloseSquareBracket,
     OpenParenthesis,
     CloseParenthesis,
-    OpenBrace,
-    CloseBrace,
+    OpenCurlyBrace,
+    CloseCurlyBrace,
 
     /// EOF is a special token that is used to indicate the end of the input stream.
     Eof,
@@ -57,7 +57,7 @@ pub enum NumericType {
 }
 
 /// https://www.w3.org/TR/css-syntax-3/#tokenization
-pub fn tokenize(css: &str) -> Result<Vec<CssToken>> {
+pub fn tokenize_css(css: &str) -> Result<Vec<CssToken>> {
     let mut iter = TokenIterator::new(&css.chars().collect::<Vec<char>>());
     let mut tokens = Vec::new();
     loop {
@@ -169,8 +169,8 @@ fn consume_token(chars: &mut TokenIterator<char>) -> Result<CssToken> {
                 }
             }
             ']' => Ok(CssToken::CloseSquareBracket),
-            '{' => Ok(CssToken::OpenBrace),
-            '}' => Ok(CssToken::CloseBrace),
+            '{' => Ok(CssToken::OpenCurlyBrace),
+            '}' => Ok(CssToken::CloseCurlyBrace),
             '0'..='9' => {
                 chars.rewind(1);
                 Ok(consume_numeric_token(chars))
@@ -500,24 +500,24 @@ mod tests {
     #[test]
     fn consume_valid_comment() {
         let css = "/* hello, world! */";
-        assert_eq!(tokenize(css).unwrap(), vec![CssToken::Eof]);
+        assert_eq!(tokenize_css(css).unwrap(), vec![CssToken::Eof]);
 
         let css = "/* hello, world! *//* Hello, World! */";
-        assert_eq!(tokenize(css).unwrap(), vec![CssToken::Eof]);
+        assert_eq!(tokenize_css(css).unwrap(), vec![CssToken::Eof]);
     }
 
     #[test]
     #[should_panic]
     fn consume_invalid_comment() {
         let css = "/* hello, world!";
-        assert_eq!(tokenize(css).unwrap(), vec![CssToken::Eof]);
+        assert_eq!(tokenize_css(css).unwrap(), vec![CssToken::Eof]);
     }
 
     #[test]
     fn tokenize_number_with_whitespace() {
         let css = "12345 67890";
         assert_eq!(
-            tokenize(css).unwrap(),
+            tokenize_css(css).unwrap(),
             vec![
                 CssToken::Number(NumericType::Integer(12345)),
                 CssToken::Whitespace,
@@ -531,7 +531,7 @@ mod tests {
     fn tokenize_hash() {
         let css = "#12345";
         assert_eq!(
-            tokenize(css).unwrap(),
+            tokenize_css(css).unwrap(),
             vec![
                 CssToken::Hash("12345".to_string(), HashType::Unrestricted),
                 CssToken::Eof
@@ -543,7 +543,7 @@ mod tests {
     fn tokenize_number_with_dot() {
         let css = "12345.67890";
         assert_eq!(
-            tokenize(css).unwrap(),
+            tokenize_css(css).unwrap(),
             vec![
                 CssToken::Number(NumericType::Number(12345.67890)),
                 CssToken::Eof
@@ -562,11 +562,11 @@ mod tests {
           }"#;
 
         assert_eq!(
-            tokenize(css).unwrap(),
+            tokenize_css(css).unwrap(),
             vec![
                 CssToken::Ident("h1".to_string()),
                 CssToken::Whitespace,
-                CssToken::OpenBrace,
+                CssToken::OpenCurlyBrace,
                 CssToken::Whitespace,
                 CssToken::Ident("color".to_string()),
                 CssToken::Colon,
@@ -605,7 +605,7 @@ mod tests {
                 CssToken::Hash("375e97".to_string(), HashType::Unrestricted),
                 CssToken::Semicolon,
                 CssToken::Whitespace,
-                CssToken::CloseBrace,
+                CssToken::CloseCurlyBrace,
                 CssToken::Eof,
             ]
         )
@@ -618,7 +618,7 @@ mod tests {
         }"#;
 
         assert_eq!(
-            tokenize(css).unwrap(),
+            tokenize_css(css).unwrap(),
             vec![
                 CssToken::Ident("a".to_string()),
                 CssToken::OpenSquareBracket,
@@ -634,7 +634,7 @@ mod tests {
                 CssToken::String(".org".to_string()),
                 CssToken::CloseSquareBracket,
                 CssToken::Whitespace,
-                CssToken::OpenBrace,
+                CssToken::OpenCurlyBrace,
                 CssToken::Whitespace,
                 CssToken::Ident("color".to_string()),
                 CssToken::Colon,
@@ -642,7 +642,7 @@ mod tests {
                 CssToken::Ident("green".to_string()),
                 CssToken::Semicolon,
                 CssToken::Whitespace,
-                CssToken::CloseBrace,
+                CssToken::CloseCurlyBrace,
                 CssToken::Eof,
             ]
         )

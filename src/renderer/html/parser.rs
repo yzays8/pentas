@@ -5,10 +5,10 @@ use anyhow::{bail, ensure, Ok, Result};
 use thiserror::Error;
 
 use crate::renderer::css::cssom::StyleSheet;
-use crate::renderer::css::parser::parse as css_parse;
-use crate::renderer::css::token::tokenize as css_tokenize;
+use crate::renderer::css::parser::parse_css;
+use crate::renderer::css::token::tokenize_css;
 use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
-use crate::renderer::html::tokenizer::{HtmlToken, HtmlTokenizer, TokenizationState};
+use crate::renderer::html::token::{HtmlToken, HtmlTokenizer, TokenizationState};
 
 #[derive(Error, Debug)]
 #[error("{message} (in the HTML tree construction stage)\nCurrent HTML token: {current_token:?}\nCurrent DOM tree:\n{current_tree}")]
@@ -708,7 +708,7 @@ impl HtmlParser {
         // When the UA should parse the CSS for the new stylesheet is not clearly defined:
         // https://github.com/whatwg/html/issues/2997
         if let NodeType::Text(css) = &node.borrow().child_nodes.last().unwrap().borrow().node_type {
-            let style_sheet = css_parse(&css_tokenize(css)?)?;
+            let style_sheet = parse_css(&tokenize_css(css)?)?;
             style_sheets.push(style_sheet);
         }
         Ok(())

@@ -5,7 +5,7 @@ use std::rc::{Rc, Weak};
 use anyhow::{ensure, Result};
 
 use crate::renderer::css::cssom::StyleSheet;
-use crate::renderer::style::render_tree::RenderTree;
+use crate::renderer::style::style_model::RenderTree;
 
 /// https://dom.spec.whatwg.org/#node
 #[derive(Debug)]
@@ -37,7 +37,7 @@ impl DomNode {
         }
     }
 
-    pub fn append_child(node_ref: &Rc<RefCell<DomNode>>, child: Self) -> Rc<RefCell<DomNode>> {
+    pub fn append_child(node_ref: &Rc<RefCell<Self>>, child: Self) -> Rc<RefCell<Self>> {
         let child = Rc::new(RefCell::new(child));
         child.borrow_mut().parent_node = Some(Rc::downgrade(node_ref));
         if node_ref.borrow().child_nodes.is_empty() {

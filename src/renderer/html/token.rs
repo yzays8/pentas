@@ -34,17 +34,6 @@ pub enum TokenizationState {
     AfterDoctypeName,
 }
 
-#[derive(Debug)]
-pub struct HtmlTokenizer {
-    state: TokenizationState,
-    current_token: Option<HtmlToken>,
-    input: TokenIterator<char>,
-    output: VecDeque<HtmlToken>,
-
-    /// https://html.spec.whatwg.org/multipage/parsing.html#temporary-buffer
-    temp_buf: Vec<char>,
-}
-
 /// The output of the tokenization step is a series of zero or more of the following tokens:
 /// DOCTYPE, start tag, end tag, comment, character, end-of-file.
 #[derive(Debug, Clone, PartialEq)]
@@ -75,6 +64,17 @@ pub enum HtmlToken {
     Comment(String),
     Character(char),
     Eof,
+}
+
+#[derive(Debug)]
+pub struct HtmlTokenizer {
+    state: TokenizationState,
+    current_token: Option<HtmlToken>,
+    input: TokenIterator<char>,
+    output: VecDeque<HtmlToken>,
+
+    /// https://html.spec.whatwg.org/multipage/parsing.html#temporary-buffer
+    temp_buf: Vec<char>,
 }
 
 impl HtmlTokenizer {
