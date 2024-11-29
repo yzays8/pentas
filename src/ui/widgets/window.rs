@@ -57,7 +57,6 @@ mod imp {
                 "toolbar-entry-activated",
                 false,
                 closure_local!(move |_: Toolbar, query: String| {
-                    println!("Toolbar entry entered: {}", query);
                     content_area.on_toolbar_entry_activated(&query);
                 }),
             );
@@ -66,7 +65,6 @@ mod imp {
                 "backward-button-clicked",
                 false,
                 closure_local!(move |_: Toolbar, _: String| {
-                    println!("backward-button-clicked");
                     content_area.on_backward_button_clicked();
                 }),
             );
@@ -75,7 +73,6 @@ mod imp {
                 "forward-button-clicked",
                 false,
                 closure_local!(move |_: Toolbar, _: String| {
-                    println!("forward-button-clicked");
                     content_area.on_forward_button_clicked();
                 }),
             );
@@ -83,9 +80,7 @@ mod imp {
     }
 
     impl WidgetImpl for Window {}
-
     impl WindowImpl for Window {}
-
     impl ApplicationWindowImpl for Window {}
 }
 

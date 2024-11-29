@@ -61,7 +61,6 @@ mod imp {
     }
 
     impl WidgetImpl for ContentArea {}
-
     impl BoxImpl for ContentArea {}
 
     impl ContentArea {

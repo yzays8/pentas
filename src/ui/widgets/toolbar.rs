@@ -1,4 +1,6 @@
-use gtk4::glib;
+use gtk4::prelude::*;
+use gtk4::subclass::prelude::*;
+use gtk4::{glib, template_callbacks};
 
 mod imp {
     use std::sync::OnceLock;
@@ -29,6 +31,7 @@ mod imp {
 
         fn class_init(klass: &mut Self::Class) {
             klass.bind_template();
+            klass.bind_template_instance_callbacks();
         }
 
         fn instance_init(obj: &InitializingObject<Self>) {
@@ -53,30 +56,6 @@ mod imp {
                 .style_context()
                 .add_provider(&provider, gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION);
             self.entry.set_hexpand(true);
-            let obj = self.obj();
-            self.entry.connect_activate(glib::clone!(
-                #[weak]
-                obj,
-                move |entry| {
-                    // Get URL from entry and emit signal.
-                    obj.emit_by_name::<()>("toolbar-entry-activated", &[&entry.text()]);
-                }
-            ));
-
-            self.backward_button.connect_clicked(glib::clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.emit_by_name::<()>("backward-button-clicked", &[&""]);
-                }
-            ));
-            self.forward_button.connect_clicked(glib::clone!(
-                #[weak]
-                obj,
-                move |_| {
-                    obj.emit_by_name::<()>("forward-button-clicked", &[&""]);
-                }
-            ));
         }
 
         fn signals() -> &'static [glib::subclass::Signal] {
@@ -98,7 +77,6 @@ mod imp {
     }
 
     impl WidgetImpl for Toolbar {}
-
     impl BoxImpl for Toolbar {}
 }
 
@@ -106,4 +84,22 @@ glib::wrapper! {
     pub struct Toolbar(ObjectSubclass<imp::Toolbar>)
         @extends gtk4::Widget, gtk4::Box,
         @implements gtk4::Accessible, gtk4::Buildable, gtk4::ConstraintTarget, gtk4::Orientable;
+}
+
+#[template_callbacks]
+impl Toolbar {
+    #[template_callback]
+    fn on_backward_button_clicked(&self) {
+        self.emit_by_name::<()>("backward-button-clicked", &[&""]);
+    }
+
+    #[template_callback]
+    fn on_forward_button_clicked(&self) {
+        self.emit_by_name::<()>("forward-button-clicked", &[&""]);
+    }
+
+    #[template_callback]
+    fn on_entry_activated(&self) {
+        self.emit_by_name::<()>("toolbar-entry-activated", &[&self.imp().entry.text()]);
+    }
 }
