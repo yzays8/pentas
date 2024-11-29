@@ -9,6 +9,7 @@ const APP_ID: &str = "app.pentas";
 pub const DEFAULT_WINDOW_WIDTH: usize = 1200;
 pub const DEFAULT_WINDOW_HEIGHT: usize = 800;
 
+#[derive(Debug)]
 pub struct Config {
     pub html_path: Option<String>,
     pub css_path: Option<String>,
@@ -16,6 +17,7 @@ pub struct Config {
     pub is_rendering_disabled: bool,
 }
 
+#[derive(Debug)]
 pub struct Runner {
     config: Config,
 }
@@ -27,11 +29,14 @@ impl Runner {
 
     pub fn run(&self) -> Result<()> {
         if self.config.is_rendering_disabled {
-            let renderer =
-                Renderer::new(self.config.html_path.clone(), self.config.css_path.clone());
+            let renderer = Renderer::new(
+                self.config.html_path.clone(),
+                self.config.css_path.clone(),
+                self.config.is_tracing_enabled,
+            );
             match (&self.config.html_path, &self.config.css_path) {
                 (Some(_), None) => {
-                    renderer.display_html(self.config.is_tracing_enabled)?;
+                    renderer.display_html()?;
                 }
                 (None, Some(_)) => {
                     renderer.display_css()?;

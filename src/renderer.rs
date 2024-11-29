@@ -36,13 +36,19 @@ pub enum RenderObject {
 pub struct Renderer {
     html_path: Option<String>,
     css_path: Option<String>,
+    is_tracing_enabled: bool,
 }
 
 impl Renderer {
-    pub fn new(html_path: Option<String>, css_path: Option<String>) -> Self {
+    pub fn new(
+        html_path: Option<String>,
+        css_path: Option<String>,
+        is_tracing_enabled: bool,
+    ) -> Self {
         Self {
             html_path,
             css_path,
+            is_tracing_enabled,
         }
     }
 
@@ -56,6 +62,11 @@ impl Renderer {
         self.css_path = Some(css_path);
     }
 
+    #[allow(dead_code)]
+    pub fn set_tracing_enabled(&mut self, is_tracing_enabled: bool) {
+        self.is_tracing_enabled = is_tracing_enabled;
+    }
+
     // Returns the render objects.
     pub fn run(&self) -> Result<Vec<RenderObject>> {
         let html_path = self
@@ -64,20 +75,34 @@ impl Renderer {
             .context("HTML file path is not provided.")?;
         let (doc_root, style_sheets) =
             HtmlParser::new(HtmlTokenizer::new(&std::fs::read_to_string(html_path)?)).parse()?;
-
         let style_sheets = std::iter::once(get_ua_style_sheet()?)
             .chain(style_sheets)
             .collect::<Vec<_>>();
-        Ok(DocumentTree::build(doc_root)?
-            .to_render_tree(style_sheets)?
-            .to_box_tree()?
-            .clean_up()?
-            .layout(DEFAULT_WINDOW_WIDTH as f32)?
-            .to_render_objects())
+
+        if self.is_tracing_enabled {
+            Ok(DocumentTree::build(doc_root)?
+                .print_in_chain()
+                .to_render_tree(style_sheets)?
+                .print_in_chain()
+                .to_box_tree()?
+                .print_in_chain()
+                .clean_up()?
+                .print_in_chain()
+                .layout(DEFAULT_WINDOW_WIDTH as f32)?
+                .print_in_chain()
+                .to_render_objects())
+        } else {
+            Ok(DocumentTree::build(doc_root)?
+                .to_render_tree(style_sheets)?
+                .to_box_tree()?
+                .clean_up()?
+                .layout(DEFAULT_WINDOW_WIDTH as f32)?
+                .to_render_objects())
+        }
     }
 
     /// Displays the HTML as a box tree.
-    pub fn display_html(&self, trace: bool) -> Result<()> {
+    pub fn display_html(&self) -> Result<()> {
         let html_path = self
             .html_path
             .as_ref()
@@ -89,7 +114,7 @@ impl Renderer {
             .chain(style_sheets)
             .collect::<Vec<_>>();
 
-        if trace {
+        if self.is_tracing_enabled {
             DocumentTree::build(doc_root)?
                 .print_in_chain()
                 .to_render_tree(style_sheets)?
@@ -97,6 +122,7 @@ impl Renderer {
                 .to_box_tree()?
                 .print_in_chain()
                 .clean_up()?
+                .print_in_chain()
                 .layout(DEFAULT_WINDOW_WIDTH as f32)?
                 .print();
         } else {

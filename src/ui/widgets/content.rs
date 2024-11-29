@@ -139,7 +139,7 @@ impl ContentArea {
     pub fn on_toolbar_entry_activated(&self, query: &str) {
         self.imp().clear();
 
-        let renderer = Renderer::new(Some("demo/test_html.html".to_string()), None);
+        let renderer = Renderer::new(Some("demo/test_html.html".to_string()), None, false);
         *self.imp().objects.borrow_mut() = renderer.run().unwrap();
 
         self.imp()
