@@ -629,7 +629,6 @@ impl BoxNode {
                     return;
                 };
                 // transparent
-                // todo: should implement module for bg color
                 if a != 0.0 {
                     objects.push(RenderObject::Rectangle {
                         x: block.layout_info.pos.x as f64,
