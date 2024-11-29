@@ -7,6 +7,7 @@ mod imp {
     use std::cell::RefCell;
 
     use glib::subclass::InitializingObject;
+    use gtk4::glib::Properties;
     use gtk4::prelude::*;
     use gtk4::subclass::prelude::*;
     use gtk4::{cairo, glib, CompositeTemplate};
@@ -15,16 +16,16 @@ mod imp {
     use crate::ui::history::History;
 
     // "/pentas" is just a prefix. See resouces.gresource.xml
-    #[derive(Debug, CompositeTemplate, Default)]
+    #[derive(Debug, CompositeTemplate, Default, Properties)]
     #[template(resource = "/pentas/ui/content.ui")]
+    #[properties(wrapper_type = super::ContentArea)]
     pub struct ContentArea {
         #[template_child]
         pub drawing_area: TemplateChild<gtk4::DrawingArea>,
-        // todo: make propety
         pub objects: RefCell<Vec<RenderObject>>,
         pub history: RefCell<History>,
-        // todo: make propety
-        pub current_history_index: RefCell<usize>,
+        #[property(get, set)]
+        current_history_index: RefCell<i32>,
     }
 
     #[glib::object_subclass]
@@ -42,6 +43,7 @@ mod imp {
         }
     }
 
+    #[glib::derived_properties]
     impl ObjectImpl for ContentArea {
         fn constructed(&self) {
             self.parent_constructed();
@@ -117,14 +119,6 @@ mod imp {
         pub fn present(&self) {
             self.drawing_area.queue_draw();
         }
-
-        pub fn get_current_history_index(&self) -> usize {
-            *self.current_history_index.borrow()
-        }
-
-        pub fn set_current_history_index(&self, index: usize) {
-            *self.current_history_index.borrow_mut() = index;
-        }
     }
 }
 
@@ -147,15 +141,14 @@ impl ContentArea {
             .add(query.to_string(), self.imp().objects.borrow().clone());
 
         // This is inaccurate behaviour.
-        self.imp()
-            .set_current_history_index(self.imp().history.borrow().entries.len() - 1);
+        self.set_current_history_index(self.imp().history.borrow().entries.len() as i32 - 1);
         self.imp().present();
     }
 
     pub fn on_backward_button_clicked(&self) {
-        let index = self.imp().get_current_history_index();
+        let index = self.current_history_index() as usize;
         if index > 0 {
-            self.imp().set_current_history_index(index - 1);
+            self.set_current_history_index(index as i32 - 1);
             self.imp().clear();
             *self.imp().objects.borrow_mut() = self
                 .imp()
@@ -170,9 +163,9 @@ impl ContentArea {
     }
 
     pub fn on_forward_button_clicked(&self) {
-        let index = self.imp().get_current_history_index();
+        let index = self.current_history_index() as usize;
         if index < self.imp().history.borrow().entries.len() - 1 {
-            self.imp().set_current_history_index(index + 1);
+            self.set_current_history_index(index as i32 + 1);
             self.imp().clear();
             *self.imp().objects.borrow_mut() = self
                 .imp()
