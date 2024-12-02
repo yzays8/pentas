@@ -181,7 +181,9 @@ fn apply_filtering(node: Rc<RefCell<DomNode>>, style_sheets: &[StyleSheet]) -> D
         style_sheet.rules.iter().for_each(|rule| {
             let selectors = rule.get_matched_selectors(Rc::clone(&node));
             if selectors.is_some() {
-                let Rule::QualifiedRule(qualified_rule) = rule;
+                let Rule::QualifiedRule(qualified_rule) = rule else {
+                    unreachable!();
+                };
                 for selector in selectors.unwrap() {
                     declared_values.push((selector, qualified_rule.declarations.clone()));
                 }

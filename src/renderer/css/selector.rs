@@ -71,7 +71,10 @@ impl SimpleSelector {
                     match class_name.as_str() {
                         // https://developer.mozilla.org/en-US/docs/Web/CSS/:link
                         "link" => elm.attributes.iter().any(|(k, _)| k == "href"),
-                        _ => unimplemented!(),
+                        _ => {
+                            // todo
+                            false
+                        }
                     }
                 } else {
                     false

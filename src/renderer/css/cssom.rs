@@ -29,14 +29,14 @@ impl StyleSheet {
 #[derive(Debug, PartialEq)]
 pub enum Rule {
     QualifiedRule(QualifiedRule),
-    // AtRule(AtRule),
+    AtRule(AtRule),
 }
 
 impl Rule {
     pub fn get_matched_selectors(&self, dom_node: Rc<RefCell<DomNode>>) -> Option<Vec<Selector>> {
         match self {
             Rule::QualifiedRule(rule) => rule.get_matched_selectors(dom_node),
-            // Only QualifiedRule is supported for now.
+            _ => None,
         }
     }
 }
@@ -92,9 +92,10 @@ pub enum ComponentValue {
     },
 }
 
-/// - https://www.w3.org/TR/css-syntax-3/#at-rules
-/// - https://www.w3.org/TR/cssom-1/#the-cssimportrule-interface and subsequent sections for at-rule interfaces
+/// https://www.w3.org/TR/css-syntax-3/#at-rules
 #[derive(Debug, PartialEq)]
-pub enum AtRule {
-    // unimplemented
+pub struct AtRule {
+    pub name: String,
+    pub prelude: Vec<ComponentValue>,
+    pub block: Option<Box<Rule>>,
 }

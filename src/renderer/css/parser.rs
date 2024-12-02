@@ -1,8 +1,10 @@
 use std::collections::VecDeque;
 
-use anyhow::Result;
+use anyhow::{ensure, Result};
 
-use crate::renderer::css::cssom::{ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet};
+use crate::renderer::css::cssom::{
+    AtRule, ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet,
+};
 use crate::renderer::css::selector;
 use crate::renderer::css::token::CssToken;
 use crate::renderer::utils::TokenIterator;
@@ -26,13 +28,54 @@ fn consume_list_of_rules(tokens: &mut TokenIterator<CssToken>) -> Result<Vec<Rul
                 unimplemented!();
             }
             Some(CssToken::AtKeyword(_)) => {
-                unimplemented!();
+                tokens.rewind(1);
+                rules.push(Rule::AtRule(consume_at_rule(tokens)?.unwrap()));
             }
             _ => {
                 tokens.rewind(1);
                 rules.push(Rule::QualifiedRule(
                     consume_qualified_rule(tokens)?.unwrap(),
                 ));
+            }
+        }
+    }
+}
+
+/// https://www.w3.org/TR/css-syntax-3/#consume-an-at-rule
+fn consume_at_rule(tokens: &mut TokenIterator<CssToken>) -> Result<Option<AtRule>> {
+    tokens.next();
+    let CssToken::AtKeyword(name) = tokens.get_last_consumed().unwrap() else {
+        unreachable!();
+    };
+    let mut at_rule = AtRule {
+        name: name.clone(),
+        prelude: Vec::new(),
+        block: None,
+    };
+
+    loop {
+        match tokens.next() {
+            Some(CssToken::Semicolon) => return Ok(Some(at_rule)),
+            Some(CssToken::Eof) => {
+                eprintln!("parse error in consume_at_rule");
+                return Ok(Some(at_rule));
+            }
+            Some(CssToken::OpenCurlyBrace) => {
+                while let Some(CssToken::Whitespace) = tokens.peek() {
+                    tokens.next();
+                }
+                at_rule.block = Some(Box::new(Rule::QualifiedRule(
+                    consume_qualified_rule(tokens)?.unwrap(),
+                )));
+                while let Some(CssToken::Whitespace) = tokens.peek() {
+                    tokens.next();
+                }
+                ensure!(matches!(tokens.next(), Some(CssToken::CloseCurlyBrace)));
+                return Ok(Some(at_rule));
+            }
+            _ => {
+                tokens.rewind(1);
+                at_rule.prelude.push(consume_component_value(tokens));
             }
         }
     }
