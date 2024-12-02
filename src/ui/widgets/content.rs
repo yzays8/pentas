@@ -132,8 +132,12 @@ impl ContentArea {
     pub fn on_toolbar_entry_activated(&self, query: &str) {
         self.imp().clear();
 
-        let renderer = Renderer::new(Some("demo/test_html.html".to_string()), None, false);
-        *self.imp().objects.borrow_mut() = renderer.run().unwrap();
+        let html = if let Ok(html) = std::fs::read_to_string("demo/test_html.html") {
+            html
+        } else {
+            return;
+        };
+        *self.imp().objects.borrow_mut() = Renderer::run(&html, false).unwrap();
 
         self.imp()
             .history

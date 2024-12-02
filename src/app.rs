@@ -29,17 +29,15 @@ impl Runner {
 
     pub fn run(&self) -> Result<()> {
         if self.config.is_rendering_disabled {
-            let renderer = Renderer::new(
-                self.config.html_path.clone(),
-                self.config.css_path.clone(),
-                self.config.is_tracing_enabled,
-            );
             match (&self.config.html_path, &self.config.css_path) {
-                (Some(_), None) => {
-                    renderer.display_html()?;
+                (Some(p), None) => {
+                    Renderer::display_html(
+                        &std::fs::read_to_string(p)?,
+                        self.config.is_tracing_enabled,
+                    )?;
                 }
-                (None, Some(_)) => {
-                    renderer.display_css()?;
+                (None, Some(p)) => {
+                    Renderer::display_css(&std::fs::read_to_string(p)?)?;
                 }
                 _ => bail!("Provide either HTML or CSS file."),
             }
