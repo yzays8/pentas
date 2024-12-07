@@ -1,4 +1,5 @@
 mod app;
+mod net;
 mod renderer;
 mod ui;
 

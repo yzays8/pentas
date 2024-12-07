@@ -1,6 +1,9 @@
+use std::vec;
+
 use gtk4::glib;
 use gtk4::subclass::prelude::ObjectSubclassIsExt;
 
+use crate::net::http::HttpClient;
 use crate::renderer::{RenderObject, Renderer};
 
 mod imp {
@@ -132,11 +135,49 @@ impl ContentArea {
     pub fn on_toolbar_entry_activated(&self, query: &str) {
         self.imp().clear();
 
-        let html = if let Ok(html) = std::fs::read_to_string("demo/test_html.html") {
-            html
+        // todo: Add a proper URL parser.
+        let url = query
+            .trim_start_matches("http://")
+            .trim_start_matches("https://");
+        let mut url = url.split('/');
+        let (host, port) = if let Some(hp) = url.by_ref().next() {
+            let hp = hp.split(':').collect::<Vec<&str>>();
+            let host = hp.first().unwrap();
+            if let Some(port) = hp.get(1) {
+                if let Ok(port) = port.parse::<u16>() {
+                    (*host, port)
+                } else {
+                    return;
+                }
+            } else {
+                (*host, 80)
+            }
         } else {
             return;
         };
+        let path = if let Some(path) = url.by_ref().next() {
+            format!("/{}", path)
+        } else {
+            "/".to_string()
+        };
+
+        let client = HttpClient::new(host, port);
+        let headers = vec![
+            // HTTP/1.1 client must contain Host header.
+            // https://datatracker.ietf.org/doc/html/rfc9112#section-3.2
+            ("Host", host),
+            // ("User-Agent", "pentas"),
+            // todo: Remove this header and handle Content-Length in the client.
+            ("Connection", "close"),
+        ];
+        let html = match client.send_request("GET", &path, &headers, None) {
+            Ok(response) => response.body,
+            Err(e) => {
+                eprintln!("{}", e);
+                return;
+            }
+        };
+
         *self.imp().objects.borrow_mut() = Renderer::run(&html, false).unwrap();
 
         self.imp()
