@@ -22,6 +22,9 @@ pub enum RenderObject {
         y: f64,
         size: f64,
         color: (f64, f64, f64),
+        decoration_color: (f64, f64, f64),
+        decoration_line: Vec<String>,
+        decoration_style: String,
     },
     Rectangle {
         x: f64,

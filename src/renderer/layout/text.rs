@@ -8,7 +8,7 @@ use font_kit::properties::Properties;
 use font_kit::source::SystemSource;
 
 use crate::renderer::layout::box_model::{BoxPosition, LayoutInfo};
-use crate::renderer::style::style_model::RenderNode;
+use crate::renderer::style::style_model::{ComputedValues, RenderNode};
 use crate::renderer::style::value_type::{AbsoluteLengthUnit, CssValue, LengthUnit};
 
 #[derive(Debug)]
@@ -36,17 +36,12 @@ impl Text {
         self.calc_pos(containing_block_info, orig_x);
     }
 
+    pub fn get_parent_style(&self) -> ComputedValues {
+        self.parent.upgrade().unwrap().borrow().style.clone()
+    }
+
     fn calc_used_values(&mut self) {
-        let margin = self
-            .parent
-            .upgrade()
-            .unwrap()
-            .borrow()
-            .style
-            .margin
-            .as_ref()
-            .unwrap()
-            .clone();
+        let margin = self.get_parent_style().margin.as_ref().unwrap().clone();
 
         [
             (self.layout_info.used_values.margin.left, margin.left),
@@ -81,15 +76,7 @@ impl Text {
 
     fn calc_width_and_height(&mut self, containing_block_info: &LayoutInfo) {
         let CssValue::Length(font_size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)) =
-            self.parent
-                .upgrade()
-                .unwrap()
-                .borrow()
-                .style
-                .font_size
-                .as_ref()
-                .unwrap()
-                .size
+            self.get_parent_style().font_size.as_ref().unwrap().size
         else {
             unreachable!()
         };

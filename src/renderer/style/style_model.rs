@@ -298,7 +298,7 @@ impl SpecifiedValues {
         self.color = Some(ColorProp::default());
         self.display = Some(DisplayProp::default());
         self.font_size = Some(FontSizeProp::default());
-        self.text_decoration = None;
+        self.text_decoration = Some(TextDecorationProp::default());
         self.margin = Some(MarginProp::default());
         self.margin_block = None;
         self.border = Some(BorderProp::default());

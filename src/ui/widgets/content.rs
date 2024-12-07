@@ -13,7 +13,9 @@ mod imp {
     use gtk4::glib::Properties;
     use gtk4::prelude::*;
     use gtk4::subclass::prelude::*;
-    use gtk4::{cairo, glib, CompositeTemplate};
+    use gtk4::{cairo, glib, pango, CompositeTemplate};
+    // use pango;
+    use pangocairo;
 
     use super::RenderObject;
     use crate::ui::history::History;
@@ -82,19 +84,74 @@ mod imp {
                         y,
                         size,
                         color,
+                        decoration_color,
+                        decoration_line,
+                        decoration_style,
                     } => {
-                        ctx.set_source_rgb(color.0, color.1, color.2);
-                        ctx.set_font_size(*size);
-                        let lines = text.split("\n");
-                        for (i, line) in lines.enumerate() {
-                            ctx.move_to(*x, *y + size * i as f64);
-                            let _ = ctx.show_text(line);
+                        ctx.move_to(*x, *y);
+                        let pango_ctx = self.drawing_area.get().create_pango_context();
+                        let layout = pango::Layout::new(&pango_ctx);
+                        let attrs = pango::AttrList::new();
+                        let font_color = (
+                            (color.0 * 65535.0) as u16,
+                            (color.1 * 65535.0) as u16,
+                            (color.2 * 65535.0) as u16,
+                        );
+                        let deco_color = (
+                            (decoration_color.0 * 65535.0) as u16,
+                            (decoration_color.1 * 65535.0) as u16,
+                            (decoration_color.2 * 65535.0) as u16,
+                        );
 
-                            // Adjust the height of the drawing area for scrolling.
-                            if *y + size * i as f64 > self.drawing_area.height() as f64 {
-                                self.drawing_area
-                                    .set_height_request((*y + size * i as f64) as i32 + 5);
+                        attrs.insert(pango::AttrColor::new_foreground(
+                            font_color.0,
+                            font_color.1,
+                            font_color.2,
+                        ));
+                        if decoration_line.contains(&"underline".to_string()) {
+                            attrs.insert(pango::AttrColor::new_underline_color(
+                                deco_color.0,
+                                deco_color.1,
+                                deco_color.2,
+                            ));
+                            if decoration_style.eq_ignore_ascii_case("double") {
+                                attrs.insert(pango::AttrInt::new_underline(
+                                    pango::Underline::Double,
+                                ));
+                            } else {
+                                attrs.insert(pango::AttrInt::new_underline(
+                                    pango::Underline::Single,
+                                ));
                             }
+                        }
+                        if decoration_line.contains(&"overline".to_string()) {
+                            attrs.insert(pango::AttrColor::new_overline_color(
+                                deco_color.0,
+                                deco_color.1,
+                                deco_color.2,
+                            ));
+                            attrs.insert(pango::AttrInt::new_overline(pango::Overline::Single));
+                        }
+                        if decoration_line.contains(&"line-through".to_string()) {
+                            attrs.insert(pango::AttrColor::new_strikethrough_color(
+                                deco_color.0,
+                                deco_color.1,
+                                deco_color.2,
+                            ));
+                            attrs.insert(pango::AttrInt::new_strikethrough(true));
+                        }
+
+                        layout.set_text(text);
+                        layout.set_font_description(Some(&pango::FontDescription::from_string(
+                            &format!("{}px", size),
+                        )));
+                        layout.set_attributes(Some(&attrs));
+                        pangocairo::functions::show_layout(ctx, &layout);
+
+                        // Adjust the height of the drawing area for scrolling.
+                        if *y + layout.pixel_size().1 as f64 > self.drawing_area.height() as f64 {
+                            self.drawing_area
+                                .set_height_request((*y + layout.pixel_size().1 as f64) as i32 + 5);
                         }
                     }
                     RenderObject::Rectangle {

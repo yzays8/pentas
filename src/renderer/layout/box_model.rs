@@ -571,44 +571,64 @@ impl BoxNode {
     pub fn to_render_objects(&self, objects: &mut Vec<RenderObject>) {
         match self {
             BoxNode::Text(t) => {
-                let parent_font_size = if let CssValue::Length(size, _) = t
-                    .parent
-                    .upgrade()
-                    .unwrap()
-                    .borrow()
-                    .style
-                    .font_size
-                    .as_ref()
-                    .unwrap()
-                    .size
-                {
-                    size
-                } else {
+                let parent_style = t.get_parent_style();
+                let CssValue::Length(parent_font_size, _) =
+                    parent_style.font_size.as_ref().unwrap().size
+                else {
                     unreachable!()
                 };
-                let (r, g, b, _a) = if let CssValue::Color { r, g, b, a } = t
-                    .parent
-                    .upgrade()
-                    .unwrap()
-                    .borrow()
-                    .style
-                    .color
-                    .as_ref()
-                    .unwrap()
-                    .value
+                let color = if let CssValue::Color { r, g, b, a } =
+                    parent_style.color.as_ref().unwrap().value
                 {
                     (r, g, b, a)
                 } else {
                     return;
+                };
+                let decoration_color = if let CssValue::Color { r, g, b, a } =
+                    parent_style.text_decoration.as_ref().unwrap().color.value
+                {
+                    (r, g, b, a)
+                } else {
+                    unreachable!()
+                };
+                let decoration_line = parent_style
+                    .text_decoration
+                    .as_ref()
+                    .unwrap()
+                    .line
+                    .iter()
+                    .map(|v| {
+                        if let CssValue::Ident(v) = v {
+                            v.clone()
+                        } else {
+                            unreachable!()
+                        }
+                    })
+                    .collect::<Vec<String>>();
+                let CssValue::Ident(decoration_style) =
+                    parent_style.text_decoration.as_ref().unwrap().style.clone()
+                else {
+                    unreachable!()
                 };
                 objects.push(RenderObject::Text {
                     text: t.node.borrow().node.borrow().get_inside_text().unwrap(),
                     // x: t.layout_info.get_expanded_pos().x as f64,
                     // y: t.layout_info.get_expanded_pos().y as f64 + parent_font_size as f64,
                     x: t.layout_info.pos.x as f64,
-                    y: t.layout_info.pos.y as f64 + parent_font_size as f64,
+                    y: t.layout_info.pos.y as f64,
                     size: parent_font_size as f64,
-                    color: (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0),
+                    color: (
+                        color.0 as f64 / 255.0,
+                        color.1 as f64 / 255.0,
+                        color.2 as f64 / 255.0,
+                    ),
+                    decoration_color: (
+                        decoration_color.0 as f64 / 255.0,
+                        decoration_color.1 as f64 / 255.0,
+                        decoration_color.2 as f64 / 255.0,
+                    ),
+                    decoration_line,
+                    decoration_style,
                 });
             }
             BoxNode::BlockBox(block) => {
