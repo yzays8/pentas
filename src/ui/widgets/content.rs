@@ -89,6 +89,12 @@ mod imp {
                         for (i, line) in lines.enumerate() {
                             ctx.move_to(*x, *y + size * i as f64);
                             let _ = ctx.show_text(line);
+
+                            // Adjust the height of the drawing area for scrolling.
+                            if *y + size * i as f64 > self.drawing_area.height() as f64 {
+                                self.drawing_area
+                                    .set_height_request((*y + size * i as f64) as i32 + 5);
+                            }
                         }
                     }
                     RenderObject::Rectangle {
@@ -101,6 +107,12 @@ mod imp {
                         ctx.set_source_rgb(color.0, color.1, color.2);
                         ctx.rectangle(*x, *y, *width, *height);
                         let _ = ctx.fill();
+
+                        // Adjust the height of the drawing area for scrolling.
+                        if *y + *height > self.drawing_area.height() as f64 {
+                            self.drawing_area
+                                .set_height_request((*y + *height) as i32 + 5);
+                        }
                     }
                 }
             }
@@ -117,6 +129,7 @@ mod imp {
             });
             self.drawing_area.queue_draw();
             self.objects.borrow_mut().clear();
+            self.drawing_area.set_height_request(-1);
         }
 
         pub fn present(&self) {

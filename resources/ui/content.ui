@@ -9,9 +9,7 @@
           <child>
             <object class="GtkViewport" id="viewport">
               <child>
-                <object class="GtkDrawingArea" id="drawing_area">
-                  <property name="height-request">2048</property>
-                </object>
+                <object class="GtkDrawingArea" id="drawing_area"/>
               </child>
             </object>
           </child>
