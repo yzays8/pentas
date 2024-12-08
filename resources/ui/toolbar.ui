@@ -11,6 +11,7 @@
         <property name="margin-start">6</property>
         <property name="margin-end">6</property>
         <property name="css-classes">circular</property>
+        <property name="sensitive">false</property>
       </object>
     </child>
     <child>
@@ -22,6 +23,7 @@
         <property name="margin-start">6</property>
         <property name="margin-end">6</property>
         <property name="css-classes">circular</property>
+        <property name="sensitive">false</property>
       </object>
     </child>
     <child>

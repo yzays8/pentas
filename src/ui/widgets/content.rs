@@ -73,7 +73,7 @@ mod imp {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
             SIGNALS.get_or_init(|| {
                 vec![Signal::builder("history-updated")
-                    .param_types([glib::Type::STRING])
+                    .param_types([glib::Type::STRING, glib::Type::BOOL, glib::Type::BOOL])
                     .build()]
             })
         }
@@ -269,6 +269,21 @@ impl ContentArea {
 
         // This is inaccurate behaviour.
         self.set_current_history_index(self.imp().history.borrow().entries.len() as i32 - 1);
+        self.emit_by_name::<()>(
+            "history-updated",
+            &[
+                &self
+                    .imp()
+                    .history
+                    .borrow()
+                    .get(self.current_history_index() as usize)
+                    .unwrap()
+                    .query,
+                &false,
+                &true,
+            ],
+        );
+
         self.imp().present();
     }
 
@@ -276,10 +291,26 @@ impl ContentArea {
         let index = self.current_history_index() as usize;
         if index > 0 {
             self.set_current_history_index(index as i32 - 1);
+            let (is_first_history, is_last_history) = (
+                self.current_history_index() == 0,
+                self.current_history_index()
+                    == self.imp().history.borrow().entries.len() as i32 - 1,
+            );
             self.emit_by_name::<()>(
                 "history-updated",
-                &[&self.imp().history.borrow().get(index - 1).unwrap().query],
+                &[
+                    &self
+                        .imp()
+                        .history
+                        .borrow()
+                        .get(self.current_history_index() as usize)
+                        .unwrap()
+                        .query,
+                    &is_first_history,
+                    &is_last_history,
+                ],
             );
+
             self.imp().clear();
             *self.imp().objects.borrow_mut() = self
                 .imp()
@@ -297,10 +328,26 @@ impl ContentArea {
         let index = self.current_history_index() as usize;
         if index < self.imp().history.borrow().entries.len() - 1 {
             self.set_current_history_index(index as i32 + 1);
+            let (is_first_history, is_last_history) = (
+                self.current_history_index() == 0,
+                self.current_history_index()
+                    == self.imp().history.borrow().entries.len() as i32 - 1,
+            );
             self.emit_by_name::<()>(
                 "history-updated",
-                &[&self.imp().history.borrow().get(index + 1).unwrap().query],
+                &[
+                    &self
+                        .imp()
+                        .history
+                        .borrow()
+                        .get(self.current_history_index() as usize)
+                        .unwrap()
+                        .query,
+                    &is_first_history,
+                    &is_last_history,
+                ],
             );
+
             self.imp().clear();
             *self.imp().objects.borrow_mut() = self
                 .imp()

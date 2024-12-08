@@ -80,8 +80,11 @@ mod imp {
             self.content_area.connect_closure(
                 "history-updated",
                 false,
-                closure_local!(move |_: ContentArea, query: String| {
-                    toolbar.on_history_updated(&query);
+                closure_local!(move |_: ContentArea,
+                                     query: String,
+                                     is_first_history: bool,
+                                     is_last_history: bool| {
+                    toolbar.on_history_updated(&query, is_first_history, is_last_history);
                 }),
             );
         }
