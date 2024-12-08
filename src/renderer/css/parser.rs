@@ -322,7 +322,7 @@ mod tests {
     use super::*;
     use crate::renderer::css::cssom::{ComponentValue, Declaration, QualifiedRule, Rule};
     use crate::renderer::css::selector::{Combinator, Selector, SimpleSelector};
-    use crate::renderer::css::token::{tokenize_css, CssToken, NumericType};
+    use crate::renderer::css::token::{CssToken, CssTokenizer, NumericType};
 
     #[test]
     fn parse_simple_style() {
@@ -335,7 +335,7 @@ mod tests {
                 color: blue;
             }
         "#;
-        let style_sheet = parse_css(&tokenize_css(css).unwrap()).unwrap();
+        let style_sheet = parse_css(&CssTokenizer::new(css).tokenize().unwrap()).unwrap();
         let mut rules = style_sheet.rules.iter();
         assert_eq!(
             rules.next().unwrap(),
@@ -381,7 +381,7 @@ mod tests {
                 font-size: 16px;
             }
         "#;
-        let style_sheet = parse_css(&tokenize_css(css).unwrap()).unwrap();
+        let style_sheet = parse_css(&CssTokenizer::new(css).tokenize().unwrap()).unwrap();
         let mut rules = style_sheet.rules.iter();
         assert_eq!(
             rules.next().unwrap(),

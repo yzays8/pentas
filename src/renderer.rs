@@ -9,7 +9,7 @@ use anyhow::Result;
 use crate::app::DEFAULT_WINDOW_WIDTH;
 use css::get_ua_style_sheet;
 use css::parser::parse_css;
-use css::token::tokenize_css;
+use css::token::CssTokenizer;
 use html::dom::DocumentTree;
 use html::parser::HtmlParser;
 use html::token::HtmlTokenizer;
@@ -101,7 +101,7 @@ impl Renderer {
 
     /// Displays the CSS as a style sheet.
     pub fn display_css(css: &str) -> Result<()> {
-        parse_css(&tokenize_css(css)?)?.print();
+        parse_css(&CssTokenizer::new(css).tokenize()?)?.print();
         Ok(())
     }
 }
