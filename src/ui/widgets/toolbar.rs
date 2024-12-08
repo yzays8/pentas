@@ -102,4 +102,8 @@ impl Toolbar {
     fn on_entry_activated(&self) {
         self.emit_by_name::<()>("toolbar-entry-activated", &[&self.imp().entry.text()]);
     }
+
+    pub fn on_history_updated(&self, query: &str) {
+        self.imp().entry.set_text(query);
+    }
 }

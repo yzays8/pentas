@@ -76,6 +76,14 @@ mod imp {
                     content_area.on_forward_button_clicked();
                 }),
             );
+            let toolbar = self.toolbar.get();
+            self.content_area.connect_closure(
+                "history-updated",
+                false,
+                closure_local!(move |_: ContentArea, query: String| {
+                    toolbar.on_history_updated(&query);
+                }),
+            );
         }
     }
 

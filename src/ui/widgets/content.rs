@@ -1,6 +1,7 @@
 use std::vec;
 
 use gtk4::glib;
+use gtk4::prelude::*;
 use gtk4::subclass::prelude::ObjectSubclassIsExt;
 
 use crate::net::http::HttpClient;
@@ -8,8 +9,10 @@ use crate::renderer::{RenderObject, Renderer};
 
 mod imp {
     use std::cell::RefCell;
+    use std::sync::OnceLock;
 
     use glib::subclass::InitializingObject;
+    use gtk4::glib::subclass::Signal;
     use gtk4::glib::Properties;
     use gtk4::prelude::*;
     use gtk4::subclass::prelude::*;
@@ -64,6 +67,15 @@ mod imp {
 
             // The initial history is an empty page.
             self.history.borrow_mut().add("".to_string(), vec![]);
+        }
+
+        fn signals() -> &'static [glib::subclass::Signal] {
+            static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
+            SIGNALS.get_or_init(|| {
+                vec![Signal::builder("history-updated")
+                    .param_types([glib::Type::STRING])
+                    .build()]
+            })
         }
     }
 
@@ -264,6 +276,10 @@ impl ContentArea {
         let index = self.current_history_index() as usize;
         if index > 0 {
             self.set_current_history_index(index as i32 - 1);
+            self.emit_by_name::<()>(
+                "history-updated",
+                &[&self.imp().history.borrow().get(index - 1).unwrap().query],
+            );
             self.imp().clear();
             *self.imp().objects.borrow_mut() = self
                 .imp()
@@ -281,6 +297,10 @@ impl ContentArea {
         let index = self.current_history_index() as usize;
         if index < self.imp().history.borrow().entries.len() - 1 {
             self.set_current_history_index(index as i32 + 1);
+            self.emit_by_name::<()>(
+                "history-updated",
+                &[&self.imp().history.borrow().get(index + 1).unwrap().query],
+            );
             self.imp().clear();
             *self.imp().objects.borrow_mut() = self
                 .imp()
