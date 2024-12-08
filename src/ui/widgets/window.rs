@@ -57,7 +57,7 @@ mod imp {
                 "toolbar-entry-activated",
                 false,
                 closure_local!(move |_: Toolbar, query: String| {
-                    content_area.on_toolbar_entry_activated(&query);
+                    content_area.on_toolbar_entry_activate(&query);
                 }),
             );
             let content_area = self.content_area.get();
@@ -65,7 +65,7 @@ mod imp {
                 "backward-button-clicked",
                 false,
                 closure_local!(move |_: Toolbar, _: String| {
-                    content_area.on_backward_button_clicked();
+                    content_area.on_backward_button_click();
                 }),
             );
             let content_area = self.content_area.get();
@@ -73,7 +73,7 @@ mod imp {
                 "forward-button-clicked",
                 false,
                 closure_local!(move |_: Toolbar, _: String| {
-                    content_area.on_forward_button_clicked();
+                    content_area.on_forward_button_click();
                 }),
             );
             let toolbar = self.toolbar.get();
@@ -84,7 +84,7 @@ mod imp {
                                      query: String,
                                      is_first_history: bool,
                                      is_last_history: bool| {
-                    toolbar.on_history_updated(&query, is_first_history, is_last_history);
+                    toolbar.on_history_update(&query, is_first_history, is_last_history);
                 }),
             );
         }

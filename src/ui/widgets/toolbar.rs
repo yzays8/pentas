@@ -89,21 +89,21 @@ glib::wrapper! {
 #[template_callbacks]
 impl Toolbar {
     #[template_callback]
-    fn on_backward_button_clicked(&self) {
+    fn on_backward_button_click(&self) {
         self.emit_by_name::<()>("backward-button-clicked", &[&""]);
     }
 
     #[template_callback]
-    fn on_forward_button_clicked(&self) {
+    fn on_forward_button_click(&self) {
         self.emit_by_name::<()>("forward-button-clicked", &[&""]);
     }
 
     #[template_callback]
-    fn on_entry_activated(&self) {
+    fn on_entry_activate(&self) {
         self.emit_by_name::<()>("toolbar-entry-activated", &[&self.imp().entry.text()]);
     }
 
-    pub fn on_history_updated(&self, query: &str, is_first_history: bool, is_last_history: bool) {
+    pub fn on_history_update(&self, query: &str, is_first_history: bool, is_last_history: bool) {
         self.imp().entry.set_text(query);
         match (self.imp().backward_button.is_sensitive(), is_first_history) {
             (true, true) => {

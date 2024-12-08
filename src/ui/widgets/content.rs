@@ -5,7 +5,7 @@ use gtk4::prelude::*;
 use gtk4::subclass::prelude::ObjectSubclassIsExt;
 
 use crate::net::http::HttpClient;
-use crate::renderer::{RenderObject, Renderer};
+use crate::renderer::Renderer;
 
 mod imp {
     use std::cell::RefCell;
@@ -17,10 +17,9 @@ mod imp {
     use gtk4::prelude::*;
     use gtk4::subclass::prelude::*;
     use gtk4::{cairo, glib, pango, CompositeTemplate};
-    // use pango;
     use pangocairo;
 
-    use super::RenderObject;
+    use crate::renderer::RenderObject;
     use crate::ui::history::History;
 
     // "/pentas" is just a prefix. See resouces.gresource.xml
@@ -214,7 +213,7 @@ glib::wrapper! {
 }
 
 impl ContentArea {
-    pub fn on_toolbar_entry_activated(&self, query: &str) {
+    pub fn on_toolbar_entry_activate(&self, query: &str) {
         self.imp().clear();
 
         // todo: Add a proper URL parser.
@@ -287,7 +286,7 @@ impl ContentArea {
         self.imp().present();
     }
 
-    pub fn on_backward_button_clicked(&self) {
+    pub fn on_backward_button_click(&self) {
         let index = self.current_history_index() as usize;
         if index > 0 {
             self.set_current_history_index(index as i32 - 1);
@@ -324,7 +323,7 @@ impl ContentArea {
         }
     }
 
-    pub fn on_forward_button_clicked(&self) {
+    pub fn on_forward_button_click(&self) {
         let index = self.current_history_index() as usize;
         if index < self.imp().history.borrow().entries.len() - 1 {
             self.set_current_history_index(index as i32 + 1);
