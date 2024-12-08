@@ -5,9 +5,10 @@ use anyhow::{ensure, Result};
 use crate::renderer::css::cssom::{
     AtRule, ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet,
 };
-use crate::renderer::css::selector;
 use crate::renderer::css::token::CssToken;
 use crate::renderer::utils::TokenIterator;
+
+use super::selector::SelectorParser;
 
 #[derive(Debug)]
 pub struct CssParser {
@@ -125,7 +126,7 @@ impl CssParser {
                     // This implementation stops parsing the CSS and returns an error in this case, instead of ignoring the rule.
                     qualified_rule
                         .selectors
-                        .extend(selector::parse(&selectors_buf)?);
+                        .extend(SelectorParser::new(selectors_buf).parse()?);
 
                     return Ok(Some(qualified_rule));
                 }
