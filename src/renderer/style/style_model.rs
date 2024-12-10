@@ -4,7 +4,7 @@ use std::default::Default;
 use std::fmt;
 use std::rc::Rc;
 
-use anyhow::{Context, Ok, Result};
+use anyhow::{Context, Result};
 
 use crate::renderer::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
 use crate::renderer::css::selector::Selector;
@@ -293,14 +293,14 @@ impl SpecifiedValues {
 
     /// Sets the initial values for the properties.
     pub fn initialize(&mut self) {
-        // todo: Add more properties and replace None with the correct initial values.
+        // todo: Add more properties.
         self.background_color = Some(BackGroundColorProp::default());
         self.color = Some(ColorProp::default());
         self.display = Some(DisplayProp::default());
         self.font_size = Some(FontSizeProp::default());
         self.text_decoration = Some(TextDecorationProp::default());
         self.margin = Some(MarginProp::default());
-        self.margin_block = None;
+        self.margin_block = Some(MarginBlockProp::default());
         self.border = Some(BorderProp::default());
         self.padding = Some(PaddingProp::default());
         self.width = Some(WidthProp::default());
@@ -325,41 +325,55 @@ impl SpecifiedValues {
             match name.as_str() {
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/background-color
                 "background-color" => {
-                    self.background_color = BackGroundColorProp::parse(values).ok()
+                    if let Ok(v) = BackGroundColorProp::parse(values) {
+                        self.background_color = Some(v);
+                    }
                 }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/color
                 "color" => {
-                    if let std::result::Result::Ok(color) = ColorProp::parse(values) {
-                        self.color = Some(color);
+                    if let Ok(v) = ColorProp::parse(values) {
+                        self.color = Some(v);
                     }
                 }
 
                 // https://drafts.csswg.org/css-display/#the-display-properties
                 "display" => {
-                    self.display = DisplayProp::parse(values).ok();
+                    if let Ok(v) = DisplayProp::parse(values) {
+                        self.display = Some(v);
+                    }
                 }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/font-size
                 "font-size" => {
-                    self.font_size = FontSizeProp::parse(values).ok();
+                    if let Ok(v) = FontSizeProp::parse(values) {
+                        self.font_size = Some(v);
+                    }
                 }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration
                 "text-decoration" => {
-                    self.text_decoration = TextDecorationProp::parse(values).ok();
+                    if let Ok(v) = TextDecorationProp::parse(values) {
+                        self.text_decoration = Some(v);
+                    }
                 }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/margin
-                "margin" => self.margin = MarginProp::parse(values).ok(),
+                "margin" => {
+                    if let Ok(v) = MarginProp::parse(values) {
+                        self.margin = Some(v);
+                    }
+                }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/margin-block
                 "margin-block" => {
-                    // Assume that the margin-block-start and margin-block-end values
-                    // are the same as the margin-top and margin-bottom values.
-                    // todo: Handle the direction of the text
-                    self.margin_block = MarginBlockProp::parse(values).ok();
+                    if let Ok(v) = MarginBlockProp::parse(values) {
+                        self.margin_block = Some(v);
+                    }
                     if self.margin_block.is_some() {
+                        // Assume that the margin-block-start and margin-block-end values
+                        // are the same as the margin-top and margin-bottom values.
+                        // todo: Handle the direction of the text.
                         if self.margin.is_some() {
                             self.margin.as_mut().unwrap().top =
                                 self.margin_block.as_ref().unwrap().start.clone();
@@ -377,22 +391,30 @@ impl SpecifiedValues {
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/border
                 "border" => {
-                    self.border = BorderProp::parse(values).ok();
+                    if let Ok(v) = BorderProp::parse(values) {
+                        self.border = Some(v);
+                    }
                 }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/padding
                 "padding" => {
-                    self.padding = PaddingProp::parse(values).ok();
+                    if let Ok(v) = PaddingProp::parse(values) {
+                        self.padding = Some(v);
+                    }
                 }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/width
                 "width" => {
-                    self.width = WidthProp::parse(values).ok();
+                    if let Ok(v) = WidthProp::parse(values) {
+                        self.width = Some(v);
+                    }
                 }
 
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/height
                 "height" => {
-                    self.height = HeightProp::parse(values).ok();
+                    if let Ok(v) = HeightProp::parse(values) {
+                        self.height = Some(v);
+                    }
                 }
 
                 _ => {}
@@ -409,47 +431,67 @@ impl SpecifiedValues {
         let mut t = self.clone();
 
         // The `color` value needs to be computed earlier because it is used to calculate other properties.
-        // t.color
-        //     .as_mut()
-        //     .map(|v| v.compute(parent_color.as_ref()).ok().cloned());
-        if let std::result::Result::Ok(color) =
-            t.color.as_mut().unwrap().compute(parent_color.as_ref())
-        {
-            t.color = Some(color.clone());
+        if let Err(e) = t.color.as_mut().unwrap().compute(parent_color.as_ref()) {
+            eprintln!("{e}");
         }
         // The `font-size` value needs to be computed earlier because it is used to calculate other properties.
-        t.font_size
+        if let Err(e) = t
+            .font_size
             .as_mut()
-            .map(|v| v.compute(parent_font_size_px.as_ref()).ok().cloned());
+            .unwrap()
+            .compute(parent_font_size_px.as_ref())
+        {
+            eprintln!("{e}");
+        }
         // The `display` value needs to be computed earlier because it is used to calculate other properties.
-        t.display.as_mut().map(|v| v.compute().ok().cloned());
+        if let Err(e) = t.display.as_mut().unwrap().compute() {
+            eprintln!("{e}");
+        }
 
-        t.background_color
+        if let Err(e) = t
+            .background_color
             .as_mut()
-            .map(|v| v.compute(t.color.as_ref()).ok().cloned());
-        t.text_decoration
+            .unwrap()
+            .compute(t.color.as_ref())
+        {
+            eprintln!("{e}");
+        }
+        if let Err(e) = t
+            .text_decoration
             .as_mut()
-            .map(|v| v.compute(t.color.as_ref()).ok().cloned());
-        t.margin
+            .unwrap()
+            .compute(t.color.as_ref())
+        {
+            eprintln!("{e}");
+        }
+        if let Err(e) = t.margin.as_mut().unwrap().compute(t.font_size.as_ref()) {
+            eprintln!("{e}");
+        }
+        if let Err(e) = t
+            .margin_block
             .as_mut()
-            .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
-        t.margin_block
+            .unwrap()
+            .compute(t.font_size.as_ref())
+        {
+            eprintln!("{e}");
+        }
+        if let Err(e) = t
+            .border
             .as_mut()
-            .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
-        t.border.as_mut().map(|v| {
-            v.compute(t.font_size.as_ref(), t.color.as_ref())
-                .ok()
-                .cloned()
-        });
-        t.padding
-            .as_mut()
-            .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
-        t.width
-            .as_mut()
-            .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
-        t.height
-            .as_mut()
-            .map(|v| v.compute(t.font_size.as_ref()).ok().cloned());
+            .unwrap()
+            .compute(t.font_size.as_ref(), t.color.as_ref())
+        {
+            eprintln!("{e}");
+        }
+        if let Err(e) = t.padding.as_mut().unwrap().compute(t.font_size.as_ref()) {
+            eprintln!("{e}");
+        }
+        if let Err(e) = t.width.as_mut().unwrap().compute(t.font_size.as_ref()) {
+            eprintln!("{e}");
+        }
+        if let Err(e) = t.height.as_mut().unwrap().compute(t.font_size.as_ref()) {
+            eprintln!("{e}");
+        }
 
         ComputedValues {
             background_color: t.background_color,
