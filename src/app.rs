@@ -1,13 +1,7 @@
 use anyhow::{bail, Ok, Result};
-use gtk4::prelude::*;
-use gtk4::{gio, glib, Application};
 
 use crate::renderer::Renderer;
-use crate::ui::widgets::window::Window;
-
-const APP_ID: &str = "app.pentas";
-pub const DEFAULT_WINDOW_WIDTH: usize = 1200;
-pub const DEFAULT_WINDOW_HEIGHT: usize = 800;
+use crate::ui::show_ui;
 
 #[derive(Debug)]
 pub struct Config {
@@ -44,24 +38,8 @@ impl Runner {
             return Ok(());
         }
 
-        Self::show_ui();
+        show_ui();
 
         Ok(())
-    }
-
-    fn show_ui() -> glib::ExitCode {
-        gio::resources_register_include!("pentas.gresource")
-            .expect("Failed to register resources.");
-        let app = Application::builder().application_id(APP_ID).build();
-
-        app.connect_activate(Self::build_ui);
-        app.run()
-    }
-
-    fn build_ui(app: &Application) {
-        let window = Window::new(app);
-        window.set_title(Some("pentas"));
-        window.set_default_size(DEFAULT_WINDOW_WIDTH as i32, DEFAULT_WINDOW_HEIGHT as i32);
-        window.present();
     }
 }

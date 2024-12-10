@@ -6,7 +6,7 @@ mod utils;
 
 use anyhow::Result;
 
-use crate::app::DEFAULT_WINDOW_WIDTH;
+use crate::ui::DEFAULT_WINDOW_WIDTH;
 use css::get_ua_style_sheet;
 use css::parser::CssParser;
 use css::token::CssTokenizer;
