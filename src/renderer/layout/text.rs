@@ -8,8 +8,8 @@ use font_kit::properties::Properties;
 use font_kit::source::SystemSource;
 
 use crate::renderer::layout::box_model::{BoxPosition, LayoutInfo};
+use crate::renderer::style::property::{AbsoluteLengthUnit, CssValue, LengthUnit};
 use crate::renderer::style::style_model::{ComputedValues, RenderNode};
-use crate::renderer::style::value_type::{AbsoluteLengthUnit, CssValue, LengthUnit};
 
 #[derive(Debug)]
 pub struct Text {

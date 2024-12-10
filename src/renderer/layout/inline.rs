@@ -4,8 +4,8 @@ use std::rc::Rc;
 use crate::renderer::layout::box_model::{BoxNode, BoxPosition, BoxSize, LayoutInfo};
 use crate::renderer::layout::text::Text;
 use crate::renderer::style::property::display::{DisplayInside, DisplayOutside};
+use crate::renderer::style::property::{AbsoluteLengthUnit, CssValue, LengthUnit};
 use crate::renderer::style::style_model::RenderNode;
-use crate::renderer::style::value_type::{AbsoluteLengthUnit, CssValue, LengthUnit};
 
 #[derive(Debug)]
 pub struct InlineBox {

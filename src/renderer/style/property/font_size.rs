@@ -5,10 +5,11 @@ use anyhow::{bail, Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::CssToken;
-use crate::renderer::style::value_type::{
-    parse_length_percentage_type, AbsoluteLengthUnit, AbsoluteSize, CssValue, LengthUnit,
-    RelativeLengthUnit, RelativeSize,
+use crate::renderer::style::property::{
+    parse_length_percentage_type, AbsoluteLengthUnit, AbsoluteSize, CssProperty, CssValue,
+    LengthUnit, RelativeLengthUnit, RelativeSize,
 };
+use crate::renderer::style::style_model::SpecifiedValues;
 
 pub const SMALL: f32 = 13.0;
 pub const MEDIUM: f32 = 16.0;
@@ -33,13 +34,13 @@ impl Default for FontSizeProp {
     }
 }
 
-impl FontSizeProp {
+impl CssProperty for FontSizeProp {
     // font-size =
     //   <absolute-size>            |
     //   <relative-size>            |
     //   <length-percentage [0,∞]>  |
     //   math
-    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+    fn parse(values: &[ComponentValue]) -> Result<Self> {
         let mut values = values.iter().cloned().peekable();
         if let Some(ComponentValue::PreservedToken(CssToken::Ident(size))) = values.peek() {
             match size.as_str() {
@@ -63,8 +64,8 @@ impl FontSizeProp {
         }
     }
 
-    pub fn compute(&mut self, parent_px: Option<&Self>) -> Result<&Self> {
-        let parent_px = match parent_px {
+    fn compute(&mut self, parent_style: Option<&SpecifiedValues>) -> Result<&Self> {
+        let parent_px = match parent_style.and_then(|s| s.font_size.as_ref()) {
             Some(FontSizeProp {
                 size: CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
             }) => *size,

@@ -5,9 +5,11 @@ use anyhow::{bail, Result};
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::CssToken;
 use crate::renderer::style::property::font_size::{self, FontSizeProp};
-use crate::renderer::style::value_type::{
-    parse_length_percentage_type, AbsoluteLengthUnit, CssValue, LengthUnit, RelativeLengthUnit,
+use crate::renderer::style::property::{
+    parse_length_percentage_type, AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit,
+    RelativeLengthUnit,
 };
+use crate::renderer::style::style_model::SpecifiedValues;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct HeightProp {
@@ -28,7 +30,7 @@ impl Default for HeightProp {
     }
 }
 
-impl HeightProp {
+impl CssProperty for HeightProp {
     // height =
     //   auto                                      |
     //   <length-percentage [0,∞]>                 |
@@ -37,7 +39,7 @@ impl HeightProp {
     //   fit-content( <length-percentage [0,∞]> )  |
     //   <calc-size()>                             |
     //   <anchor-size()>
-    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+    fn parse(values: &[ComponentValue]) -> Result<Self> {
         let mut values = values.iter().cloned().peekable();
         // todo: implement the rest of the values
         if let Some(ComponentValue::PreservedToken(CssToken::Ident(size))) = values.peek() {
@@ -54,7 +56,8 @@ impl HeightProp {
         }
     }
 
-    pub fn compute(&mut self, current_font_size: Option<&FontSizeProp>) -> Result<&Self> {
+    fn compute(&mut self, current_style: Option<&SpecifiedValues>) -> Result<&Self> {
+        let current_font_size = current_style.and_then(|s| s.font_size.as_ref());
         let current_font_size = match current_font_size {
             Some(FontSizeProp {
                 size: CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),

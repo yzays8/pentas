@@ -2,14 +2,15 @@ use anyhow::{Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::style::property::color::ColorProp;
-use crate::renderer::style::property::font_size::FontSizeProp;
-use crate::renderer::style::value_type::{AbsoluteLengthUnit, CssValue, LengthUnit};
+use crate::renderer::style::property::{AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit};
+use crate::renderer::style::style_model::SpecifiedValues;
 
 // The values of these properties are not clearly defined in the CSS specification.
 // const THIN: f32 = 1.0;
 // const MEDIUM: f32 = 3.0;
 // const THICK: f32 = 5.0;
 
+// todo: Add BorderColorProp for border-color
 #[derive(Clone, Debug)]
 pub struct BorderProp {
     pub border_color: ColorProp,
@@ -39,10 +40,10 @@ impl Default for BorderProp {
     }
 }
 
-impl BorderProp {
+impl CssProperty for BorderProp {
     // todo: proper implementation
     #[allow(unused_variables)]
-    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+    fn parse(values: &[ComponentValue]) -> Result<Self> {
         Ok(Self {
             border_color: ColorProp {
                 value: CssValue::Ident("currentColor".to_string()),
@@ -64,12 +65,8 @@ impl BorderProp {
 
     // todo: proper implementation
     #[allow(unused_variables)]
-    pub fn compute(
-        &mut self,
-        current_font_size: Option<&FontSizeProp>,
-        current_color: Option<&ColorProp>,
-    ) -> Result<&Self> {
-        self.border_color.compute(current_color)?;
+    fn compute(&mut self, current_style: Option<&SpecifiedValues>) -> Result<&Self> {
+        self.border_color.compute(current_style)?;
         self.border_width = BorderWidthProp {
             top: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
             right: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),

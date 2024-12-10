@@ -6,9 +6,11 @@ use anyhow::{bail, Ok, Result};
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::CssToken;
 use crate::renderer::style::property::font_size::{self, FontSizeProp};
-use crate::renderer::style::value_type::{
-    parse_length_percentage_type, AbsoluteLengthUnit, CssValue, LengthUnit, RelativeLengthUnit,
+use crate::renderer::style::property::{
+    parse_length_percentage_type, AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit,
+    RelativeLengthUnit,
 };
+use crate::renderer::style::style_model::SpecifiedValues;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PaddingProp {
@@ -39,10 +41,10 @@ impl Default for PaddingProp {
     }
 }
 
-impl PaddingProp {
+impl CssProperty for PaddingProp {
     // padding =
     //   <'padding-top'>{1,4}
-    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+    fn parse(values: &[ComponentValue]) -> Result<Self> {
         let mut values = values.iter().cloned().peekable();
         let mut trbl = vec![];
         while values.peek().is_some() {
@@ -93,15 +95,18 @@ impl PaddingProp {
         }
     }
 
-    pub fn compute(&mut self, current_font_size: Option<&FontSizeProp>) -> Result<&Self> {
-        self.top = Self::compute_top(&self.top, current_font_size)?;
-        self.right = Self::compute_top(&self.right, current_font_size)?;
-        self.bottom = Self::compute_top(&self.bottom, current_font_size)?;
-        self.left = Self::compute_top(&self.left, current_font_size)?;
+    fn compute(&mut self, current_style: Option<&SpecifiedValues>) -> Result<&Self> {
+        self.top = Self::compute_top(&self.top, current_style)?;
+        self.right = Self::compute_top(&self.right, current_style)?;
+        self.bottom = Self::compute_top(&self.bottom, current_style)?;
+        self.left = Self::compute_top(&self.left, current_style)?;
         Ok(self)
     }
+}
 
-    fn compute_top(value: &CssValue, current_font_size: Option<&FontSizeProp>) -> Result<CssValue> {
+impl PaddingProp {
+    fn compute_top(value: &CssValue, current_style: Option<&SpecifiedValues>) -> Result<CssValue> {
+        let current_font_size = current_style.and_then(|s| s.font_size.as_ref());
         let current_font_size = match current_font_size {
             Some(FontSizeProp {
                 size: CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),

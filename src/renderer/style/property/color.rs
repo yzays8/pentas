@@ -5,7 +5,8 @@ use anyhow::{anyhow, bail, ensure, Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::{CssToken, NumericType};
-use crate::renderer::style::value_type::CssValue;
+use crate::renderer::style::property::{CssProperty, CssValue};
+use crate::renderer::style::style_model::SpecifiedValues;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ColorProp {
@@ -31,16 +32,17 @@ impl Default for ColorProp {
     }
 }
 
-impl ColorProp {
+impl CssProperty for ColorProp {
     // color =
     //   <color>
-    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+    fn parse(values: &[ComponentValue]) -> Result<Self> {
         Ok(Self {
             value: parse_color_type(&mut values.iter().cloned().peekable())?,
         })
     }
 
-    pub fn compute(&mut self, current_color: Option<&Self>) -> Result<&Self> {
+    fn compute(&mut self, current_color: Option<&SpecifiedValues>) -> Result<&Self> {
+        let current_color = current_color.and_then(|v| v.color.as_ref());
         match &self.value {
             CssValue::Ident(name) => match name.to_ascii_lowercase().as_str() {
                 "currentcolor" => {
@@ -106,20 +108,20 @@ impl Default for BackGroundColorProp {
     }
 }
 
-impl BackGroundColorProp {
+impl CssProperty for BackGroundColorProp {
     // background-color =
     //   <color>
-    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+    fn parse(values: &[ComponentValue]) -> Result<Self> {
         Ok(Self {
             value: parse_color_type(&mut values.iter().cloned().peekable())?,
         })
     }
 
-    pub fn compute(&mut self, current_color: Option<&ColorProp>) -> Result<&Self> {
+    fn compute(&mut self, current_style: Option<&SpecifiedValues>) -> Result<&Self> {
         match &self.value {
             CssValue::Ident(name) => match name.to_ascii_lowercase().as_str() {
                 "currentcolor" => {
-                    if let Some(curr) = current_color {
+                    if let Some(curr) = current_style.and_then(|v| v.color.as_ref()) {
                         self.value = curr.value.clone();
                     } else {
                         self.value = CssValue::Color {

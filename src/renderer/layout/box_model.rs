@@ -10,8 +10,8 @@ use crate::renderer::layout::block::{AnonymousBox, BlockBox};
 use crate::renderer::layout::inline::InlineBox;
 use crate::renderer::layout::text::Text;
 use crate::renderer::style::property::display::DisplayOutside;
+use crate::renderer::style::property::CssValue;
 use crate::renderer::style::style_model::{RenderNode, RenderTree};
-use crate::renderer::style::value_type::CssValue;
 use crate::renderer::RenderObject;
 
 /// https://www.w3.org/TR/css-display-3/#box-tree

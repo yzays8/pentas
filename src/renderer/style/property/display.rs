@@ -5,7 +5,8 @@ use anyhow::{bail, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::CssToken;
-use crate::renderer::style::value_type::CssValue;
+use crate::renderer::style::property::{CssProperty, CssValue};
+use crate::renderer::style::style_model::SpecifiedValues;
 
 #[derive(Clone, Debug, Copy, PartialEq)]
 pub enum DisplayInside {
@@ -49,8 +50,8 @@ impl Default for DisplayProp {
     }
 }
 
-impl DisplayProp {
-    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+impl CssProperty for DisplayProp {
+    fn parse(values: &[ComponentValue]) -> Result<Self> {
         let mut values = values.iter().cloned().peekable();
         let mut ret = Self {
             inside: DisplayInside::Flow,
@@ -121,7 +122,7 @@ impl DisplayProp {
         Ok(ret)
     }
 
-    pub fn compute(&self) -> Result<&Self> {
+    fn compute(&mut self, _: Option<&SpecifiedValues>) -> Result<&Self> {
         Ok(self)
     }
 }

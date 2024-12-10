@@ -7,7 +7,8 @@ use anyhow::{bail, Ok, Result};
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::CssToken;
 use crate::renderer::style::property::color::{parse_color_type, ColorProp};
-use crate::renderer::style::value_type::CssValue;
+use crate::renderer::style::property::{CssProperty, CssValue};
+use crate::renderer::style::style_model::SpecifiedValues;
 
 // todo: add TextDecorationColor, TextDecorationLine, TextDecorationStyle structs for each member
 #[derive(Clone, Debug, PartialEq)]
@@ -45,12 +46,12 @@ impl Default for TextDecorationProp {
     }
 }
 
-impl TextDecorationProp {
+impl CssProperty for TextDecorationProp {
     // text-decoration =
     //   <'text-decoration-line'>   ||
     //   <'text-decoration-style'>  ||
     //   <'text-decoration-color'>
-    pub fn parse(values: &[ComponentValue]) -> Result<Self> {
+    fn parse(values: &[ComponentValue]) -> Result<Self> {
         let mut values = values.iter().cloned().peekable();
         let mut ret = Self {
             color: ColorProp {
@@ -111,8 +112,8 @@ impl TextDecorationProp {
         Ok(ret)
     }
 
-    pub fn compute(&mut self, current_color: Option<&ColorProp>) -> Result<&Self> {
-        self.color.compute(current_color)?;
+    fn compute(&mut self, current_style: Option<&SpecifiedValues>) -> Result<&Self> {
+        self.color.compute(current_style)?;
         Ok(self)
     }
 }

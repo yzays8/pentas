@@ -4,16 +4,16 @@ use std::default::Default;
 use std::fmt;
 use std::rc::Rc;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 
 use crate::renderer::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
 use crate::renderer::css::selector::Selector;
 use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
 use crate::renderer::layout::box_model::BoxTree;
 use crate::renderer::style::property::{
-    BackGroundColorProp, BorderProp, ColorProp, DisplayBox, DisplayOutside, DisplayProp,
-    FontSizeProp, HeightProp, MarginBlockProp, MarginProp, PaddingProp, TextDecorationProp,
-    WidthProp,
+    BackGroundColorProp, BorderProp, ColorProp, CssProperty, DisplayBox, DisplayOutside,
+    DisplayProp, FontSizeProp, HeightProp, MarginBlockProp, MarginProp, PaddingProp,
+    TextDecorationProp, WidthProp,
 };
 
 #[derive(Debug)]
@@ -425,86 +425,54 @@ impl SpecifiedValues {
     /// Converts the relative values to absolute values.
     /// https://www.w3.org/TR/css-cascade-3/#computed
     pub fn apply_computing(&self) -> ComputedValues {
-        let parent_font_size_px = self.font_size.clone();
-        let parent_color = self.color.clone();
+        let mut v = self.clone();
 
-        let mut t = self.clone();
-
-        // The `color` value needs to be computed earlier because it is used to calculate other properties.
-        if let Err(e) = t.color.as_mut().unwrap().compute(parent_color.as_ref()) {
-            eprintln!("{e}");
-        }
-        // The `font-size` value needs to be computed earlier because it is used to calculate other properties.
-        if let Err(e) = t
-            .font_size
-            .as_mut()
-            .unwrap()
-            .compute(parent_font_size_px.as_ref())
-        {
-            eprintln!("{e}");
-        }
-        // The `display` value needs to be computed earlier because it is used to calculate other properties.
-        if let Err(e) = t.display.as_mut().unwrap().compute() {
-            eprintln!("{e}");
-        }
-
-        if let Err(e) = t
-            .background_color
-            .as_mut()
-            .unwrap()
-            .compute(t.color.as_ref())
-        {
-            eprintln!("{e}");
-        }
-        if let Err(e) = t
-            .text_decoration
-            .as_mut()
-            .unwrap()
-            .compute(t.color.as_ref())
-        {
-            eprintln!("{e}");
-        }
-        if let Err(e) = t.margin.as_mut().unwrap().compute(t.font_size.as_ref()) {
-            eprintln!("{e}");
-        }
-        if let Err(e) = t
-            .margin_block
-            .as_mut()
-            .unwrap()
-            .compute(t.font_size.as_ref())
-        {
-            eprintln!("{e}");
-        }
-        if let Err(e) = t
-            .border
-            .as_mut()
-            .unwrap()
-            .compute(t.font_size.as_ref(), t.color.as_ref())
-        {
-            eprintln!("{e}");
-        }
-        if let Err(e) = t.padding.as_mut().unwrap().compute(t.font_size.as_ref()) {
-            eprintln!("{e}");
-        }
-        if let Err(e) = t.width.as_mut().unwrap().compute(t.font_size.as_ref()) {
-            eprintln!("{e}");
-        }
-        if let Err(e) = t.height.as_mut().unwrap().compute(t.font_size.as_ref()) {
-            eprintln!("{e}");
-        }
+        Self::compute_earlier(&mut v, self);
+        let earlier_style = v.clone();
+        Self::compute_later(&mut v, &earlier_style);
 
         ComputedValues {
-            background_color: t.background_color,
-            color: t.color,
-            display: t.display,
-            font_size: t.font_size,
-            text_decoration: t.text_decoration,
-            margin: t.margin,
-            margin_block: t.margin_block,
-            border: t.border,
-            padding: t.padding,
-            width: t.width,
-            height: t.height,
+            background_color: v.background_color,
+            color: v.color,
+            display: v.display,
+            font_size: v.font_size,
+            text_decoration: v.text_decoration,
+            margin: v.margin,
+            margin_block: v.margin_block,
+            border: v.border,
+            padding: v.padding,
+            width: v.width,
+            height: v.height,
+        }
+    }
+
+    /// Computes the properties the properties used in the calculation of other properties.
+    fn compute_earlier(v: &mut Self, initialized_style: &Self) {
+        Self::compute_property(&mut v.color, Some(initialized_style));
+        Self::compute_property(&mut v.font_size, Some(initialized_style));
+        Self::compute_property(&mut v.display, None);
+    }
+
+    /// Computes the properties using the values of the properties already computed.
+    fn compute_later(v: &mut Self, earlier_style: &Self) {
+        Self::compute_property(&mut v.background_color, Some(earlier_style));
+        Self::compute_property(&mut v.text_decoration, Some(earlier_style));
+        Self::compute_property(&mut v.margin, Some(earlier_style));
+        Self::compute_property(&mut v.margin_block, Some(earlier_style));
+        Self::compute_property(&mut v.border, Some(earlier_style));
+        Self::compute_property(&mut v.padding, Some(earlier_style));
+        Self::compute_property(&mut v.width, Some(earlier_style));
+        Self::compute_property(&mut v.height, Some(earlier_style));
+    }
+
+    fn compute_property(prop: &mut Option<impl CssProperty>, current_style: Option<&Self>) {
+        if let Err(e) = prop
+            .as_mut()
+            .context(anyhow!("Uninitialized property detected while computing."))
+            .unwrap()
+            .compute(current_style)
+        {
+            eprintln!("{e}");
         }
     }
 }
