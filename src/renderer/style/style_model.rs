@@ -446,14 +446,14 @@ impl SpecifiedValues {
         }
     }
 
-    /// Computes the properties the properties used in the calculation of other properties.
+    /// Computes the properties whose values are used to compute other properties.
     fn compute_earlier(v: &mut Self, initialized_style: &Self) {
         Self::compute_property(&mut v.color, Some(initialized_style));
         Self::compute_property(&mut v.font_size, Some(initialized_style));
         Self::compute_property(&mut v.display, None);
     }
 
-    /// Computes the properties using the values of the properties already computed.
+    /// Computes the properties that require some computed values.
     fn compute_later(v: &mut Self, earlier_style: &Self) {
         Self::compute_property(&mut v.background_color, Some(earlier_style));
         Self::compute_property(&mut v.text_decoration, Some(earlier_style));
