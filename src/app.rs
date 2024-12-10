@@ -1,14 +1,13 @@
-use anyhow::{bail, Ok, Result};
+use anyhow::{Ok, Result};
 
 use crate::renderer::Renderer;
 use crate::ui::show_ui;
 
 #[derive(Debug)]
 pub struct Config {
-    pub html_path: Option<String>,
-    pub css_path: Option<String>,
+    pub no_window_html: Option<String>,
+    pub no_window_css: Option<String>,
     pub is_tracing_enabled: bool,
-    pub is_rendering_disabled: bool,
 }
 
 #[derive(Debug)]
@@ -22,23 +21,21 @@ impl Runner {
     }
 
     pub fn run(&self) -> Result<()> {
-        if self.config.is_rendering_disabled {
-            match (&self.config.html_path, &self.config.css_path) {
-                (Some(p), None) => {
-                    Renderer::display_html(
-                        &std::fs::read_to_string(p)?,
-                        self.config.is_tracing_enabled,
-                    )?;
-                }
-                (None, Some(p)) => {
-                    Renderer::display_css(&std::fs::read_to_string(p)?)?;
-                }
-                _ => bail!("Provide either HTML or CSS file."),
+        match (&self.config.no_window_html, &self.config.no_window_css) {
+            (Some(p), None) => {
+                Renderer::display_html(
+                    &std::fs::read_to_string(p)?,
+                    self.config.is_tracing_enabled,
+                )?;
             }
-            return Ok(());
+            (None, Some(p)) => {
+                Renderer::display_css(&std::fs::read_to_string(p)?)?;
+            }
+            (None, None) => {
+                show_ui();
+            }
+            _ => unreachable!(),
         }
-
-        show_ui();
 
         Ok(())
     }

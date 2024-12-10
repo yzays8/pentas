@@ -7,10 +7,9 @@ use pentas::{Config, Runner};
 fn main() {
     let args = cli::Args::parse();
     let config = Config {
-        html_path: args.html,
-        css_path: args.css,
+        no_window_html: args.no_window_html,
+        no_window_css: args.no_window_css,
         is_tracing_enabled: args.trace,
-        is_rendering_disabled: args.no_rendering,
     };
 
     if let Err(e) = Runner::new(config).run() {
