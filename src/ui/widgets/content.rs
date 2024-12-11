@@ -320,14 +320,15 @@ impl ContentArea {
             );
 
             self.imp().clear();
-            *self.imp().objects.borrow_mut() = self
-                .imp()
-                .history
-                .borrow()
-                .get(index - 1)
-                .unwrap()
-                .objects
-                .clone();
+            self.imp().objects.replace(
+                self.imp()
+                    .history
+                    .borrow()
+                    .get(index - 1)
+                    .unwrap()
+                    .objects
+                    .clone(),
+            );
             self.imp().present();
         }
     }
@@ -357,14 +358,15 @@ impl ContentArea {
             );
 
             self.imp().clear();
-            *self.imp().objects.borrow_mut() = self
-                .imp()
-                .history
-                .borrow()
-                .get(index + 1)
-                .unwrap()
-                .objects
-                .clone();
+            self.imp().objects.replace(
+                self.imp()
+                    .history
+                    .borrow()
+                    .get(index + 1)
+                    .unwrap()
+                    .objects
+                    .clone(),
+            );
             self.imp().present();
         }
     }
