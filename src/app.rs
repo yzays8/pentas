@@ -7,7 +7,15 @@ use crate::ui::show_ui;
 pub struct Config {
     pub no_window_html: Option<String>,
     pub no_window_css: Option<String>,
-    pub is_tracing_enabled: bool,
+    pub verbosity: VerbosityLevel,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub enum VerbosityLevel {
+    #[default]
+    Quiet,
+    Normal,
+    Verbose,
 }
 
 #[derive(Debug)]
@@ -23,16 +31,13 @@ impl Runner {
     pub fn run(&self) -> Result<()> {
         match (&self.config.no_window_html, &self.config.no_window_css) {
             (Some(p), None) => {
-                Renderer::display_html(
-                    &std::fs::read_to_string(p)?,
-                    self.config.is_tracing_enabled,
-                )?;
+                Renderer::display_html(&std::fs::read_to_string(p)?, self.config.verbosity)?;
             }
             (None, Some(p)) => {
                 Renderer::display_css(&std::fs::read_to_string(p)?)?;
             }
             (None, None) => {
-                show_ui(self.config.is_tracing_enabled);
+                show_ui(self.config.verbosity);
             }
             _ => unreachable!(),
         }

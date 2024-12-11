@@ -6,6 +6,7 @@ use anyhow::{ensure, Result};
 
 use crate::renderer::css::cssom::StyleSheet;
 use crate::renderer::style::style_model::RenderTree;
+use crate::renderer::utils::PrintableTree;
 
 /// https://dom.spec.whatwg.org/#node
 #[derive(Debug)]
@@ -142,17 +143,6 @@ impl DocumentTree {
         Ok(Self { root })
     }
 
-    #[allow(dead_code)]
-    pub fn print(&self) {
-        println!("{}", self);
-    }
-
-    pub fn print_in_chain(&mut self) -> &mut Self {
-        println!("{}", self);
-        println!("\n===============\n");
-        self
-    }
-
     pub fn to_render_tree(&self, style_sheets: Vec<StyleSheet>) -> Result<RenderTree> {
         RenderTree::build(self, style_sheets)
     }
@@ -207,3 +197,5 @@ impl fmt::Display for DocumentTree {
         write!(f, "{}", node_tree)
     }
 }
+
+impl PrintableTree for DocumentTree {}

@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -14,6 +14,29 @@ pub struct Args {
     )]
     pub no_window_css: Option<String>,
 
-    #[arg(long, help = "Display all intermediate steps")]
-    pub trace: bool,
+    #[arg(
+        long,
+        short,
+        default_value_t = VerbosityLevel::Quiet,
+        value_name = "LEVEL",
+        help = "Set the verbosity level"
+    )]
+    pub verbose: VerbosityLevel,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum VerbosityLevel {
+    Quiet,
+    Normal,
+    Verbose,
+}
+
+impl std::fmt::Display for VerbosityLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            VerbosityLevel::Quiet => write!(f, "quiet"),
+            VerbosityLevel::Normal => write!(f, "normal"),
+            VerbosityLevel::Verbose => write!(f, "verbose"),
+        }
+    }
 }

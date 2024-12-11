@@ -4,6 +4,7 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::subclass::prelude::ObjectSubclassIsExt;
 
+use crate::app::VerbosityLevel;
 use crate::net::http::HttpClient;
 use crate::renderer::Renderer;
 
@@ -19,6 +20,7 @@ mod imp {
     use gtk4::{cairo, glib, pango, CompositeTemplate};
     use pangocairo;
 
+    use crate::app::VerbosityLevel;
     use crate::renderer::RenderObject;
     use crate::ui::history::History;
 
@@ -33,8 +35,7 @@ mod imp {
         pub history: RefCell<History>,
         #[property(get, set)]
         current_history_index: RefCell<i32>,
-        #[property(get, set)]
-        is_tracing_enabled: RefCell<bool>,
+        pub verbosity: RefCell<VerbosityLevel>,
     }
 
     #[glib::object_subclass]
@@ -215,6 +216,10 @@ glib::wrapper! {
 }
 
 impl ContentArea {
+    pub fn set_verbosity(&self, verbosity: VerbosityLevel) {
+        self.imp().verbosity.replace(verbosity);
+    }
+
     pub fn on_toolbar_entry_activate(&self, query: &str) {
         self.imp().clear();
 
@@ -261,7 +266,9 @@ impl ContentArea {
             }
         };
 
-        *self.imp().objects.borrow_mut() = Renderer::run(&html, self.is_tracing_enabled()).unwrap();
+        self.imp()
+            .objects
+            .replace(Renderer::run(&html, *self.imp().verbosity.borrow()).unwrap());
 
         self.imp()
             .history

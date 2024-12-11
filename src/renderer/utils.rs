@@ -1,4 +1,43 @@
 use std::collections::VecDeque;
+use std::fmt;
+
+use terminal_size::{terminal_size, Width};
+
+use crate::app::VerbosityLevel;
+
+pub trait PrintableTree {
+    fn print(&self, verbosity: VerbosityLevel)
+    where
+        Self: fmt::Display,
+    {
+        match verbosity {
+            VerbosityLevel::Normal | VerbosityLevel::Quiet => {
+                if let Some((Width(w), _)) = terminal_size() {
+                    let view = self.to_string();
+                    for line in view.lines() {
+                        if line.len() > w as usize {
+                            println!("{}...", &line[..w as usize - 3]);
+                        } else {
+                            println!("{}", line);
+                        }
+                    }
+                } else {
+                    println!("{}", self);
+                }
+            }
+            VerbosityLevel::Verbose => println!("{}", self),
+        }
+    }
+
+    fn print_in_chain(&mut self, verbosity: VerbosityLevel) -> &mut Self
+    where
+        Self: fmt::Display,
+    {
+        self.print(verbosity);
+        println!("\n===============\n");
+        self
+    }
+}
 
 /// Peekable and bidirectional iterator for tokenizer/parser.
 #[derive(Debug)]

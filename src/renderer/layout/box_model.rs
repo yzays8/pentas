@@ -12,6 +12,7 @@ use crate::renderer::layout::text::Text;
 use crate::renderer::style::property::display::DisplayOutside;
 use crate::renderer::style::property::CssValue;
 use crate::renderer::style::style_model::{RenderNode, RenderTree};
+use crate::renderer::utils::PrintableTree;
 use crate::renderer::RenderObject;
 
 /// https://www.w3.org/TR/css-display-3/#box-tree
@@ -65,16 +66,6 @@ impl BoxTree {
             None,
         );
         Ok(self)
-    }
-
-    pub fn print(&self) {
-        println!("{}", self);
-    }
-
-    pub fn print_in_chain(&mut self) -> &mut Self {
-        println!("{}", self);
-        println!("\n===============\n");
-        self
     }
 
     /// Removes unnecessary whitespace from all text nodes in the tree.
@@ -284,6 +275,8 @@ impl fmt::Display for BoxTree {
         write!(f, "{}", node_tree)
     }
 }
+
+impl PrintableTree for BoxTree {}
 
 /// Calculated width, height, and position of the BoxNode and its `used values` of the `width`, `margin`, `padding`, and `border` properties.
 #[derive(Debug, Default, Clone)]

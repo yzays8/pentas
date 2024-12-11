@@ -12,6 +12,7 @@ font-kit = "0.14.2"
 gtk4 = "0.9.4"
 pangocairo = "0.20.4"
 regex = "1.10.6"
+terminal_size = "0.4.1"
 thiserror = "1.0.59"
 
 [build-dependencies]

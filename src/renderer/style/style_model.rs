@@ -15,6 +15,7 @@ use crate::renderer::style::property::{
     DisplayProp, FontSizeProp, HeightProp, MarginBlockProp, MarginProp, PaddingProp,
     TextDecorationProp, WidthProp,
 };
+use crate::renderer::utils::PrintableTree;
 
 #[derive(Debug)]
 pub struct RenderTree {
@@ -29,17 +30,6 @@ impl RenderTree {
                     .context("Failed to build the render tree.")?,
             )),
         })
-    }
-
-    #[allow(dead_code)]
-    pub fn print(&self) {
-        println!("{}", self);
-    }
-
-    pub fn print_in_chain(&mut self) -> &mut Self {
-        println!("{}", self);
-        println!("\n===============\n");
-        self
     }
 
     pub fn to_box_tree(&self) -> Result<BoxTree> {
@@ -86,6 +76,8 @@ impl fmt::Display for RenderTree {
         write!(f, "{}", node_tree)
     }
 }
+
+impl PrintableTree for RenderTree {}
 
 #[derive(Debug)]
 pub struct RenderNode {

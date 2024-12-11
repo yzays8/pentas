@@ -2,6 +2,8 @@ use gtk4::glib::{self, Object};
 use gtk4::subclass::prelude::ObjectSubclassIsExt;
 use gtk4::{gio, Application};
 
+use crate::app::VerbosityLevel;
+
 mod imp {
     use glib::subclass::InitializingObject;
     use gtk4::glib::closure_local;
@@ -108,9 +110,7 @@ impl Window {
         Object::builder().property("application", app).build()
     }
 
-    pub fn set_tracing(&self, is_tracing_enabled: bool) {
-        self.imp()
-            .content_area
-            .set_is_tracing_enabled(is_tracing_enabled);
+    pub fn set_verbosity(&self, verbosity: VerbosityLevel) {
+        self.imp().content_area.set_verbosity(verbosity);
     }
 }
