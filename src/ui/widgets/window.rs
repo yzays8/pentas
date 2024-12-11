@@ -1,5 +1,6 @@
-use glib::Object;
-use gtk4::{gio, glib, Application};
+use gtk4::glib::{self, Object};
+use gtk4::subclass::prelude::ObjectSubclassIsExt;
+use gtk4::{gio, Application};
 
 mod imp {
     use glib::subclass::InitializingObject;
@@ -105,5 +106,11 @@ glib::wrapper! {
 impl Window {
     pub fn new(app: &Application) -> Self {
         Object::builder().property("application", app).build()
+    }
+
+    pub fn set_tracing(&self, is_tracing_enabled: bool) {
+        self.imp()
+            .content_area
+            .set_is_tracing_enabled(is_tracing_enabled);
     }
 }

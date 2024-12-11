@@ -33,6 +33,8 @@ mod imp {
         pub history: RefCell<History>,
         #[property(get, set)]
         current_history_index: RefCell<i32>,
+        #[property(get, set)]
+        is_tracing_enabled: RefCell<bool>,
     }
 
     #[glib::object_subclass]
@@ -259,7 +261,7 @@ impl ContentArea {
             }
         };
 
-        *self.imp().objects.borrow_mut() = Renderer::run(&html, false).unwrap();
+        *self.imp().objects.borrow_mut() = Renderer::run(&html, self.is_tracing_enabled()).unwrap();
 
         self.imp()
             .history

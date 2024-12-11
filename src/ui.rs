@@ -10,17 +10,21 @@ const GTK_APP_ID: &str = "app.pentas";
 pub const DEFAULT_WINDOW_WIDTH: usize = 1200;
 pub const DEFAULT_WINDOW_HEIGHT: usize = 800;
 
-pub fn show_ui() -> glib::ExitCode {
+pub fn show_ui(is_tracing_enabled: bool) -> glib::ExitCode {
     gio::resources_register_include!("pentas.gresource").expect("Failed to register resources.");
     let app = Application::builder().application_id(GTK_APP_ID).build();
 
-    app.connect_activate(build_ui);
-    app.run()
+    app.connect_activate(move |app| {
+        build_ui(app, is_tracing_enabled);
+    });
+    // https://github.com/gtk-rs/gtk4-rs/issues/1626
+    app.run_with_args::<glib::GString>(&[])
 }
 
-fn build_ui(app: &Application) {
+fn build_ui(app: &Application, is_tracing_enabled: bool) {
     let window = Window::new(app);
     window.set_title(Some("pentas"));
     window.set_default_size(DEFAULT_WINDOW_WIDTH as i32, DEFAULT_WINDOW_HEIGHT as i32);
+    window.set_tracing(is_tracing_enabled);
     window.present();
 }

@@ -32,7 +32,7 @@ impl Runner {
                 Renderer::display_css(&std::fs::read_to_string(p)?)?;
             }
             (None, None) => {
-                show_ui();
+                show_ui(self.config.is_tracing_enabled);
             }
             _ => unreachable!(),
         }
