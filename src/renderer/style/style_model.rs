@@ -506,21 +506,21 @@ impl fmt::Display for ComputedValues {
         if let Some(margin) = &self.margin {
             style_str.push_str(&format!("margin: {}; ", margin));
         }
-        // if let Some(margin_block) = &self.margin_block {
-        //     style_str.push_str(&format!("margin-block: {}; ", margin_block));
-        // }
-        // if let Some(border) = &self.border {
-        //     style_str.push_str(&format!("border: {}; ", border));
-        // }
-        // if let Some(padding) = &self.padding {
-        //     style_str.push_str(&format!("padding: {}; ", padding));
-        // }
-        // if let Some(width) = &self.width {
-        //     style_str.push_str(&format!("width: {}; ", width));
-        // }
-        // if let Some(height) = &self.height {
-        //     style_str.push_str(&format!("height: {}; ", height));
-        // }
+        if let Some(margin_block) = &self.margin_block {
+            style_str.push_str(&format!("margin-block: {}; ", margin_block));
+        }
+        if let Some(border) = &self.border {
+            style_str.push_str(&format!("border: {}; ", border));
+        }
+        if let Some(padding) = &self.padding {
+            style_str.push_str(&format!("padding: {}; ", padding));
+        }
+        if let Some(width) = &self.width {
+            style_str.push_str(&format!("width: {}; ", width));
+        }
+        if let Some(height) = &self.height {
+            style_str.push_str(&format!("height: {}; ", height));
+        }
         write!(f, "{}", style_str)
     }
 }
