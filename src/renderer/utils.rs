@@ -5,11 +5,12 @@ use terminal_size::{terminal_size, Width};
 
 use crate::app::VerbosityLevel;
 
-pub trait PrintableTree {
-    fn print(&self, verbosity: VerbosityLevel)
-    where
-        Self: fmt::Display,
-    {
+/// A trait for printing trees with different verbosity levels.
+pub trait PrintableTree
+where
+    Self: fmt::Display,
+{
+    fn print(&self, verbosity: VerbosityLevel) {
         match verbosity {
             VerbosityLevel::Normal | VerbosityLevel::Quiet => {
                 if let Some((Width(w), _)) = terminal_size() {
@@ -31,7 +32,7 @@ pub trait PrintableTree {
 
     fn print_in_chain(&mut self, verbosity: VerbosityLevel) -> &mut Self
     where
-        Self: fmt::Display,
+        Self: Sized,
     {
         self.print(verbosity);
         println!("\n===============\n");
@@ -57,17 +58,6 @@ where
         Self {
             buf: arr.iter().cloned().collect(),
             pos: 0,
-        }
-    }
-
-    pub fn next(&mut self) -> Option<I> {
-        if self.pos < self.buf.len() {
-            let item = self.buf.get(self.pos).unwrap().clone();
-            self.pos += 1;
-            Some(item)
-        } else {
-            self.pos += 1;
-            None
         }
     }
 
@@ -102,6 +92,24 @@ where
 
     pub fn get_last_consumed(&self) -> Option<&I> {
         self.buf.get(self.pos - 1)
+    }
+}
+
+impl<I> Iterator for TokenIterator<I>
+where
+    I: Clone,
+{
+    type Item = I;
+
+    fn next(&mut self) -> Option<I> {
+        if self.pos < self.buf.len() {
+            let item = self.buf.get(self.pos).unwrap().clone();
+            self.pos += 1;
+            Some(item)
+        } else {
+            self.pos += 1;
+            None
+        }
     }
 }
 
