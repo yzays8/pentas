@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::cmp::max_by;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use font_kit::family_name::FamilyName;
 use font_kit::metrics::Metrics;
@@ -9,12 +9,11 @@ use font_kit::source::SystemSource;
 
 use crate::renderer::layout::box_model::{BoxPosition, LayoutInfo};
 use crate::renderer::style::property::{AbsoluteLengthUnit, CssValue, LengthUnit};
-use crate::renderer::style::style_model::{ComputedValues, RenderNode};
+use crate::renderer::style::style_model::RenderNode;
 
 #[derive(Debug)]
 pub struct Text {
     pub node: Rc<RefCell<RenderNode>>,
-    pub parent: Weak<RefCell<RenderNode>>,
     pub layout_info: LayoutInfo,
 }
 
@@ -36,18 +35,24 @@ impl Text {
         self.calc_pos(containing_block_info, orig_x);
     }
 
-    pub fn get_parent_style(&self) -> ComputedValues {
-        self.parent.upgrade().unwrap().borrow().style.clone()
-    }
-
     fn calc_used_values(&mut self) {
-        let margin = self.get_parent_style().margin.as_ref().unwrap().clone();
-
         [
-            (self.layout_info.used_values.margin.left, margin.left),
-            (self.layout_info.used_values.margin.right, margin.right),
-            (self.layout_info.used_values.margin.top, margin.top),
-            (self.layout_info.used_values.margin.bottom, margin.bottom),
+            (
+                self.layout_info.used_values.margin.left,
+                &self.node.borrow().style.margin.left,
+            ),
+            (
+                self.layout_info.used_values.margin.right,
+                &self.node.borrow().style.margin.right,
+            ),
+            (
+                self.layout_info.used_values.margin.top,
+                &self.node.borrow().style.margin.top,
+            ),
+            (
+                self.layout_info.used_values.margin.bottom,
+                &self.node.borrow().style.margin.bottom,
+            ),
         ]
         .iter_mut()
         .for_each(|(used_margin, comp_margin)| {
@@ -76,7 +81,7 @@ impl Text {
 
     fn calc_width_and_height(&mut self, containing_block_info: &LayoutInfo) {
         let CssValue::Length(font_size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)) =
-            self.get_parent_style().font_size.as_ref().unwrap().size
+            self.node.borrow().style.font_size.size
         else {
             unreachable!()
         };

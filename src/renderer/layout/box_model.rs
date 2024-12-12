@@ -381,7 +381,6 @@ impl BoxNode {
                 return Some(Self::Text(Text {
                     node: Rc::clone(&node),
                     layout_info: LayoutInfo::default(),
-                    parent: Rc::downgrade(&parent.unwrap()),
                 }));
             }
             _ => {}
@@ -456,21 +455,17 @@ impl BoxNode {
 
         // Set the used values for the padding and border properties.
         // The margin property is set later because it needs to be resolved if an `auto` value is set.
-        let padding = if let Some(padding_prop) = &node.borrow().style.padding {
-            let (
-                CssValue::Length(top_px, _),
-                CssValue::Length(right_px, _),
-                CssValue::Length(bottom_px, _),
-                CssValue::Length(left_px, _),
-            ) = (
-                &padding_prop.top,
-                &padding_prop.right,
-                &padding_prop.bottom,
-                &padding_prop.left,
-            )
-            else {
-                unimplemented!();
-            };
+        let padding = if let (
+            CssValue::Length(top_px, _),
+            CssValue::Length(right_px, _),
+            CssValue::Length(bottom_px, _),
+            CssValue::Length(left_px, _),
+        ) = (
+            &node.borrow().style.padding.top,
+            &node.borrow().style.padding.right,
+            &node.borrow().style.padding.bottom,
+            &node.borrow().style.padding.left,
+        ) {
             Edge {
                 top: *top_px,
                 right: *right_px,
@@ -480,21 +475,17 @@ impl BoxNode {
         } else {
             unreachable!()
         };
-        let border = if let Some(border_prop) = &node.borrow().style.border {
-            let (
-                CssValue::Length(top_px, _),
-                CssValue::Length(right_px, _),
-                CssValue::Length(bottom_px, _),
-                CssValue::Length(left_px, _),
-            ) = (
-                &border_prop.border_width.top,
-                &border_prop.border_width.right,
-                &border_prop.border_width.bottom,
-                &border_prop.border_width.left,
-            )
-            else {
-                unreachable!();
-            };
+        let border = if let (
+            CssValue::Length(top_px, _),
+            CssValue::Length(right_px, _),
+            CssValue::Length(bottom_px, _),
+            CssValue::Length(left_px, _),
+        ) = (
+            &node.borrow().style.border.border_width.top,
+            &node.borrow().style.border.border_width.right,
+            &node.borrow().style.border.border_width.bottom,
+            &node.borrow().style.border.border_width.left,
+        ) {
             Edge {
                 top: *top_px,
                 right: *right_px,
@@ -564,30 +555,27 @@ impl BoxNode {
     pub fn to_render_objects(&self, objects: &mut Vec<RenderObject>) {
         match self {
             BoxNode::Text(t) => {
-                let parent_style = t.get_parent_style();
-                let CssValue::Length(parent_font_size, _) =
-                    parent_style.font_size.as_ref().unwrap().size
-                else {
+                let CssValue::Length(font_size_px, _) = t.node.borrow().style.font_size.size else {
                     unreachable!()
                 };
-                let color = if let CssValue::Color { r, g, b, a } =
-                    parent_style.color.as_ref().unwrap().value
-                {
-                    (r, g, b, a)
-                } else {
-                    return;
-                };
+                let color =
+                    if let CssValue::Color { r, g, b, a } = t.node.borrow().style.color.value {
+                        (r, g, b, a)
+                    } else {
+                        return;
+                    };
                 let decoration_color = if let CssValue::Color { r, g, b, a } =
-                    parent_style.text_decoration.as_ref().unwrap().color.value
+                    t.node.borrow().style.text_decoration.color.value
                 {
                     (r, g, b, a)
                 } else {
                     unreachable!()
                 };
-                let decoration_line = parent_style
+                let decoration_line = t
+                    .node
+                    .borrow()
+                    .style
                     .text_decoration
-                    .as_ref()
-                    .unwrap()
                     .line
                     .iter()
                     .map(|v| {
@@ -599,7 +587,7 @@ impl BoxNode {
                     })
                     .collect::<Vec<String>>();
                 let CssValue::Ident(decoration_style) =
-                    parent_style.text_decoration.as_ref().unwrap().style.clone()
+                    t.node.borrow().style.text_decoration.style.clone()
                 else {
                     unreachable!()
                 };
@@ -609,7 +597,7 @@ impl BoxNode {
                     // y: t.layout_info.get_expanded_pos().y as f64 + parent_font_size as f64,
                     x: t.layout_info.pos.x as f64,
                     y: t.layout_info.pos.y as f64,
-                    size: parent_font_size as f64,
+                    size: font_size_px as f64,
                     color: (
                         color.0 as f64 / 255.0,
                         color.1 as f64 / 255.0,
@@ -625,14 +613,8 @@ impl BoxNode {
                 });
             }
             BoxNode::BlockBox(block) => {
-                let (r, g, b, a) = if let CssValue::Color { r, g, b, a } = block
-                    .node
-                    .borrow()
-                    .style
-                    .background_color
-                    .as_ref()
-                    .unwrap()
-                    .value
+                let (r, g, b, a) = if let CssValue::Color { r, g, b, a } =
+                    block.node.borrow().style.background_color.value
                 {
                     (r, g, b, a)
                 } else {

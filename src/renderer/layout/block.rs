@@ -34,9 +34,9 @@ impl BlockBox {
 
     fn calc_used_values(&mut self, containing_block_info: &LayoutInfo) {
         let (width, margin, display) = (
-            self.node.borrow().style.width.as_ref().unwrap().clone(),
-            self.node.borrow().style.margin.as_ref().unwrap().clone(),
-            self.node.borrow().style.display.as_ref().unwrap().clone(),
+            self.node.borrow().style.width.clone(),
+            self.node.borrow().style.margin.clone(),
+            self.node.borrow().style.display.clone(),
         );
         let mut margin_left = margin.left;
         let mut margin_right = margin.right;
@@ -256,7 +256,7 @@ impl BlockBox {
                 + self.layout_info.used_values.border.bottom;
 
             // If `height` is not `auto`, the height of the box is the value of `height`.
-            let height = self.node.borrow().style.height.as_ref().unwrap().clone();
+            let height = self.node.borrow().style.height.clone();
             if let CssValue::Length(height, _) = height.size {
                 self.layout_info.size.height = height;
             }

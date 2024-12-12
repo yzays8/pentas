@@ -35,8 +35,8 @@ impl InlineBox {
     }
 
     fn calc_used_values(&mut self) {
-        let margin = self.node.borrow().style.margin.as_ref().unwrap().clone();
-        let display = self.node.borrow().style.display.as_ref().unwrap().clone();
+        let margin = self.node.borrow().style.margin.clone();
+        let display = self.node.borrow().style.display.clone();
 
         if (display.outside, display.inside) != (DisplayOutside::Inline, DisplayInside::Flow) {
             unimplemented!("Only inline-level boxes in normal flow are currently supported.");

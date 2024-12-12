@@ -105,21 +105,29 @@ impl RenderNode {
             _ => {}
         }
 
-        let style = if let NodeType::Element(_) = &node.borrow().node_type {
-            // https://www.w3.org/TR/css-cascade-3/#value-stages
-            apply_filtering(Rc::clone(&node), style_sheets)
-                .apply_cascading()
-                .apply_defaulting(&parent_style)?
-                .apply_computing()
-        } else {
-            ComputedValues::default()
+        let computed_style = match &node.borrow().node_type {
+            NodeType::Element(_) => {
+                // https://www.w3.org/TR/css-cascade-3/#value-stages
+                apply_filtering(Rc::clone(&node), style_sheets)
+                    .apply_cascading()
+                    .apply_defaulting(&parent_style)?
+                    .apply_computing()
+            }
+            NodeType::Text(_) => {
+                if parent_style.is_some() {
+                    let mut style = parent_style.as_ref().unwrap().clone();
+                    style.display.outside = DisplayOutside::Inline;
+                    style
+                } else {
+                    unreachable!()
+                }
+            }
+            _ => ComputedValues::default(),
         };
 
         // All elements with a value of none for the display property and their descendants are not rendered.
         // https://developer.mozilla.org/en-US/docs/Web/CSS/display#none
-        if style.display.is_some()
-            && (style.display.as_ref().unwrap().display_box == Some(DisplayBox::None))
-        {
+        if computed_style.display.display_box == Some(DisplayBox::None) {
             return Ok(None);
         }
 
@@ -127,7 +135,7 @@ impl RenderNode {
             .borrow()
             .child_nodes
             .iter()
-            .map(|child| Self::build(Rc::clone(child), style_sheets, Some(style.clone())))
+            .map(|child| Self::build(Rc::clone(child), style_sheets, Some(computed_style.clone())))
             .collect::<Result<Vec<_>>>()?
             .into_iter()
             // Skip the children that are not rendered.
@@ -137,27 +145,32 @@ impl RenderNode {
 
         Ok(Some(Self {
             node: Rc::clone(&node),
-            style,
+            style: computed_style,
             child_nodes,
         }))
     }
 
     pub fn get_display_type(&self) -> DisplayOutside {
-        if self.style.display.is_none() {
-            // The default value of the `display` property is inline.
-            // The text sequence is treated as a single inline type here.
-            return DisplayOutside::Inline;
-        }
-        self.style.display.as_ref().unwrap().outside
+        // if self.style.display.is_none() {
+        //     // The default value of the `display` property is inline.
+        //     // The text sequence is treated as a single inline type here.
+        //     return DisplayOutside::Inline;
+        // }
+        self.style.display.outside
     }
 }
 
 impl fmt::Display for RenderNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let NodeType::Element(elm) = &self.node.borrow().node_type {
-            write!(f, "{}, Computed( {})", elm, self.style)
-        } else {
-            write!(f, "{:?}", self.node.borrow().node_type)
+        match &self.node.borrow().node_type {
+            NodeType::Element(elm) => write!(f, "{}, Computed( {})", elm, self.style),
+            NodeType::Text(_) => write!(
+                f,
+                "{:?}, Computed( {})",
+                self.node.borrow().node_type,
+                self.style
+            ),
+            _ => write!(f, "{:?}", self.node.borrow().node_type),
         }
     }
 }
@@ -302,12 +315,8 @@ impl SpecifiedValues {
     /// Sets the inherited values for all "inherited properties".
     /// The values inherited from the parent element must be the computed values.
     pub fn inherit(&mut self, parent_values: &ComputedValues) {
-        if parent_values.color.is_some() {
-            self.color = parent_values.color.clone();
-        }
-        if parent_values.font_size.is_some() {
-            self.font_size = parent_values.font_size.clone();
-        }
+        self.color = Some(parent_values.color.clone());
+        self.font_size = Some(parent_values.font_size.clone());
     }
 
     // todo: Need to keep the order of the declarations of the properties. HashMap does not guarantee the order.
@@ -424,17 +433,17 @@ impl SpecifiedValues {
         Self::compute_later(&mut v, &earlier_style);
 
         ComputedValues {
-            background_color: v.background_color,
-            color: v.color,
-            display: v.display,
-            font_size: v.font_size,
-            text_decoration: v.text_decoration,
-            margin: v.margin,
-            margin_block: v.margin_block,
-            border: v.border,
-            padding: v.padding,
-            width: v.width,
-            height: v.height,
+            background_color: v.background_color.unwrap(),
+            color: v.color.unwrap(),
+            display: v.display.unwrap(),
+            font_size: v.font_size.unwrap(),
+            text_decoration: v.text_decoration.unwrap(),
+            margin: v.margin.unwrap(),
+            margin_block: v.margin_block.unwrap(),
+            border: v.border.unwrap(),
+            padding: v.padding.unwrap(),
+            width: v.width.unwrap(),
+            height: v.height.unwrap(),
         }
     }
 
@@ -469,58 +478,35 @@ impl SpecifiedValues {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
 pub struct ComputedValues {
-    pub background_color: Option<BackGroundColorProp>,
-    pub color: Option<ColorProp>,
-    pub display: Option<DisplayProp>,
-    pub font_size: Option<FontSizeProp>,
-    pub text_decoration: Option<TextDecorationProp>,
-    pub margin: Option<MarginProp>,
-    pub margin_block: Option<MarginBlockProp>,
-    pub border: Option<BorderProp>,
-    pub padding: Option<PaddingProp>,
-    pub width: Option<WidthProp>,
-    pub height: Option<HeightProp>,
+    pub background_color: BackGroundColorProp,
+    pub color: ColorProp,
+    pub display: DisplayProp,
+    pub font_size: FontSizeProp,
+    pub text_decoration: TextDecorationProp,
+    pub margin: MarginProp,
+    pub margin_block: MarginBlockProp,
+    pub border: BorderProp,
+    pub padding: PaddingProp,
+    pub width: WidthProp,
+    pub height: HeightProp,
 }
 
 impl fmt::Display for ComputedValues {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut style_str = String::new();
-        if let Some(background_color) = &self.background_color {
-            style_str.push_str(&format!("background-color: {}; ", background_color));
-        }
-        if let Some(color) = &self.color {
-            style_str.push_str(&format!("color: {}; ", color));
-        }
-        if let Some(display) = &self.display {
-            style_str.push_str(&format!("display: {}; ", display));
-        }
-        if let Some(font_size) = &self.font_size {
-            style_str.push_str(&format!("font-size: {}; ", font_size));
-        }
-        if let Some(text_decoration) = &self.text_decoration {
-            style_str.push_str(&format!("text-decoration: {}; ", text_decoration));
-        }
-        if let Some(margin) = &self.margin {
-            style_str.push_str(&format!("margin: {}; ", margin));
-        }
-        if let Some(margin_block) = &self.margin_block {
-            style_str.push_str(&format!("margin-block: {}; ", margin_block));
-        }
-        if let Some(border) = &self.border {
-            style_str.push_str(&format!("border: {}; ", border));
-        }
-        if let Some(padding) = &self.padding {
-            style_str.push_str(&format!("padding: {}; ", padding));
-        }
-        if let Some(width) = &self.width {
-            style_str.push_str(&format!("width: {}; ", width));
-        }
-        if let Some(height) = &self.height {
-            style_str.push_str(&format!("height: {}; ", height));
-        }
+        style_str.push_str(&format!("background-color: {}; ", self.background_color));
+        style_str.push_str(&format!("color: {}; ", self.color));
+        style_str.push_str(&format!("display: {}; ", self.display));
+        style_str.push_str(&format!("font-size: {}; ", self.font_size));
+        style_str.push_str(&format!("text-decoration: {}; ", self.text_decoration));
+        style_str.push_str(&format!("margin: {}; ", self.margin));
+        style_str.push_str(&format!("margin-block: {}; ", self.margin_block));
+        style_str.push_str(&format!("border: {}; ", self.border));
+        style_str.push_str(&format!("padding: {}; ", self.padding));
+        style_str.push_str(&format!("width: {}; ", self.width));
+        style_str.push_str(&format!("height: {}; ", self.height));
         write!(f, "{}", style_str)
     }
 }
