@@ -44,7 +44,12 @@ pub struct Renderer;
 
 impl Renderer {
     // Returns the render objects.
-    pub fn run(html: &str, verbosity: VerbosityLevel) -> Result<Vec<RenderObject>> {
+    pub fn run(
+        html: &str,
+        viewport_width: i32,
+        viewport_height: i32,
+        verbosity: VerbosityLevel,
+    ) -> Result<Vec<RenderObject>> {
         let (doc_root, style_sheets) = HtmlParser::new(HtmlTokenizer::new(html)).parse()?;
         let style_sheets = std::iter::once(get_ua_style_sheet()?)
             .chain(style_sheets)
@@ -56,7 +61,7 @@ impl Renderer {
                 .to_box_tree()?
                 .clean_up()?
                 .layout(DEFAULT_WINDOW_WIDTH as f32)?
-                .to_render_objects()),
+                .to_render_objects(viewport_width, viewport_height)),
             VerbosityLevel::Normal | VerbosityLevel::Verbose => Ok(DocumentTree::build(doc_root)?
                 .print_in_chain(verbosity)
                 .to_render_tree(style_sheets)?
@@ -67,7 +72,7 @@ impl Renderer {
                 .print_in_chain(verbosity)
                 .layout(DEFAULT_WINDOW_WIDTH as f32)?
                 .print_in_chain(verbosity)
-                .to_render_objects()),
+                .to_render_objects(viewport_width, viewport_height)),
         }
     }
 

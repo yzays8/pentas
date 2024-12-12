@@ -268,9 +268,15 @@ impl ContentArea {
             }
         };
 
-        self.imp()
-            .objects
-            .replace(Renderer::run(&html, *self.imp().verbosity.borrow()).unwrap());
+        self.imp().objects.replace(
+            Renderer::run(
+                &html,
+                self.imp().drawing_area.width(),
+                self.imp().drawing_area.height(),
+                *self.imp().verbosity.borrow(),
+            )
+            .unwrap(),
+        );
 
         self.imp()
             .history

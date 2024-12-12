@@ -172,9 +172,15 @@ impl BoxTree {
         self
     }
 
-    pub fn to_render_objects(&self) -> Vec<RenderObject> {
+    pub fn to_render_objects(
+        &self,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) -> Vec<RenderObject> {
         let mut objects = Vec::new();
-        self.root.borrow().to_render_objects(&mut objects);
+        self.root
+            .borrow()
+            .to_render_objects(&mut objects, viewport_width, viewport_height);
         objects
     }
 }
@@ -515,7 +521,12 @@ impl BoxNode {
         self
     }
 
-    pub fn to_render_objects(&self, objects: &mut Vec<RenderObject>) {
+    pub fn to_render_objects(
+        &self,
+        objects: &mut Vec<RenderObject>,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) {
         match self {
             BoxNode::Text(t) => {
                 let CssValue::Length(font_size_px, _) = t.node.borrow().style.font_size.size else {
@@ -622,32 +633,57 @@ impl BoxNode {
                     (r, g, b, a)
                 } else {
                     for child in block.child_nodes.iter() {
-                        child.borrow().to_render_objects(objects);
+                        child
+                            .borrow()
+                            .to_render_objects(objects, viewport_width, viewport_height);
                     }
                     return;
                 };
+                // The style of the body element is applied to the whole viewport.
+                let is_body = if let NodeType::Element(Element { tag_name: n, .. }) =
+                    &block.node.borrow().node.borrow().node_type
+                {
+                    n == "body"
+                } else {
+                    false
+                };
+
                 // transparent
                 if a != 0.0 {
                     objects.push(RenderObject::Rectangle {
                         x: block.layout_info.pos.x as f64,
                         y: block.layout_info.pos.y as f64,
-                        width: block.layout_info.size.width as f64,
-                        height: block.layout_info.size.height as f64,
+                        width: if is_body {
+                            viewport_width as f64
+                        } else {
+                            block.layout_info.size.width as f64
+                        },
+                        height: if is_body {
+                            viewport_height as f64
+                        } else {
+                            block.layout_info.size.height as f64
+                        },
                         color: (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0),
                     });
                 }
                 for child in block.child_nodes.iter() {
-                    child.borrow().to_render_objects(objects);
+                    child
+                        .borrow()
+                        .to_render_objects(objects, viewport_width, viewport_height);
                 }
             }
             BoxNode::InlineBox(inline) => {
                 for child in inline.child_nodes.iter() {
-                    child.borrow().to_render_objects(objects);
+                    child
+                        .borrow()
+                        .to_render_objects(objects, viewport_width, viewport_height);
                 }
             }
             BoxNode::AnonymousBox(anonymous) => {
                 for child in anonymous.child_nodes.iter() {
-                    child.borrow().to_render_objects(objects);
+                    child
+                        .borrow()
+                        .to_render_objects(objects, viewport_width, viewport_height);
                 }
             }
         }
