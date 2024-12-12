@@ -12,8 +12,8 @@ use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
 use crate::renderer::layout::box_model::BoxTree;
 use crate::renderer::style::property::{
     BackGroundColorProp, BorderProp, ColorProp, CssProperty, DisplayBox, DisplayOutside,
-    DisplayProp, FontSizeProp, FontWeightProp, HeightProp, MarginBlockProp, MarginProp,
-    PaddingProp, TextDecorationProp, WidthProp,
+    DisplayProp, FontFamilyProp, FontSizeProp, FontWeightProp, HeightProp, MarginBlockProp,
+    MarginProp, PaddingProp, TextDecorationProp, WidthProp,
 };
 use crate::renderer::utils::PrintableTree;
 
@@ -281,6 +281,7 @@ pub struct SpecifiedValues {
     pub background_color: Option<BackGroundColorProp>,
     pub color: Option<ColorProp>,
     pub display: Option<DisplayProp>,
+    pub font_family: Option<FontFamilyProp>,
     pub font_size: Option<FontSizeProp>,
     pub font_weight: Option<FontWeightProp>,
     pub text_decoration: Option<TextDecorationProp>,
@@ -303,6 +304,7 @@ impl SpecifiedValues {
         self.background_color = Some(BackGroundColorProp::default());
         self.color = Some(ColorProp::default());
         self.display = Some(DisplayProp::default());
+        self.font_family = Some(FontFamilyProp::default());
         self.font_size = Some(FontSizeProp::default());
         self.font_weight = Some(FontWeightProp::default());
         self.text_decoration = Some(TextDecorationProp::default());
@@ -318,6 +320,7 @@ impl SpecifiedValues {
     /// The values inherited from the parent element must be the computed values.
     pub fn inherit(&mut self, parent_values: &ComputedValues) {
         self.color = Some(parent_values.color.clone());
+        self.font_family = Some(parent_values.font_family.clone());
         self.font_size = Some(parent_values.font_size.clone());
         self.font_weight = Some(parent_values.font_weight.clone());
     }
@@ -345,6 +348,13 @@ impl SpecifiedValues {
                 "display" => {
                     if let Ok(v) = DisplayProp::parse(values) {
                         self.display = Some(v);
+                    }
+                }
+
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/font-family
+                "font-family" => {
+                    if let Ok(v) = FontFamilyProp::parse(values) {
+                        self.font_family = Some(v);
                     }
                 }
 
@@ -446,6 +456,7 @@ impl SpecifiedValues {
             background_color: v.background_color.unwrap(),
             color: v.color.unwrap(),
             display: v.display.unwrap(),
+            font_family: v.font_family.unwrap(),
             font_size: v.font_size.unwrap(),
             font_weight: v.font_weight.unwrap(),
             text_decoration: v.text_decoration.unwrap(),
@@ -468,6 +479,7 @@ impl SpecifiedValues {
     /// Computes the properties that require some computed values.
     fn compute_later(v: &mut Self, earlier_style: &Self) {
         Self::compute_property(&mut v.background_color, Some(earlier_style));
+        Self::compute_property(&mut v.font_family, Some(earlier_style));
         Self::compute_property(&mut v.font_weight, Some(earlier_style));
         Self::compute_property(&mut v.text_decoration, Some(earlier_style));
         Self::compute_property(&mut v.margin, Some(earlier_style));
@@ -495,6 +507,7 @@ pub struct ComputedValues {
     pub background_color: BackGroundColorProp,
     pub color: ColorProp,
     pub display: DisplayProp,
+    pub font_family: FontFamilyProp,
     pub font_size: FontSizeProp,
     pub font_weight: FontWeightProp,
     pub text_decoration: TextDecorationProp,
@@ -512,6 +525,7 @@ impl fmt::Display for ComputedValues {
         style_str.push_str(&format!("background-color: {}; ", self.background_color));
         style_str.push_str(&format!("color: {}; ", self.color));
         style_str.push_str(&format!("display: {}; ", self.display));
+        style_str.push_str(&format!("font-family: {}; ", self.font_family));
         style_str.push_str(&format!("font-size: {}; ", self.font_size));
         style_str.push_str(&format!("font-weight: {}; ", self.font_weight));
         style_str.push_str(&format!("text-decoration: {}; ", self.text_decoration));

@@ -1,6 +1,7 @@
 pub mod border;
 pub mod color;
 pub mod display;
+pub mod font_family;
 pub mod font_size;
 pub mod font_weight;
 pub mod height;
@@ -12,6 +13,7 @@ pub mod width;
 pub use border::BorderProp;
 pub use color::{BackGroundColorProp, ColorProp};
 pub use display::{DisplayBox, DisplayOutside, DisplayProp};
+pub use font_family::FontFamilyProp;
 pub use font_size::FontSizeProp;
 pub use font_weight::FontWeightProp;
 pub use height::HeightProp;

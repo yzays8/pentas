@@ -22,6 +22,7 @@ pub enum RenderObject {
         text: String,
         x: f64,
         y: f64,
+        font_family: Vec<String>,
         font_size: f64,
         font_weight: String,
         color: (f64, f64, f64),

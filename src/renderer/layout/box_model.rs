@@ -521,6 +521,21 @@ impl BoxNode {
                 let CssValue::Length(font_size_px, _) = t.node.borrow().style.font_size.size else {
                     unreachable!()
                 };
+                let font_family = t
+                    .node
+                    .borrow()
+                    .style
+                    .font_family
+                    .family
+                    .iter()
+                    .map(|v| {
+                        if let CssValue::Ident(font) | CssValue::String(font) = v {
+                            font.to_string()
+                        } else {
+                            unreachable!()
+                        }
+                    })
+                    .collect::<Vec<String>>();
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight#common_weight_name_mapping
                 // https://docs.gtk.org/Pango/type_func.FontDescription.from_string.html
                 let font_weight = match &t.node.borrow().style.font_weight.weight {
@@ -583,6 +598,7 @@ impl BoxNode {
                     // y: t.layout_info.get_expanded_pos().y as f64 + parent_font_size as f64,
                     x: t.layout_info.pos.x as f64,
                     y: t.layout_info.pos.y as f64,
+                    font_family,
                     font_size: font_size_px as f64,
                     font_weight: font_weight.to_string(),
                     color: (
