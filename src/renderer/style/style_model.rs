@@ -12,8 +12,8 @@ use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
 use crate::renderer::layout::box_model::BoxTree;
 use crate::renderer::style::property::{
     BackGroundColorProp, BorderProp, ColorProp, CssProperty, DisplayBox, DisplayOutside,
-    DisplayProp, FontSizeProp, HeightProp, MarginBlockProp, MarginProp, PaddingProp,
-    TextDecorationProp, WidthProp,
+    DisplayProp, FontSizeProp, FontWeightProp, HeightProp, MarginBlockProp, MarginProp,
+    PaddingProp, TextDecorationProp, WidthProp,
 };
 use crate::renderer::utils::PrintableTree;
 
@@ -282,6 +282,7 @@ pub struct SpecifiedValues {
     pub color: Option<ColorProp>,
     pub display: Option<DisplayProp>,
     pub font_size: Option<FontSizeProp>,
+    pub font_weight: Option<FontWeightProp>,
     pub text_decoration: Option<TextDecorationProp>,
     pub margin: Option<MarginProp>,
     pub margin_block: Option<MarginBlockProp>,
@@ -303,6 +304,7 @@ impl SpecifiedValues {
         self.color = Some(ColorProp::default());
         self.display = Some(DisplayProp::default());
         self.font_size = Some(FontSizeProp::default());
+        self.font_weight = Some(FontWeightProp::default());
         self.text_decoration = Some(TextDecorationProp::default());
         self.margin = Some(MarginProp::default());
         self.margin_block = Some(MarginBlockProp::default());
@@ -317,6 +319,7 @@ impl SpecifiedValues {
     pub fn inherit(&mut self, parent_values: &ComputedValues) {
         self.color = Some(parent_values.color.clone());
         self.font_size = Some(parent_values.font_size.clone());
+        self.font_weight = Some(parent_values.font_weight.clone());
     }
 
     // todo: Need to keep the order of the declarations of the properties. HashMap does not guarantee the order.
@@ -349,6 +352,13 @@ impl SpecifiedValues {
                 "font-size" => {
                     if let Ok(v) = FontSizeProp::parse(values) {
                         self.font_size = Some(v);
+                    }
+                }
+
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight
+                "font-weight" => {
+                    if let Ok(v) = FontWeightProp::parse(values) {
+                        self.font_weight = Some(v);
                     }
                 }
 
@@ -437,6 +447,7 @@ impl SpecifiedValues {
             color: v.color.unwrap(),
             display: v.display.unwrap(),
             font_size: v.font_size.unwrap(),
+            font_weight: v.font_weight.unwrap(),
             text_decoration: v.text_decoration.unwrap(),
             margin: v.margin.unwrap(),
             margin_block: v.margin_block.unwrap(),
@@ -457,6 +468,7 @@ impl SpecifiedValues {
     /// Computes the properties that require some computed values.
     fn compute_later(v: &mut Self, earlier_style: &Self) {
         Self::compute_property(&mut v.background_color, Some(earlier_style));
+        Self::compute_property(&mut v.font_weight, Some(earlier_style));
         Self::compute_property(&mut v.text_decoration, Some(earlier_style));
         Self::compute_property(&mut v.margin, Some(earlier_style));
         Self::compute_property(&mut v.margin_block, Some(earlier_style));
@@ -484,6 +496,7 @@ pub struct ComputedValues {
     pub color: ColorProp,
     pub display: DisplayProp,
     pub font_size: FontSizeProp,
+    pub font_weight: FontWeightProp,
     pub text_decoration: TextDecorationProp,
     pub margin: MarginProp,
     pub margin_block: MarginBlockProp,
@@ -500,6 +513,7 @@ impl fmt::Display for ComputedValues {
         style_str.push_str(&format!("color: {}; ", self.color));
         style_str.push_str(&format!("display: {}; ", self.display));
         style_str.push_str(&format!("font-size: {}; ", self.font_size));
+        style_str.push_str(&format!("font-weight: {}; ", self.font_weight));
         style_str.push_str(&format!("text-decoration: {}; ", self.text_decoration));
         style_str.push_str(&format!("margin: {}; ", self.margin));
         style_str.push_str(&format!("margin-block: {}; ", self.margin_block));

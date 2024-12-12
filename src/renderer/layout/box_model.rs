@@ -521,6 +521,29 @@ impl BoxNode {
                 let CssValue::Length(font_size_px, _) = t.node.borrow().style.font_size.size else {
                     unreachable!()
                 };
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight#common_weight_name_mapping
+                // https://docs.gtk.org/Pango/type_func.FontDescription.from_string.html
+                let font_weight = match &t.node.borrow().style.font_weight.weight {
+                    CssValue::Ident(weight) => match weight.as_str() {
+                        "normal" => "Regular",
+                        "bold" => "Bold",
+                        _ => unreachable!(),
+                    },
+                    CssValue::Number(weight) => match weight {
+                        0.0..150.0 => "Thin",
+                        150.0..250.0 => "Extra Light",
+                        250.0..350.0 => "Light",
+                        350.0..450.0 => "Regular",
+                        450.0..550.0 => "Medium",
+                        550.0..650.0 => "Semi-Bold",
+                        650.0..750.0 => "Bold",
+                        750.0..850.0 => "Extra-Bold",
+                        850.0..950.0 => "Black",
+                        950.0.. => "Extra-Black",
+                        _ => unreachable!(),
+                    },
+                    _ => unreachable!(),
+                };
                 let color =
                     if let CssValue::Color { r, g, b, a } = t.node.borrow().style.color.value {
                         (r, g, b, a)
@@ -560,7 +583,8 @@ impl BoxNode {
                     // y: t.layout_info.get_expanded_pos().y as f64 + parent_font_size as f64,
                     x: t.layout_info.pos.x as f64,
                     y: t.layout_info.pos.y as f64,
-                    size: font_size_px as f64,
+                    font_size: font_size_px as f64,
+                    font_weight: font_weight.to_string(),
                     color: (
                         color.0 as f64 / 255.0,
                         color.1 as f64 / 255.0,

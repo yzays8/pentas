@@ -96,7 +96,8 @@ mod imp {
                         text,
                         x,
                         y,
-                        size,
+                        font_size,
+                        font_weight,
                         color,
                         decoration_color,
                         decoration_line,
@@ -157,7 +158,7 @@ mod imp {
 
                         layout.set_text(text);
                         layout.set_font_description(Some(&pango::FontDescription::from_string(
-                            &format!("{}px", size),
+                            &format!(" , {} {}px", font_weight, font_size),
                         )));
                         layout.set_attributes(Some(&attrs));
                         pangocairo::functions::show_layout(ctx, &layout);
