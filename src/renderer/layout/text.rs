@@ -2,13 +2,15 @@ use std::cell::RefCell;
 use std::cmp::max_by;
 use std::rc::Rc;
 
+use anyhow::Result;
 use font_kit::family_name::FamilyName;
 use font_kit::metrics::Metrics;
 use font_kit::properties::Properties;
 use font_kit::source::SystemSource;
+use regex::Regex;
 
-use crate::renderer::layout::box_model::{BoxPosition, LayoutInfo};
-use crate::renderer::style::property::{AbsoluteLengthUnit, CssValue, LengthUnit};
+use crate::renderer::layout::box_model::{Layout, LayoutInfo};
+use crate::renderer::style::property::{AbsoluteLengthUnit, CssValue, DisplayOutside, LengthUnit};
 use crate::renderer::style::style_model::RenderNode;
 
 #[derive(Debug)]
@@ -17,22 +19,65 @@ pub struct Text {
     pub layout_info: LayoutInfo,
 }
 
-impl Text {
-    pub fn layout(
+impl Layout for Text {
+    fn layout(
         &mut self,
         containing_block_info: &LayoutInfo,
+        parent_info: Option<LayoutInfo>,
         prev_sibling_info: Option<LayoutInfo>,
-        parent_info: &BoxPosition,
     ) {
         let orig_x = if let Some(prev_sibling_info) = prev_sibling_info {
             prev_sibling_info.pos.x + prev_sibling_info.size.width
         } else {
-            parent_info.x
+            parent_info.unwrap().pos.x
         };
 
         self.calc_used_values();
         self.calc_width_and_height(containing_block_info);
         self.calc_pos(containing_block_info, orig_x);
+    }
+}
+
+impl Text {
+    /// Removes unnecessary whitespace from the text.
+    /// https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model/Whitespace
+    pub fn trim_text(&mut self, is_first_child: bool, is_last_child: bool) -> Result<()> {
+        let text = self.node.borrow().node.borrow().get_inside_text().unwrap();
+
+        let text = Regex::new(r"[ \t]*\n[ \t]*")?
+            // 1. All spaces and tabs immediately before and after a line break are ignored.
+            .replace_all(&text, "\n")
+            // 2. All tab characters are converted to space characters.
+            .replace("\t", " ")
+            // 3. All line breaks are transformed to spaces.
+            .replace("\n", " ");
+
+        let text = Regex::new(r" +")?
+            // 4. Any space immediately following another space (even across two separate inline elements) is ignored.
+            .replace_all(&text, " ");
+
+        let text = match self.node.borrow().get_display_type() {
+            // 5. All spaces at the beginning and end of the block box are removed.
+            DisplayOutside::Block => text.trim(),
+            // 5'. Sequences of spaces at the beginning and end of an element are removed.
+            DisplayOutside::Inline => {
+                if is_first_child {
+                    text.trim_start()
+                } else if is_last_child {
+                    text.trim_end()
+                } else {
+                    &text
+                }
+            }
+        };
+
+        self.node
+            .borrow_mut()
+            .node
+            .borrow_mut()
+            .set_inside_text(text);
+
+        Ok(())
     }
 
     fn calc_used_values(&mut self) {

@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::renderer::layout::box_model::{BoxNode, LayoutInfo};
+use crate::renderer::layout::box_model::{BoxNode, Layout, LayoutInfo};
 use crate::renderer::layout::inline::InlineBox;
 use crate::renderer::layout::text::Text;
 use crate::renderer::style::property::display::{DisplayInside, DisplayOutside};
@@ -15,10 +15,11 @@ pub struct BlockBox {
     pub child_nodes: Vec<Rc<RefCell<BoxNode>>>,
 }
 
-impl BlockBox {
-    pub fn layout(
+impl Layout for BlockBox {
+    fn layout(
         &mut self,
         containing_block_info: &LayoutInfo,
+        _: Option<LayoutInfo>,
         prev_sibling_info: Option<LayoutInfo>,
     ) {
         self.calc_used_values(containing_block_info);
@@ -31,7 +32,9 @@ impl BlockBox {
         self.calc_pos(containing_block_info, prev_sibling_info);
         self.layout_children();
     }
+}
 
+impl BlockBox {
     fn calc_used_values(&mut self, containing_block_info: &LayoutInfo) {
         let (width, margin, display) = (
             self.node.borrow().style.width.clone(),
@@ -217,8 +220,8 @@ impl BlockBox {
             for child in self.child_nodes.iter_mut() {
                 child.borrow_mut().layout(
                     &self.layout_info,
+                    Some(self.layout_info.clone()),
                     prev_sib_info.clone(),
-                    Some(self.layout_info.pos),
                 );
 
                 let child_ref = child.borrow();
@@ -267,8 +270,8 @@ impl BlockBox {
             for child in self.child_nodes.iter_mut() {
                 child.borrow_mut().layout(
                     &self.layout_info,
+                    Some(self.layout_info.clone()),
                     prev_sib_info,
-                    Some(self.layout_info.pos),
                 );
 
                 let child_ref = child.borrow();
@@ -311,10 +314,11 @@ pub struct AnonymousBox {
     pub child_nodes: Vec<Rc<RefCell<BoxNode>>>,
 }
 
-impl AnonymousBox {
-    pub fn layout(
+impl Layout for AnonymousBox {
+    fn layout(
         &mut self,
         containing_block_info: &LayoutInfo,
+        _: Option<LayoutInfo>,
         prev_sibling_info: Option<LayoutInfo>,
     ) {
         self.calc_used_values(containing_block_info);
@@ -322,7 +326,9 @@ impl AnonymousBox {
         self.calc_pos(containing_block_info, prev_sibling_info);
         self.layout_children();
     }
+}
 
+impl AnonymousBox {
     pub fn calc_used_values(&mut self, containing_block_info: &LayoutInfo) {
         self.layout_info.used_values.width = Some(containing_block_info.size.width);
         self.layout_info.used_values.margin.top = 0.0;
@@ -363,9 +369,11 @@ impl AnonymousBox {
         // Assume that all children are inline-level boxes or text nodes.
         for child in self.child_nodes.iter_mut() {
             // The containing block of an inline-level box is the nearest block-level ancestor box.
-            child
-                .borrow_mut()
-                .layout(&self.layout_info, prev_sib_info, Some(self.layout_info.pos));
+            child.borrow_mut().layout(
+                &self.layout_info,
+                Some(self.layout_info.clone()),
+                prev_sib_info,
+            );
 
             let child_ref = child.borrow();
             let child_layout_info = match *child_ref {

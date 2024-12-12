@@ -3,7 +3,6 @@ use std::fmt;
 use std::rc::Rc;
 
 use anyhow::{ensure, Context, Ok, Result};
-use regex::Regex;
 
 use crate::renderer::html::dom::{Element, NodeType};
 use crate::renderer::layout::block::{AnonymousBox, BlockBox};
@@ -71,52 +70,11 @@ impl BoxTree {
     /// Removes unnecessary whitespace from all text nodes in the tree.
     /// https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model/Whitespace
     pub fn clean_up(&mut self) -> Result<&mut Self> {
-        Ok(self.remove_whitespace()?.remove_empty_anonymous_boxes())
+        Ok(self.trim_text()?.remove_empty_anonymous_boxes())
     }
 
-    fn remove_whitespace(&mut self) -> Result<&mut Self> {
-        fn helper(
-            node: &mut Rc<RefCell<BoxNode>>,
-            is_first_child: bool,
-            is_last_child: bool,
-        ) -> Result<()> {
-            if let BoxNode::Text(Text { node, .. }) = &mut *node.borrow_mut() {
-                let text = node.borrow().node.borrow().get_inside_text().unwrap();
-
-                let text = Regex::new(r"[ \t]*\n[ \t]*")?
-                    // 1. All spaces and tabs immediately before and after a line break are ignored.
-                    .replace_all(&text, "\n")
-                    // 2. All tab characters are converted to space characters.
-                    .replace("\t", " ")
-                    // 3. All line breaks are transformed to spaces.
-                    .replace("\n", " ");
-
-                let text = Regex::new(r" +")?
-                    // 4. Any space immediately following another space (even across two separate inline elements) is ignored.
-                    .replace_all(&text, " ");
-
-                let text = match node.borrow().get_display_type() {
-                    // 5. All spaces at the beginning and end of the block box are removed.
-                    DisplayOutside::Block => text.trim(),
-                    // 5'. Sequences of spaces at the beginning and end of an element are removed.
-                    DisplayOutside::Inline => {
-                        if is_first_child {
-                            text.trim_start()
-                        } else if is_last_child {
-                            text.trim_end()
-                        } else {
-                            &text
-                        }
-                    }
-                };
-
-                node.borrow_mut().node.borrow_mut().node_type = NodeType::Text(text.to_string());
-            }
-
-            Ok(())
-        }
-
-        fn traverse_and_remove_whitespace(node: &mut Rc<RefCell<BoxNode>>) -> Result<()> {
+    fn trim_text(&mut self) -> Result<&mut Self> {
+        fn helper(node: &mut Rc<RefCell<BoxNode>>) -> Result<()> {
             if let BoxNode::Text(_) = *node.borrow() {
                 return Ok(());
             }
@@ -134,9 +92,9 @@ impl BoxTree {
             let children_num = children_enum.len();
 
             for (i, child) in children_enum {
-                helper(child, i == 0, i == children_num - 1)?;
-                if let BoxNode::Text(Text { node, .. }) = &*child.borrow() {
-                    if node
+                if let BoxNode::Text(t) = &mut *child.borrow_mut() {
+                    t.trim_text(i == 0, i == children_num - 1)?;
+                    if t.node
                         .borrow()
                         .node
                         .borrow()
@@ -148,7 +106,7 @@ impl BoxTree {
                     }
                 }
                 if !remove_list.contains(&i) {
-                    traverse_and_remove_whitespace(child)?;
+                    helper(child)?;
                 }
             }
             for i in remove_list.iter().rev() {
@@ -165,7 +123,7 @@ impl BoxTree {
             Ok(())
         }
 
-        traverse_and_remove_whitespace(&mut self.root)?;
+        helper(&mut self.root)?;
         Ok(self)
     }
 
@@ -352,6 +310,15 @@ pub struct Edge {
     pub left: f32,
 }
 
+pub trait Layout {
+    fn layout(
+        &mut self,
+        containing_block_info: &LayoutInfo,
+        parent_info: Option<LayoutInfo>,
+        prev_sibling_info: Option<LayoutInfo>,
+    );
+}
+
 #[derive(Debug)]
 pub enum BoxNode {
     /// https://www.w3.org/TR/css-display-3/#block-box
@@ -528,25 +495,21 @@ impl BoxNode {
     pub fn layout(
         &mut self,
         containing_block_info: &LayoutInfo,
+        parent_info: Option<LayoutInfo>,
         prev_sibling_info: Option<LayoutInfo>,
-        parent_pos: Option<BoxPosition>,
     ) -> &mut Self {
         match self {
             Self::BlockBox(b) => {
-                b.layout(containing_block_info, prev_sibling_info);
+                b.layout(containing_block_info, parent_info, prev_sibling_info);
             }
             Self::AnonymousBox(b) => {
-                b.layout(containing_block_info, prev_sibling_info);
+                b.layout(containing_block_info, parent_info, prev_sibling_info);
             }
             Self::InlineBox(b) => {
-                b.layout(containing_block_info, prev_sibling_info);
+                b.layout(containing_block_info, parent_info, prev_sibling_info);
             }
             Self::Text(t) => {
-                t.layout(
-                    containing_block_info,
-                    prev_sibling_info,
-                    &parent_pos.unwrap(),
-                );
+                t.layout(containing_block_info, parent_info, prev_sibling_info);
             }
         }
         self

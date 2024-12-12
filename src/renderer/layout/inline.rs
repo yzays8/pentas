@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::renderer::layout::box_model::{BoxNode, BoxPosition, BoxSize, LayoutInfo};
+use crate::renderer::layout::box_model::{BoxNode, BoxPosition, BoxSize, Layout, LayoutInfo};
 use crate::renderer::layout::text::Text;
 use crate::renderer::style::property::display::{DisplayInside, DisplayOutside};
 use crate::renderer::style::property::{AbsoluteLengthUnit, CssValue, LengthUnit};
@@ -14,10 +14,11 @@ pub struct InlineBox {
     pub child_nodes: Vec<Rc<RefCell<BoxNode>>>,
 }
 
-impl InlineBox {
-    pub fn layout(
+impl Layout for InlineBox {
+    fn layout(
         &mut self,
         containing_block_info: &LayoutInfo,
+        _: Option<LayoutInfo>,
         prev_sibling_info: Option<LayoutInfo>,
     ) {
         let (prev_sibling_pos, prev_sibling_size) =
@@ -33,7 +34,9 @@ impl InlineBox {
         self.calc_pos(containing_block_info, prev_sibling_pos, prev_sibling_size);
         self.layout_children(containing_block_info);
     }
+}
 
+impl InlineBox {
     fn calc_used_values(&mut self) {
         let margin = self.node.borrow().style.margin.clone();
         let display = self.node.borrow().style.display.clone();
@@ -100,11 +103,12 @@ impl InlineBox {
 
         for child in self.child_nodes.iter_mut() {
             // The containing block of an inline-level box is the nearest block-level ancestor box.
+            // https://developer.mozilla.org/en-US/docs/Web/CSS/Containing_block
             // todo: Implement the line box system for simplification.
             child.borrow_mut().layout(
                 containing_block_info,
+                Some(self.layout_info.clone()),
                 prev_sib_info,
-                Some(self.layout_info.pos),
             );
 
             let child_ref = child.borrow();
