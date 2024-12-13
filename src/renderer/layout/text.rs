@@ -4,22 +4,23 @@ use std::rc::Rc;
 
 use anyhow::Result;
 use font_kit::family_name::FamilyName;
+use font_kit::font::Font;
 use font_kit::metrics::Metrics;
 use font_kit::properties::Properties;
 use font_kit::source::SystemSource;
 use regex::Regex;
 
-use crate::renderer::layout::box_model::{Layout, LayoutInfo};
+use crate::renderer::layout::box_model::{LayoutBox, LayoutInfo};
 use crate::renderer::style::property::{AbsoluteLengthUnit, CssValue, DisplayOutside, LengthUnit};
 use crate::renderer::style::style_model::RenderNode;
 
 #[derive(Debug)]
 pub struct Text {
-    pub node: Rc<RefCell<RenderNode>>,
+    pub style_node: Rc<RefCell<RenderNode>>,
     pub layout_info: LayoutInfo,
 }
 
-impl Layout for Text {
+impl LayoutBox for Text {
     fn layout(
         &mut self,
         containing_block_info: &LayoutInfo,
@@ -36,13 +37,21 @@ impl Layout for Text {
         self.calc_width_and_height(containing_block_info);
         self.calc_pos(containing_block_info, orig_x);
     }
+
+    fn layout_children(&mut self, _: &LayoutInfo) {}
 }
 
 impl Text {
     /// Removes unnecessary whitespace from the text.
     /// https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model/Whitespace
     pub fn trim_text(&mut self, is_first_child: bool, is_last_child: bool) -> Result<()> {
-        let text = self.node.borrow().node.borrow().get_inside_text().unwrap();
+        let text = self
+            .style_node
+            .borrow()
+            .node
+            .borrow()
+            .get_inside_text()
+            .unwrap();
 
         let text = Regex::new(r"[ \t]*\n[ \t]*")?
             // 1. All spaces and tabs immediately before and after a line break are ignored.
@@ -56,7 +65,7 @@ impl Text {
             // 4. Any space immediately following another space (even across two separate inline elements) is ignored.
             .replace_all(&text, " ");
 
-        let text = match self.node.borrow().get_display_type() {
+        let text = match self.style_node.borrow().get_display_type() {
             // 5. All spaces at the beginning and end of the block box are removed.
             DisplayOutside::Block => text.trim(),
             // 5'. Sequences of spaces at the beginning and end of an element are removed.
@@ -71,7 +80,7 @@ impl Text {
             }
         };
 
-        self.node
+        self.style_node
             .borrow_mut()
             .node
             .borrow_mut()
@@ -84,19 +93,19 @@ impl Text {
         [
             (
                 self.layout_info.used_values.margin.left,
-                &self.node.borrow().style.margin.left,
+                &self.style_node.borrow().style.margin.left,
             ),
             (
                 self.layout_info.used_values.margin.right,
-                &self.node.borrow().style.margin.right,
+                &self.style_node.borrow().style.margin.right,
             ),
             (
                 self.layout_info.used_values.margin.top,
-                &self.node.borrow().style.margin.top,
+                &self.style_node.borrow().style.margin.top,
             ),
             (
                 self.layout_info.used_values.margin.bottom,
-                &self.node.borrow().style.margin.bottom,
+                &self.style_node.borrow().style.margin.bottom,
             ),
         ]
         .iter_mut()
@@ -114,19 +123,19 @@ impl Text {
     }
 
     fn calc_pos(&mut self, containing_block_info: &LayoutInfo, orig_x: f32) {
-        self.layout_info.pos.x = self.layout_info.used_values.margin.left
+        self.layout_info.pos.x = orig_x
+            + self.layout_info.used_values.margin.left
             + self.layout_info.used_values.border.left
-            + self.layout_info.used_values.padding.left
-            + orig_x;
-        self.layout_info.pos.y = self.layout_info.used_values.margin.top
+            + self.layout_info.used_values.padding.left;
+        self.layout_info.pos.y = containing_block_info.pos.y
+            + self.layout_info.used_values.margin.top
             + self.layout_info.used_values.border.top
-            + self.layout_info.used_values.padding.top
-            + containing_block_info.pos.y;
+            + self.layout_info.used_values.padding.top;
     }
 
     fn calc_width_and_height(&mut self, containing_block_info: &LayoutInfo) {
         let CssValue::Length(font_size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)) =
-            self.node.borrow().style.font_size.size
+            self.style_node.borrow().style.font_size.size
         else {
             unreachable!()
         };
@@ -136,16 +145,36 @@ impl Text {
             .unwrap()
             .load()
             .unwrap();
-        let text = self.node.borrow().node.borrow().get_inside_text().unwrap();
         let metrics: Metrics = font.metrics();
         let scale_factor = font_size / metrics.units_per_em as f32;
         let max_height = (metrics.ascent - metrics.descent) * scale_factor;
 
-        // Wrap the text.
-        // This implementation is quite simple and doesn't take into account the line box system
-        // and Unicode line-break rules. It also assumes that a text node is the only child of
-        // a block-level box (if it isn't, the line breaks won't work properly).
-        // https://drafts.csswg.org/css-text/#line-breaking
+        let (max_line_width, line_num) = self.wrap_text(&font, scale_factor, containing_block_info);
+
+        self.layout_info.size.width = max_line_width;
+        self.layout_info.size.height = max_height * line_num as f32;
+    }
+
+    /// Wraps the text to fit the containing block width,
+    /// and returns the maximum line width and the number of lines.
+    ///
+    /// This implementation is quite simple and doesn't take into account the line box system
+    /// and Unicode line-break rules. It also assumes that a text node is the only child of
+    /// a block-level box (if it isn't, the line breaks won't work properly).
+    /// https://drafts.csswg.org/css-text/#line-breaking
+    fn wrap_text(
+        &mut self,
+        font: &Font,
+        scale_factor: f32,
+        containing_block_info: &LayoutInfo,
+    ) -> (f32, usize) {
+        let text = self
+            .style_node
+            .borrow()
+            .node
+            .borrow()
+            .get_inside_text()
+            .unwrap();
         let mut new_text = String::new();
         let mut curr_width = 0.0;
         let mut max_line_width = 0.0;
@@ -157,6 +186,7 @@ impl Text {
             .unwrap()
             .x() * scale_factor;
         let mut line_num = 1;
+
         text.split(' ').for_each(|word| {
             let word_width = word
                 .chars()
@@ -170,7 +200,6 @@ impl Text {
                 .sum::<f32>();
             curr_width += word_width;
             if containing_block_info.size.width < curr_width {
-                // println!("{} {}", curr_width, containing_block_info.size.width);
                 curr_width -= word_width;
                 if new_text.ends_with(' ') {
                     new_text.pop();
@@ -191,13 +220,12 @@ impl Text {
             curr_width -= space_width;
         }
         max_line_width = max_by(max_line_width, curr_width, |a, b| a.partial_cmp(b).unwrap());
-        self.node
+        self.style_node
             .borrow()
             .node
             .borrow_mut()
             .set_inside_text(&new_text);
 
-        self.layout_info.size.width = max_line_width;
-        self.layout_info.size.height = max_height * line_num as f32;
+        (max_line_width, line_num)
     }
 }

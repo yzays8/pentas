@@ -82,11 +82,18 @@ impl BoxTree {
             let mut remove_list: Vec<usize> = vec![];
             let mut n = node.borrow_mut();
             let children_enum = match &mut *n {
-                BoxNode::BlockBox(BlockBox { child_nodes, .. })
-                | BoxNode::InlineBox(InlineBox { child_nodes, .. })
-                | BoxNode::AnonymousBox(AnonymousBox { child_nodes, .. }) => {
-                    child_nodes.iter_mut().enumerate()
-                }
+                BoxNode::BlockBox(BlockBox {
+                    children: child_nodes,
+                    ..
+                })
+                | BoxNode::InlineBox(InlineBox {
+                    children: child_nodes,
+                    ..
+                })
+                | BoxNode::AnonymousBox(AnonymousBox {
+                    children: child_nodes,
+                    ..
+                }) => child_nodes.iter_mut().enumerate(),
                 BoxNode::Text(_) => unreachable!(),
             };
             let children_num = children_enum.len();
@@ -94,7 +101,7 @@ impl BoxTree {
             for (i, child) in children_enum {
                 if let BoxNode::Text(t) = &mut *child.borrow_mut() {
                     t.trim_text(i == 0, i == children_num - 1)?;
-                    if t.node
+                    if t.style_node
                         .borrow()
                         .node
                         .borrow()
@@ -111,9 +118,18 @@ impl BoxTree {
             }
             for i in remove_list.iter().rev() {
                 match &mut *n {
-                    BoxNode::BlockBox(BlockBox { child_nodes, .. })
-                    | BoxNode::InlineBox(InlineBox { child_nodes, .. })
-                    | BoxNode::AnonymousBox(AnonymousBox { child_nodes, .. }) => {
+                    BoxNode::BlockBox(BlockBox {
+                        children: child_nodes,
+                        ..
+                    })
+                    | BoxNode::InlineBox(InlineBox {
+                        children: child_nodes,
+                        ..
+                    })
+                    | BoxNode::AnonymousBox(AnonymousBox {
+                        children: child_nodes,
+                        ..
+                    }) => {
                         child_nodes.remove(*i);
                     }
                     BoxNode::Text(_) => {}
@@ -135,17 +151,28 @@ impl BoxTree {
 
             let mut n = node.borrow_mut();
             let children_enum = match &mut *n {
-                BoxNode::BlockBox(BlockBox { child_nodes, .. })
-                | BoxNode::InlineBox(InlineBox { child_nodes, .. })
-                | BoxNode::AnonymousBox(AnonymousBox { child_nodes, .. }) => {
-                    child_nodes.iter_mut().enumerate()
-                }
+                BoxNode::BlockBox(BlockBox {
+                    children: child_nodes,
+                    ..
+                })
+                | BoxNode::InlineBox(InlineBox {
+                    children: child_nodes,
+                    ..
+                })
+                | BoxNode::AnonymousBox(AnonymousBox {
+                    children: child_nodes,
+                    ..
+                }) => child_nodes.iter_mut().enumerate(),
                 BoxNode::Text(_) => unreachable!(),
             };
             let mut remove_list: Vec<usize> = vec![];
 
             for (i, child) in children_enum {
-                if let BoxNode::AnonymousBox(AnonymousBox { child_nodes, .. }) = &*child.borrow() {
+                if let BoxNode::AnonymousBox(AnonymousBox {
+                    children: child_nodes,
+                    ..
+                }) = &*child.borrow()
+                {
                     if child_nodes.is_empty() {
                         remove_list.push(i);
                     }
@@ -158,9 +185,18 @@ impl BoxTree {
             }
             for i in remove_list.iter().rev() {
                 match &mut *n {
-                    BoxNode::BlockBox(BlockBox { child_nodes, .. })
-                    | BoxNode::InlineBox(InlineBox { child_nodes, .. })
-                    | BoxNode::AnonymousBox(AnonymousBox { child_nodes, .. }) => {
+                    BoxNode::BlockBox(BlockBox {
+                        children: child_nodes,
+                        ..
+                    })
+                    | BoxNode::InlineBox(InlineBox {
+                        children: child_nodes,
+                        ..
+                    })
+                    | BoxNode::AnonymousBox(AnonymousBox {
+                        children: child_nodes,
+                        ..
+                    }) => {
                         child_nodes.remove(*i);
                     }
                     BoxNode::Text(_) => {}
@@ -215,11 +251,18 @@ impl fmt::Display for BoxTree {
 
             let mut n = node.borrow_mut();
             let children_enum = match &mut *n {
-                BoxNode::BlockBox(BlockBox { child_nodes, .. })
-                | BoxNode::InlineBox(InlineBox { child_nodes, .. })
-                | BoxNode::AnonymousBox(AnonymousBox { child_nodes, .. }) => {
-                    child_nodes.iter_mut().enumerate()
-                }
+                BoxNode::BlockBox(BlockBox {
+                    children: child_nodes,
+                    ..
+                })
+                | BoxNode::InlineBox(InlineBox {
+                    children: child_nodes,
+                    ..
+                })
+                | BoxNode::AnonymousBox(AnonymousBox {
+                    children: child_nodes,
+                    ..
+                }) => child_nodes.iter_mut().enumerate(),
                 BoxNode::Text(_) => unreachable!(),
             };
             let children_num = children_enum.len();
@@ -316,13 +359,16 @@ pub struct Edge {
     pub left: f32,
 }
 
-pub trait Layout {
+/// Layout box trait for the box nodes in the box tree.
+pub trait LayoutBox {
     fn layout(
         &mut self,
         containing_block_info: &LayoutInfo,
         parent_info: Option<LayoutInfo>,
         prev_sibling_info: Option<LayoutInfo>,
     );
+
+    fn layout_children(&mut self, containing_block_info: &LayoutInfo);
 }
 
 #[derive(Debug)]
@@ -342,17 +388,17 @@ pub enum BoxNode {
 
 impl BoxNode {
     pub fn build(
-        node: Rc<RefCell<RenderNode>>,
-        parent: Option<Rc<RefCell<RenderNode>>>,
+        style_node: Rc<RefCell<RenderNode>>,
+        parent_style_node: Option<Rc<RefCell<RenderNode>>>,
     ) -> Option<Self> {
-        match node.borrow().node.borrow().node_type {
+        match style_node.borrow().node.borrow().node_type {
             NodeType::Document | NodeType::Comment(_) | NodeType::DocumentType(_) => return None,
             NodeType::Text(_) => {
-                if parent.is_none() {
+                if parent_style_node.is_none() {
                     unreachable!()
                 }
                 return Some(Self::Text(Text {
-                    node: Rc::clone(&node),
+                    style_node: Rc::clone(&style_node),
                     layout_info: LayoutInfo::default(),
                 }));
             }
@@ -362,22 +408,25 @@ impl BoxNode {
         // Create box nodes for the children of the current node.
         let mut children: Vec<Rc<RefCell<BoxNode>>> = Vec::new();
         let mut i = 0;
-        while i < node.borrow().child_nodes.len() {
-            match node.borrow().child_nodes[i].borrow().get_display_type() {
+        while i < style_node.borrow().child_nodes.len() {
+            match style_node.borrow().child_nodes[i]
+                .borrow()
+                .get_display_type()
+            {
                 DisplayOutside::Block => {
-                    if node.borrow().get_display_type() == DisplayOutside::Inline {
+                    if style_node.borrow().get_display_type() == DisplayOutside::Inline {
                         // todo: It is tricky to handle block-level boxes within an inline box.
                         // https://www.w3.org/TR/CSS22/visuren.html#anonymous-block-level
                         // https://github.com/w3c/csswg-drafts/issues/1477
                         unimplemented!(
                             "Block-level boxes within an inline box are not yet supported: {}",
-                            node.borrow().node.borrow().node_type
+                            style_node.borrow().node.borrow().node_type
                         );
                     }
 
                     let child = Self::build(
-                        Rc::clone(&node.borrow().child_nodes[i]),
-                        Some(Rc::clone(&node)),
+                        Rc::clone(&style_node.borrow().child_nodes[i]),
+                        Some(Rc::clone(&style_node)),
                     );
                     if let Some(child) = child {
                         children.push(Rc::new(RefCell::new(child)));
@@ -385,27 +434,29 @@ impl BoxNode {
                 }
                 DisplayOutside::Inline => {
                     // If the number of children is greater than 1, wrap all inline-level contents in an anonymous box.
-                    if (node.borrow().get_display_type() == DisplayOutside::Block)
-                        && (node.borrow().child_nodes.len() > 1)
+                    if (style_node.borrow().get_display_type() == DisplayOutside::Block)
+                        && (style_node.borrow().child_nodes.len() > 1)
                     {
                         let mut anon_box = AnonymousBox {
-                            style: Box::new(node.borrow().style.clone()),
+                            style_node: Box::new(style_node.borrow().style.clone()),
                             layout_info: LayoutInfo::default(),
-                            child_nodes: vec![],
+                            children: vec![],
                         };
 
                         // If there are successive inline-level contents, they are wrapped in the same anonymous box.
                         // https://www.w3.org/TR/css-inline-3/#root-inline-box
-                        while i < node.borrow().child_nodes.len()
-                            && node.borrow().child_nodes[i].borrow().get_display_type()
+                        while i < style_node.borrow().child_nodes.len()
+                            && style_node.borrow().child_nodes[i]
+                                .borrow()
+                                .get_display_type()
                                 == DisplayOutside::Inline
                         {
                             let child = Self::build(
-                                Rc::clone(&node.borrow().child_nodes[i]),
-                                Some(Rc::clone(&node)),
+                                Rc::clone(&style_node.borrow().child_nodes[i]),
+                                Some(Rc::clone(&style_node)),
                             );
                             if let Some(child) = child {
-                                anon_box.child_nodes.push(Rc::new(RefCell::new(child)));
+                                anon_box.children.push(Rc::new(RefCell::new(child)));
                             }
                             i += 1;
                         }
@@ -413,8 +464,8 @@ impl BoxNode {
                         children.push(Rc::new(RefCell::new(Self::AnonymousBox(anon_box))));
                     } else {
                         let child = Self::build(
-                            Rc::clone(&node.borrow().child_nodes[i]),
-                            Some(Rc::clone(&node)),
+                            Rc::clone(&style_node.borrow().child_nodes[i]),
+                            Some(Rc::clone(&style_node)),
                         );
                         if let Some(child) = child {
                             children.push(Rc::new(RefCell::new(child)));
@@ -434,10 +485,10 @@ impl BoxNode {
             CssValue::Length(bottom_px, _),
             CssValue::Length(left_px, _),
         ) = (
-            &node.borrow().style.padding.top,
-            &node.borrow().style.padding.right,
-            &node.borrow().style.padding.bottom,
-            &node.borrow().style.padding.left,
+            &style_node.borrow().style.padding.top,
+            &style_node.borrow().style.padding.right,
+            &style_node.borrow().style.padding.bottom,
+            &style_node.borrow().style.padding.left,
         ) {
             Edge {
                 top: *top_px,
@@ -454,10 +505,10 @@ impl BoxNode {
             CssValue::Length(bottom_px, _),
             CssValue::Length(left_px, _),
         ) = (
-            &node.borrow().style.border.border_width.top,
-            &node.borrow().style.border.border_width.right,
-            &node.borrow().style.border.border_width.bottom,
-            &node.borrow().style.border.border_width.left,
+            &style_node.borrow().style.border.border_width.top,
+            &style_node.borrow().style.border.border_width.right,
+            &style_node.borrow().style.border.border_width.bottom,
+            &style_node.borrow().style.border.border_width.left,
         ) {
             Edge {
                 top: *top_px,
@@ -469,9 +520,9 @@ impl BoxNode {
             unreachable!();
         };
 
-        match node.borrow().get_display_type() {
+        match style_node.borrow().get_display_type() {
             DisplayOutside::Block => Some(Self::BlockBox(BlockBox {
-                node: Rc::clone(&node),
+                style_node: Rc::clone(&style_node),
                 layout_info: LayoutInfo {
                     used_values: UsedValues {
                         padding,
@@ -480,10 +531,10 @@ impl BoxNode {
                     },
                     ..Default::default()
                 },
-                child_nodes: children,
+                children,
             })),
             DisplayOutside::Inline => Some(Self::InlineBox(InlineBox {
-                node: Rc::clone(&node),
+                style_node: Rc::clone(&style_node),
                 layout_info: LayoutInfo {
                     used_values: UsedValues {
                         padding,
@@ -492,7 +543,7 @@ impl BoxNode {
                     },
                     ..Default::default()
                 },
-                child_nodes: children,
+                children,
             })),
         }
     }
@@ -529,11 +580,12 @@ impl BoxNode {
     ) {
         match self {
             BoxNode::Text(t) => {
-                let CssValue::Length(font_size_px, _) = t.node.borrow().style.font_size.size else {
+                let CssValue::Length(font_size_px, _) = t.style_node.borrow().style.font_size.size
+                else {
                     unreachable!()
                 };
                 let font_family = t
-                    .node
+                    .style_node
                     .borrow()
                     .style
                     .font_family
@@ -549,7 +601,7 @@ impl BoxNode {
                     .collect::<Vec<String>>();
                 // https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight#common_weight_name_mapping
                 // https://docs.gtk.org/Pango/type_func.FontDescription.from_string.html
-                let font_weight = match &t.node.borrow().style.font_weight.weight {
+                let font_weight = match &t.style_node.borrow().style.font_weight.weight {
                     CssValue::Ident(weight) => match weight.as_str() {
                         "normal" => "Regular",
                         "bold" => "Bold",
@@ -570,21 +622,22 @@ impl BoxNode {
                     },
                     _ => unreachable!(),
                 };
-                let color =
-                    if let CssValue::Color { r, g, b, a } = t.node.borrow().style.color.value {
-                        (r, g, b, a)
-                    } else {
-                        return;
-                    };
+                let color = if let CssValue::Color { r, g, b, a } =
+                    t.style_node.borrow().style.color.value
+                {
+                    (r, g, b, a)
+                } else {
+                    return;
+                };
                 let decoration_color = if let CssValue::Color { r, g, b, a } =
-                    t.node.borrow().style.text_decoration.color.value
+                    t.style_node.borrow().style.text_decoration.color.value
                 {
                     (r, g, b, a)
                 } else {
                     unreachable!()
                 };
                 let decoration_line = t
-                    .node
+                    .style_node
                     .borrow()
                     .style
                     .text_decoration
@@ -599,12 +652,18 @@ impl BoxNode {
                     })
                     .collect::<Vec<String>>();
                 let CssValue::Ident(decoration_style) =
-                    t.node.borrow().style.text_decoration.style.clone()
+                    t.style_node.borrow().style.text_decoration.style.clone()
                 else {
                     unreachable!()
                 };
                 objects.push(RenderObject::Text {
-                    text: t.node.borrow().node.borrow().get_inside_text().unwrap(),
+                    text: t
+                        .style_node
+                        .borrow()
+                        .node
+                        .borrow()
+                        .get_inside_text()
+                        .unwrap(),
                     // x: t.layout_info.get_expanded_pos().x as f64,
                     // y: t.layout_info.get_expanded_pos().y as f64 + parent_font_size as f64,
                     x: t.layout_info.pos.x as f64,
@@ -628,11 +687,11 @@ impl BoxNode {
             }
             BoxNode::BlockBox(block) => {
                 let (r, g, b, a) = if let CssValue::Color { r, g, b, a } =
-                    block.node.borrow().style.background_color.value
+                    block.style_node.borrow().style.background_color.value
                 {
                     (r, g, b, a)
                 } else {
-                    for child in block.child_nodes.iter() {
+                    for child in block.children.iter() {
                         child
                             .borrow()
                             .to_render_objects(objects, viewport_width, viewport_height);
@@ -641,7 +700,7 @@ impl BoxNode {
                 };
                 // The style of the body element is applied to the whole viewport.
                 let is_body = if let NodeType::Element(Element { tag_name: n, .. }) =
-                    &block.node.borrow().node.borrow().node_type
+                    &block.style_node.borrow().node.borrow().node_type
                 {
                     n == "body"
                 } else {
@@ -666,21 +725,21 @@ impl BoxNode {
                         color: (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0),
                     });
                 }
-                for child in block.child_nodes.iter() {
+                for child in block.children.iter() {
                     child
                         .borrow()
                         .to_render_objects(objects, viewport_width, viewport_height);
                 }
             }
             BoxNode::InlineBox(inline) => {
-                for child in inline.child_nodes.iter() {
+                for child in inline.children.iter() {
                     child
                         .borrow()
                         .to_render_objects(objects, viewport_width, viewport_height);
                 }
             }
             BoxNode::AnonymousBox(anonymous) => {
-                for child in anonymous.child_nodes.iter() {
+                for child in anonymous.children.iter() {
                     child
                         .borrow()
                         .to_render_objects(objects, viewport_width, viewport_height);
@@ -694,16 +753,24 @@ impl fmt::Display for BoxNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut fmt_str = String::new();
         match self {
-            Self::BlockBox(BlockBox { node, .. }) => {
+            Self::BlockBox(BlockBox {
+                style_node: node, ..
+            }) => {
                 fmt_str.push_str(&format!("Box: Block, {}", node.borrow()));
             }
-            Self::InlineBox(InlineBox { node, .. }) => {
+            Self::InlineBox(InlineBox {
+                style_node: node, ..
+            }) => {
                 fmt_str.push_str(&format!("Box: Inline, {}", node.borrow()));
             }
-            Self::Text(Text { node, .. }) => {
+            Self::Text(Text {
+                style_node: node, ..
+            }) => {
                 fmt_str.push_str(&format!("{}", node.borrow()));
             }
-            Self::AnonymousBox(AnonymousBox { style, .. }) => {
+            Self::AnonymousBox(AnonymousBox {
+                style_node: style, ..
+            }) => {
                 fmt_str.push_str(&format!("Box: Anonymous, Computed( {} )", style));
             }
         }

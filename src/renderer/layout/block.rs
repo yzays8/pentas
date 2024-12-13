@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::renderer::layout::box_model::{BoxNode, Layout, LayoutInfo};
+use crate::renderer::layout::box_model::{BoxNode, LayoutBox, LayoutInfo};
 use crate::renderer::layout::inline::InlineBox;
 use crate::renderer::layout::text::Text;
 use crate::renderer::style::property::display::{DisplayInside, DisplayOutside};
@@ -10,12 +10,12 @@ use crate::renderer::style::style_model::{ComputedValues, RenderNode};
 
 #[derive(Debug)]
 pub struct BlockBox {
-    pub node: Rc<RefCell<RenderNode>>,
+    pub style_node: Rc<RefCell<RenderNode>>,
     pub layout_info: LayoutInfo,
-    pub child_nodes: Vec<Rc<RefCell<BoxNode>>>,
+    pub children: Vec<Rc<RefCell<BoxNode>>>,
 }
 
-impl Layout for BlockBox {
+impl LayoutBox for BlockBox {
     fn layout(
         &mut self,
         containing_block_info: &LayoutInfo,
@@ -23,23 +23,135 @@ impl Layout for BlockBox {
         prev_sibling_info: Option<LayoutInfo>,
     ) {
         self.calc_used_values(containing_block_info);
-        // self.layout_info.size.width = self.layout_info.used_values.width.unwrap();
-        self.layout_info.size.width = self.layout_info.used_values.width.unwrap()
+        // The margin of the box is not included in the width because it is outside the box.
+        self.layout_info.size.width = self.layout_info.used_values.border.left
             + self.layout_info.used_values.padding.left
+            + self.layout_info.used_values.width.unwrap()
             + self.layout_info.used_values.padding.right
-            + self.layout_info.used_values.border.left
             + self.layout_info.used_values.border.right;
         self.calc_pos(containing_block_info, prev_sibling_info);
-        self.layout_children();
+        self.layout_children(containing_block_info);
+    }
+
+    fn layout_children(&mut self, _: &LayoutInfo) {
+        if self.children.is_empty() {
+            return;
+        }
+
+        let is_every_child_block = self.children.iter().all(|child| {
+            matches!(
+                *child.borrow(),
+                BoxNode::BlockBox(_) | BoxNode::AnonymousBox(_)
+            )
+        });
+        let is_every_child_inline = self
+            .children
+            .iter()
+            .all(|child| matches!(*child.borrow(), BoxNode::InlineBox(_) | BoxNode::Text(_)));
+
+        if is_every_child_block {
+            let mut prev_sib_info = None;
+
+            // If `height` is `auto`, the height of the box depends on whether the element
+            // has any block-level children and whether it has padding or borders.
+            // https://www.w3.org/TR/CSS22/visudet.html#normal-block
+            for child in self.children.iter_mut() {
+                child.borrow_mut().layout(
+                    &self.layout_info,
+                    Some(self.layout_info.clone()),
+                    prev_sib_info.clone(),
+                );
+
+                let child_ref = child.borrow();
+                let child_layout_info = match *child_ref {
+                    BoxNode::BlockBox(BlockBox {
+                        ref layout_info, ..
+                    })
+                    | BoxNode::AnonymousBox(AnonymousBox {
+                        ref layout_info, ..
+                    }) => layout_info,
+                    _ => unreachable!(),
+                };
+
+                // https://www.w3.org/TR/CSS22/box.html#collapsing-margins
+                if let Some(info) = &prev_sib_info {
+                    if child_layout_info.used_values.margin.top < info.used_values.margin.bottom {
+                        self.layout_info.size.height +=
+                            child_layout_info.get_expanded_size().height
+                                - child_layout_info.used_values.margin.top;
+                    } else {
+                        self.layout_info.size.height +=
+                            child_layout_info.get_expanded_size().height
+                                - info.used_values.margin.bottom;
+                    }
+                } else {
+                    self.layout_info.size.height += child_layout_info.get_expanded_size().height;
+                }
+
+                prev_sib_info = Some(child_layout_info.clone());
+            }
+
+            // The margin of the box is not included in the height because it is outside the box.
+            self.layout_info.size.height += self.layout_info.used_values.padding.top
+                + self.layout_info.used_values.border.top
+                + self.layout_info.used_values.padding.bottom
+                + self.layout_info.used_values.border.bottom;
+
+            // If `height` is not `auto`, the height of the box is the value of `height`.
+            let height = self.style_node.borrow().style.height.clone();
+            if let CssValue::Length(height, _) = height.size {
+                self.layout_info.size.height = height;
+            }
+        } else if is_every_child_inline {
+            let mut inline_max_height = 0.0;
+            let mut prev_sib_info = None;
+
+            for child in self.children.iter_mut() {
+                child.borrow_mut().layout(
+                    &self.layout_info,
+                    Some(self.layout_info.clone()),
+                    prev_sib_info,
+                );
+
+                let child_ref = child.borrow();
+                let child_layout_info = match *child_ref {
+                    BoxNode::InlineBox(InlineBox {
+                        ref layout_info, ..
+                    })
+                    | BoxNode::Text(Text {
+                        ref layout_info, ..
+                    }) => layout_info,
+                    _ => unreachable!(),
+                };
+
+                let ch_exp_height = child_layout_info.get_expanded_size().height;
+                if inline_max_height < ch_exp_height {
+                    inline_max_height = ch_exp_height;
+                }
+                prev_sib_info = Some(child_layout_info.clone());
+            }
+
+            // If parent is a block-level box and children are inline-level boxes, the parent's width
+            // is defined by the parent itself (so the width is not determined here by the children).
+
+            // The margin of the box is not included in the height because it is outside the box.
+            self.layout_info.size.height = self.layout_info.used_values.border.top
+                + self.layout_info.used_values.padding.top
+                + inline_max_height
+                + self.layout_info.used_values.padding.bottom
+                + self.layout_info.used_values.border.bottom;
+        } else {
+            unreachable!()
+        }
     }
 }
 
 impl BlockBox {
     fn calc_used_values(&mut self, containing_block_info: &LayoutInfo) {
         let (width, margin, display) = (
-            self.node.borrow().style.width.clone(),
-            self.node.borrow().style.margin.clone(),
-            self.node.borrow().style.display.clone(),
+            self.style_node.borrow().style.width.clone(),
+            self.style_node.borrow().style.margin.clone(),
+            self.style_node.borrow().style.display.clone(),
         );
         let mut margin_left = margin.left;
         let mut margin_right = margin.right;
@@ -168,12 +280,13 @@ impl BlockBox {
         containing_block_info: &LayoutInfo,
         prev_sibling_info: Option<LayoutInfo>,
     ) {
-        // Note that the padding used to calculate the coordinates of
-        // a block-level box is not the padding of the current box.
-        self.layout_info.pos.x = self.layout_info.used_values.margin.left
-            + self.layout_info.used_values.border.left
+        // The value of x and y takes into account the border and padding of the box
+        // but not the margin, because that's the space outside the box.
+
+        self.layout_info.pos.x = containing_block_info.pos.x
             + containing_block_info.used_values.padding.left
-            + containing_block_info.pos.x;
+            + self.layout_info.used_values.margin.left
+            + self.layout_info.used_values.border.left;
         self.layout_info.pos.y = self.layout_info.used_values.border.top
             // This is where the margin collapse happens, which is tricky. This
             // implementation is quite simple and does not cover complex cases.
@@ -194,127 +307,16 @@ impl BlockBox {
                     + containing_block_info.used_values.padding.top
             };
     }
-
-    pub fn layout_children(&mut self) {
-        if self.child_nodes.is_empty() {
-            return;
-        }
-
-        let is_every_child_block = self.child_nodes.iter().all(|child| {
-            matches!(
-                *child.borrow(),
-                BoxNode::BlockBox(_) | BoxNode::AnonymousBox(_)
-            )
-        });
-        let is_every_child_inline = self
-            .child_nodes
-            .iter()
-            .all(|child| matches!(*child.borrow(), BoxNode::InlineBox(_) | BoxNode::Text(_)));
-
-        if is_every_child_block {
-            let mut prev_sib_info = None;
-
-            // If `height` is `auto`, the height of the box depends on whether the element
-            // has any block-level children and whether it has padding or borders.
-            // https://www.w3.org/TR/CSS22/visudet.html#normal-block
-            for child in self.child_nodes.iter_mut() {
-                child.borrow_mut().layout(
-                    &self.layout_info,
-                    Some(self.layout_info.clone()),
-                    prev_sib_info.clone(),
-                );
-
-                let child_ref = child.borrow();
-                let child_layout_info = match *child_ref {
-                    BoxNode::BlockBox(BlockBox {
-                        ref layout_info, ..
-                    })
-                    | BoxNode::AnonymousBox(AnonymousBox {
-                        ref layout_info, ..
-                    }) => layout_info,
-                    _ => unreachable!(),
-                };
-
-                // https://www.w3.org/TR/CSS22/box.html#collapsing-margins
-                if let Some(info) = &prev_sib_info {
-                    if child_layout_info.used_values.margin.top < info.used_values.margin.bottom {
-                        self.layout_info.size.height +=
-                            child_layout_info.get_expanded_size().height
-                                - child_layout_info.used_values.margin.top;
-                    } else {
-                        self.layout_info.size.height +=
-                            child_layout_info.get_expanded_size().height
-                                - info.used_values.margin.bottom;
-                    }
-                } else {
-                    self.layout_info.size.height += child_layout_info.get_expanded_size().height;
-                }
-
-                prev_sib_info = Some(child_layout_info.clone());
-            }
-
-            self.layout_info.size.height += self.layout_info.used_values.padding.top
-                + self.layout_info.used_values.border.top
-                + self.layout_info.used_values.padding.bottom
-                + self.layout_info.used_values.border.bottom;
-
-            // If `height` is not `auto`, the height of the box is the value of `height`.
-            let height = self.node.borrow().style.height.clone();
-            if let CssValue::Length(height, _) = height.size {
-                self.layout_info.size.height = height;
-            }
-        } else if is_every_child_inline {
-            let mut inline_max_height = 0.0;
-            let mut prev_sib_info = None;
-
-            for child in self.child_nodes.iter_mut() {
-                child.borrow_mut().layout(
-                    &self.layout_info,
-                    Some(self.layout_info.clone()),
-                    prev_sib_info,
-                );
-
-                let child_ref = child.borrow();
-                let child_layout_info = match *child_ref {
-                    BoxNode::InlineBox(InlineBox {
-                        ref layout_info, ..
-                    })
-                    | BoxNode::Text(Text {
-                        ref layout_info, ..
-                    }) => layout_info,
-                    _ => unreachable!(),
-                };
-
-                let ch_exp_height = child_layout_info.get_expanded_size().height;
-                if inline_max_height < ch_exp_height {
-                    inline_max_height = ch_exp_height;
-                }
-                prev_sib_info = Some(child_layout_info.clone());
-            }
-
-            // If parent is a block-level box and children are inline-level boxes, the parent's width
-            // is defined by the parent itself (so the width is not determined here by the children).
-
-            // self.layout_info.size.height = inline_max_height;
-            self.layout_info.size.height = inline_max_height
-                + self.layout_info.used_values.padding.top
-                + self.layout_info.used_values.padding.bottom
-                + self.layout_info.used_values.border.top
-                + self.layout_info.used_values.border.bottom;
-        } else {
-            unreachable!()
-        }
-    }
 }
 
 #[derive(Debug)]
 pub struct AnonymousBox {
-    pub style: Box<ComputedValues>,
+    pub style_node: Box<ComputedValues>,
     pub layout_info: LayoutInfo,
-    pub child_nodes: Vec<Rc<RefCell<BoxNode>>>,
+    pub children: Vec<Rc<RefCell<BoxNode>>>,
 }
 
-impl Layout for AnonymousBox {
+impl LayoutBox for AnonymousBox {
     fn layout(
         &mut self,
         containing_block_info: &LayoutInfo,
@@ -324,39 +326,15 @@ impl Layout for AnonymousBox {
         self.calc_used_values(containing_block_info);
         self.layout_info.size.width = containing_block_info.size.width;
         self.calc_pos(containing_block_info, prev_sibling_info);
-        self.layout_children();
-    }
-}
-
-impl AnonymousBox {
-    pub fn calc_used_values(&mut self, containing_block_info: &LayoutInfo) {
-        self.layout_info.used_values.width = Some(containing_block_info.size.width);
-        self.layout_info.used_values.margin.top = 0.0;
-        self.layout_info.used_values.margin.right = 0.0;
-        self.layout_info.used_values.margin.bottom = 0.0;
-        self.layout_info.used_values.margin.left = 0.0;
+        self.layout_children(containing_block_info);
     }
 
-    /// https://www.w3.org/TR/CSS22/visudet.html#normal-block
-    pub fn calc_pos(
-        &mut self,
-        containing_block_info: &LayoutInfo,
-        prev_sibling_info: Option<LayoutInfo>,
-    ) {
-        self.layout_info.pos.x = containing_block_info.pos.x;
-        self.layout_info.pos.y = if let Some(prev_sib_info) = prev_sibling_info {
-            prev_sib_info.get_expanded_pos().y + prev_sib_info.get_expanded_size().height
-        } else {
-            containing_block_info.pos.y
-        };
-    }
-
-    pub fn layout_children(&mut self) {
-        if self.child_nodes.is_empty() {
+    fn layout_children(&mut self, _: &LayoutInfo) {
+        if self.children.is_empty() {
             unreachable!()
         }
         let is_every_child_inline = self
-            .child_nodes
+            .children
             .iter()
             .all(|child| matches!(*child.borrow(), BoxNode::InlineBox(_) | BoxNode::Text(_)));
         if !is_every_child_inline {
@@ -367,7 +345,7 @@ impl AnonymousBox {
         let mut prev_sib_info = None;
 
         // Assume that all children are inline-level boxes or text nodes.
-        for child in self.child_nodes.iter_mut() {
+        for child in self.children.iter_mut() {
             // The containing block of an inline-level box is the nearest block-level ancestor box.
             child.borrow_mut().layout(
                 &self.layout_info,
@@ -396,5 +374,29 @@ impl AnonymousBox {
         // If parent is a block-level box and children are inline-level boxes, the parent's width
         // is defined by the parent itself (so the width is not determined here by the children).
         self.layout_info.size.height = inline_max_height;
+    }
+}
+
+impl AnonymousBox {
+    pub fn calc_used_values(&mut self, containing_block_info: &LayoutInfo) {
+        self.layout_info.used_values.width = Some(containing_block_info.size.width);
+        self.layout_info.used_values.margin.top = 0.0;
+        self.layout_info.used_values.margin.right = 0.0;
+        self.layout_info.used_values.margin.bottom = 0.0;
+        self.layout_info.used_values.margin.left = 0.0;
+    }
+
+    /// https://www.w3.org/TR/CSS22/visudet.html#normal-block
+    pub fn calc_pos(
+        &mut self,
+        containing_block_info: &LayoutInfo,
+        prev_sibling_info: Option<LayoutInfo>,
+    ) {
+        self.layout_info.pos.x = containing_block_info.pos.x;
+        self.layout_info.pos.y = if let Some(prev_sib_info) = prev_sibling_info {
+            prev_sib_info.get_expanded_pos().y + prev_sib_info.get_expanded_size().height
+        } else {
+            containing_block_info.pos.y
+        };
     }
 }
