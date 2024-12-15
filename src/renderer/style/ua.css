@@ -1,7 +1,8 @@
 /*
-This is a user-agent level style sheet.
-For more information, see https://html.spec.whatwg.org/multipage/rendering.html#the-css-user-agent-style-sheet-and-presentational-hints
-*/
+ * This is a user-agent level style sheet. For more information, see:
+ * https://html.spec.whatwg.org/multipage/rendering.html#the-css-user-agent-style-sheet-and-presentational-hints
+ * https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/core/html/resources/html.css
+ */
 
 area, base, basefont, datalist, head, link, meta, noembed,
 noframes, param, rp, script, style, template, title {
@@ -19,11 +20,10 @@ header, hr, legend, listing, main, p, plaintext, pre, search, xmp {
   display: block;
 }
 
-:link { color: blue; text-decoration: underline; }
-/* :link { color: #0000EE; }
+:link { color: #0000EE; }
 :visited { color: #551A8B; }
 :link:active, :visited:active { color: #FF0000; }
-:link, :visited { text-decoration: underline; cursor: pointer; } */
+:link, :visited { text-decoration: underline; cursor: pointer; }
 
 article, aside, h1, h2, h3, h4, h5, h6, hgroup, nav, section {
   display: block;
