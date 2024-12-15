@@ -152,11 +152,6 @@ impl RenderNode {
     }
 
     pub fn get_display_type(&self) -> DisplayOutside {
-        // if self.style.display.is_none() {
-        //     // The default value of the `display` property is inline.
-        //     // The text sequence is treated as a single inline type here.
-        //     return DisplayOutside::Inline;
-        // }
         self.style.display.outside
     }
 }
