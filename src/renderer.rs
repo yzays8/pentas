@@ -62,7 +62,7 @@ impl Renderer {
                 .to_render_tree(style_sheets)?
                 .to_box_tree(draw_ctx)?
                 .clean_up()?
-                .layout(DEFAULT_WINDOW_WIDTH as f32)?
+                .layout(viewport_width as f32)?
                 .to_render_objects(viewport_width, viewport_height)),
             VerbosityLevel::Normal | VerbosityLevel::Verbose => Ok(DocumentTree::build(doc_root)?
                 .print_in_chain(verbosity)
@@ -72,7 +72,7 @@ impl Renderer {
                 .print_in_chain(verbosity)
                 .clean_up()?
                 .print_in_chain(verbosity)
-                .layout(DEFAULT_WINDOW_WIDTH as f32)?
+                .layout(viewport_width as f32)?
                 .print_in_chain(verbosity)
                 .to_render_objects(viewport_width, viewport_height)),
         }
