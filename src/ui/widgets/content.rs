@@ -21,7 +21,7 @@ mod imp {
 
     use crate::app::VerbosityLevel;
     use crate::renderer::RenderObject;
-    use crate::ui::history::History;
+    use crate::ui::history::{History, HistoryEntry};
     use crate::ui::painter::paint;
 
     // "/pentas" is just a prefix. See resouces.gresource.xml
@@ -72,7 +72,7 @@ mod imp {
             ));
 
             // The initial history is an empty page.
-            self.history.borrow_mut().add("".to_string(), vec![]);
+            self.history.borrow_mut().add("", &[]);
         }
 
         fn signals() -> &'static [glib::subclass::Signal] {
@@ -89,9 +89,22 @@ mod imp {
     impl BoxImpl for ContentArea {}
 
     impl ContentArea {
+        pub fn add_history(&self, query: &str, objects: &[RenderObject]) {
+            self.history.borrow_mut().add(query, objects);
+        }
+
+        pub fn get_history(&self, index: usize) -> Option<HistoryEntry> {
+            self.history.borrow().get(index).cloned()
+        }
+
         /// Adds an object to the list of objects to be painted.
         pub fn add_object(&self, object: RenderObject) {
             self.objects.borrow_mut().push(object);
+        }
+
+        /// Replaces the list of objects to be painted with the given list.
+        pub fn replace_objects(&self, objects: &[RenderObject]) {
+            self.objects.replace(objects.to_owned());
         }
 
         /// Deletes all objects and repaints the background.
@@ -173,8 +186,8 @@ impl ContentArea {
             }
         };
 
-        self.imp().objects.replace(
-            Renderer::run(
+        self.imp().replace_objects(
+            &Renderer::run(
                 &html,
                 self.imp().drawing_area.width(),
                 self.imp().drawing_area.height(),
@@ -184,10 +197,7 @@ impl ContentArea {
             .unwrap(),
         );
 
-        self.imp()
-            .history
-            .borrow_mut()
-            .add(query.to_string(), self.imp().objects.borrow().clone());
+        self.imp().add_history(query, &self.imp().objects.borrow());
 
         // This is inaccurate behaviour.
         self.set_current_history_index(self.imp().history.borrow().entries.len() as i32 - 1);
@@ -196,9 +206,7 @@ impl ContentArea {
             &[
                 &self
                     .imp()
-                    .history
-                    .borrow()
-                    .get(self.current_history_index() as usize)
+                    .get_history(self.current_history_index() as usize)
                     .unwrap()
                     .query,
                 &false,
@@ -223,9 +231,7 @@ impl ContentArea {
                 &[
                     &self
                         .imp()
-                        .history
-                        .borrow()
-                        .get(self.current_history_index() as usize)
+                        .get_history(self.current_history_index() as usize)
                         .unwrap()
                         .query,
                     &is_first_history,
@@ -234,15 +240,8 @@ impl ContentArea {
             );
 
             self.imp().clear();
-            self.imp().objects.replace(
-                self.imp()
-                    .history
-                    .borrow()
-                    .get(index - 1)
-                    .unwrap()
-                    .objects
-                    .clone(),
-            );
+            self.imp()
+                .replace_objects(&self.imp().history.borrow().get(index - 1).unwrap().objects);
             self.imp().present();
         }
     }
@@ -261,9 +260,7 @@ impl ContentArea {
                 &[
                     &self
                         .imp()
-                        .history
-                        .borrow()
-                        .get(self.current_history_index() as usize)
+                        .get_history(self.current_history_index() as usize)
                         .unwrap()
                         .query,
                     &is_first_history,
@@ -272,15 +269,8 @@ impl ContentArea {
             );
 
             self.imp().clear();
-            self.imp().objects.replace(
-                self.imp()
-                    .history
-                    .borrow()
-                    .get(index + 1)
-                    .unwrap()
-                    .objects
-                    .clone(),
-            );
+            self.imp()
+                .replace_objects(&self.imp().history.borrow().get(index + 1).unwrap().objects);
             self.imp().present();
         }
     }

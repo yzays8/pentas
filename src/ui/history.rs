@@ -18,7 +18,9 @@ impl History {
         }
     }
 
-    pub fn add(&mut self, query: String, objects: Vec<RenderObject>) {
+    pub fn add(&mut self, query: &str, objects: &[RenderObject]) {
+        let query = query.to_owned();
+        let objects = objects.to_owned();
         self.entries.push(HistoryEntry { query, objects });
     }
 
