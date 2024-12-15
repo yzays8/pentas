@@ -1,4 +1,5 @@
 mod history;
+mod painter;
 mod widgets;
 
 use gtk4::prelude::*;
