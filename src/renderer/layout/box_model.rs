@@ -3,6 +3,7 @@ use std::fmt;
 use std::rc::Rc;
 
 use anyhow::{ensure, Context, Ok, Result};
+use gtk4::pango;
 
 use crate::renderer::html::dom::{Element, NodeType};
 use crate::renderer::layout::block::{AnonymousBox, BlockBox};
@@ -21,7 +22,7 @@ pub struct BoxTree {
 }
 
 impl BoxTree {
-    pub fn build(render_tree: &RenderTree) -> Result<Self> {
+    pub fn build(render_tree: &RenderTree, draw_ctx: &pango::Context) -> Result<Self> {
         ensure!(
             render_tree.root.borrow().node.borrow().node_type == NodeType::Document,
             "The root node of the render tree must be a document node."
@@ -45,7 +46,8 @@ impl BoxTree {
 
         Ok(Self {
             root: Rc::new(RefCell::new(
-                BoxNode::build(root.unwrap(), None).context("Failed to build box tree")?,
+                BoxNode::build(root.unwrap(), None, draw_ctx)
+                    .context("Failed to build box tree")?,
             )),
         })
     }
@@ -390,6 +392,7 @@ impl BoxNode {
     pub fn build(
         style_node: Rc<RefCell<RenderNode>>,
         parent_style_node: Option<Rc<RefCell<RenderNode>>>,
+        draw_ctx: &pango::Context,
     ) -> Option<Self> {
         match style_node.borrow().node.borrow().node_type {
             NodeType::Document | NodeType::Comment(_) | NodeType::DocumentType(_) => return None,
@@ -400,6 +403,7 @@ impl BoxNode {
                 return Some(Self::Text(Text {
                     style_node: Rc::clone(&style_node),
                     layout_info: LayoutInfo::default(),
+                    draw_ctx: draw_ctx.clone(),
                 }));
             }
             _ => {}
@@ -427,6 +431,7 @@ impl BoxNode {
                     let child = Self::build(
                         Rc::clone(&style_node.borrow().child_nodes[i]),
                         Some(Rc::clone(&style_node)),
+                        draw_ctx,
                     );
                     if let Some(child) = child {
                         children.push(Rc::new(RefCell::new(child)));
@@ -454,6 +459,7 @@ impl BoxNode {
                             let child = Self::build(
                                 Rc::clone(&style_node.borrow().child_nodes[i]),
                                 Some(Rc::clone(&style_node)),
+                                draw_ctx,
                             );
                             if let Some(child) = child {
                                 anon_box.children.push(Rc::new(RefCell::new(child)));
@@ -466,6 +472,7 @@ impl BoxNode {
                         let child = Self::build(
                             Rc::clone(&style_node.borrow().child_nodes[i]),
                             Some(Rc::clone(&style_node)),
+                            draw_ctx,
                         );
                         if let Some(child) = child {
                             children.push(Rc::new(RefCell::new(child)));
@@ -584,44 +591,8 @@ impl BoxNode {
                 else {
                     unreachable!()
                 };
-                let font_family = t
-                    .style_node
-                    .borrow()
-                    .style
-                    .font_family
-                    .family
-                    .iter()
-                    .map(|v| {
-                        if let CssValue::Ident(font) | CssValue::String(font) = v {
-                            font.to_string()
-                        } else {
-                            unreachable!()
-                        }
-                    })
-                    .collect::<Vec<String>>();
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight#common_weight_name_mapping
-                // https://docs.gtk.org/Pango/type_func.FontDescription.from_string.html
-                let font_weight = match &t.style_node.borrow().style.font_weight.weight {
-                    CssValue::Ident(weight) => match weight.as_str() {
-                        "normal" => "Regular",
-                        "bold" => "Bold",
-                        _ => unreachable!(),
-                    },
-                    CssValue::Number(weight) => match weight {
-                        0.0..150.0 => "Thin",
-                        150.0..250.0 => "Extra Light",
-                        250.0..350.0 => "Light",
-                        350.0..450.0 => "Regular",
-                        450.0..550.0 => "Medium",
-                        550.0..650.0 => "Semi-Bold",
-                        650.0..750.0 => "Bold",
-                        750.0..850.0 => "Extra-Bold",
-                        850.0..950.0 => "Black",
-                        950.0.. => "Extra-Black",
-                        _ => unreachable!(),
-                    },
-                    _ => unreachable!(),
-                };
+                let font_family = t.style_node.borrow().style.font_family.to_name_list();
+                let font_weight = &t.style_node.borrow().style.font_weight.to_name();
                 let color = if let CssValue::Color { r, g, b, a } =
                     t.style_node.borrow().style.color.value
                 {
@@ -664,8 +635,6 @@ impl BoxNode {
                         .borrow()
                         .get_inside_text()
                         .unwrap(),
-                    // x: t.layout_info.get_expanded_pos().x as f64,
-                    // y: t.layout_info.get_expanded_pos().y as f64 + parent_font_size as f64,
                     x: t.layout_info.pos.x as f64,
                     y: t.layout_info.pos.y as f64,
                     font_family,

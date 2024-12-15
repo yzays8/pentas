@@ -3,11 +3,7 @@ use std::cmp::max_by;
 use std::rc::Rc;
 
 use anyhow::Result;
-use font_kit::family_name::FamilyName;
-use font_kit::font::Font;
-use font_kit::metrics::Metrics;
-use font_kit::properties::Properties;
-use font_kit::source::SystemSource;
+use gtk4::pango;
 use regex::Regex;
 
 use crate::renderer::layout::box_model::{LayoutBox, LayoutInfo};
@@ -18,6 +14,7 @@ use crate::renderer::style::style_model::RenderNode;
 pub struct Text {
     pub style_node: Rc<RefCell<RenderNode>>,
     pub layout_info: LayoutInfo,
+    pub draw_ctx: pango::Context,
 }
 
 impl LayoutBox for Text {
@@ -140,23 +137,38 @@ impl Text {
             unreachable!()
         };
 
-        let font = SystemSource::new()
-            .select_best_match(&[FamilyName::SansSerif], &Properties::new())
+        let font_family = self.style_node.borrow().style.font_family.to_name_list();
+        let font_weight = &self.style_node.borrow().style.font_weight.to_name();
+        let font_desc = pango::FontDescription::from_string(&format!(
+            "{} {} {}px",
+            font_family.join(", "),
+            font_weight,
+            font_size
+        ));
+
+        let max_line_width = self.wrap_text(&font_desc, containing_block_info);
+        let height = self
+            .style_node
+            .borrow()
+            .node
+            .borrow()
+            .get_inside_text()
             .unwrap()
-            .load()
-            .unwrap();
-        let metrics: Metrics = font.metrics();
-        let scale_factor = font_size / metrics.units_per_em as f32;
-        let max_height = (metrics.ascent - metrics.descent) * scale_factor;
+            .split('\n')
+            .map(|line| {
+                let layout = pango::Layout::new(&self.draw_ctx);
+                layout.set_font_description(Some(&font_desc));
+                layout.set_text(line);
+                layout.size().1 as f32 / pango::SCALE as f32
+            })
+            .sum::<f32>();
 
-        let (max_line_width, line_num) = self.wrap_text(&font, scale_factor, containing_block_info);
-
-        self.layout_info.size.width = max_line_width;
-        self.layout_info.size.height = max_height * line_num as f32;
+        self.layout_info.size.width = max_line_width as f32;
+        self.layout_info.size.height = height;
     }
 
-    /// Wraps the text to fit the containing block width,
-    /// and returns the maximum line width and the number of lines.
+    /// Wraps the text by inserting line breaks at appropriate places to fit the width
+    /// of the containing block, and returns the maximum line width and the number of lines.
     ///
     /// This implementation is quite simple and doesn't take into account the line box system
     /// and Unicode line-break rules. It also assumes that a text node is the only child of
@@ -164,10 +176,9 @@ impl Text {
     /// https://drafts.csswg.org/css-text/#line-breaking
     fn wrap_text(
         &mut self,
-        font: &Font,
-        scale_factor: f32,
+        font_desc: &pango::FontDescription,
         containing_block_info: &LayoutInfo,
-    ) -> (f32, usize) {
+    ) -> f64 {
         let text = self
             .style_node
             .borrow()
@@ -178,28 +189,19 @@ impl Text {
         let mut new_text = String::new();
         let mut curr_width = 0.0;
         let mut max_line_width = 0.0;
-        let space_width =
-            font.advance(
-                font.glyph_for_char(' ')
-                    .unwrap_or(font.glyph_for_char('?').unwrap()),
-            )
-            .unwrap()
-            .x() * scale_factor;
-        let mut line_num = 1;
+
+        let layout = pango::Layout::new(&self.draw_ctx);
+        layout.set_font_description(Some(font_desc));
+        layout.set_text(" ");
+        let space_width = layout.size().0 as f64 / pango::SCALE as f64;
 
         text.split(' ').for_each(|word| {
-            let word_width = word
-                .chars()
-                .map(|c| {
-                    let glyph_id = font
-                        .glyph_for_char(c)
-                        .unwrap_or(font.glyph_for_char('?').unwrap());
-                    let advance = font.advance(glyph_id);
-                    advance.unwrap().x() * scale_factor
-                })
-                .sum::<f32>();
+            let layout = pango::Layout::new(&self.draw_ctx);
+            layout.set_font_description(Some(font_desc));
+            layout.set_text(word);
+            let word_width = layout.size().0 as f64 / pango::SCALE as f64;
             curr_width += word_width;
-            if containing_block_info.size.width < curr_width {
+            if curr_width as f32 >= containing_block_info.used_values.width.unwrap() {
                 curr_width -= word_width;
                 if new_text.ends_with(' ') {
                     new_text.pop();
@@ -209,7 +211,6 @@ impl Text {
                 max_line_width =
                     max_by(max_line_width, curr_width, |a, b| a.partial_cmp(b).unwrap());
                 curr_width = word_width;
-                line_num += 1;
             } else {
                 new_text.push_str(format!("{word} ").as_str());
                 curr_width += space_width;
@@ -226,6 +227,6 @@ impl Text {
             .borrow_mut()
             .set_inside_text(&new_text);
 
-        (max_line_width, line_num)
+        max_line_width
     }
 }

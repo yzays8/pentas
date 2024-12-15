@@ -177,7 +177,12 @@ impl BlockBox {
                     + self.layout_info.used_values.border.left
                     + self.layout_info.used_values.border.right;
 
-                let leeway = containing_block_info.size.width - sum;
+                let leeway = containing_block_info.size.width
+                    - containing_block_info.used_values.padding.left
+                    - containing_block_info.used_values.padding.right
+                    - containing_block_info.used_values.border.left
+                    - containing_block_info.used_values.border.right
+                    - sum;
 
                 if (width.size != CssValue::Ident("auto".to_string())) && (leeway < 0.0) {
                     if margin_left == CssValue::Ident("auto".to_string()) {

@@ -73,3 +73,18 @@ impl CssProperty for FontFamilyProp {
         Ok(self)
     }
 }
+
+impl FontFamilyProp {
+    pub fn to_name_list(&self) -> Vec<String> {
+        self.family
+            .iter()
+            .map(|v| {
+                if let CssValue::Ident(font) | CssValue::String(font) = v {
+                    font.to_owned()
+                } else {
+                    unreachable!()
+                }
+            })
+            .collect::<Vec<String>>()
+    }
+}

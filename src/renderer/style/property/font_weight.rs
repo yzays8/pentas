@@ -90,6 +90,35 @@ impl CssProperty for FontWeightProp {
     }
 }
 
+impl FontWeightProp {
+    pub fn to_name(&self) -> String {
+        // https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight#common_weight_name_mapping
+        // https://docs.gtk.org/Pango/type_func.FontDescription.from_string.html
+        let weight = match &self.weight {
+            CssValue::Ident(weight) => match weight.as_str() {
+                "normal" => "Regular",
+                "bold" => "Bold",
+                _ => unreachable!(),
+            },
+            CssValue::Number(weight) => match weight {
+                0.0..150.0 => "Thin",
+                150.0..250.0 => "Extra Light",
+                250.0..350.0 => "Light",
+                350.0..450.0 => "Regular",
+                450.0..550.0 => "Medium",
+                550.0..650.0 => "Semi-Bold",
+                650.0..750.0 => "Bold",
+                750.0..850.0 => "Extra-Bold",
+                850.0..950.0 => "Black",
+                950.0.. => "Extra-Black",
+                _ => unreachable!(),
+            },
+            _ => unreachable!(),
+        };
+        weight.to_string()
+    }
+}
+
 // <font-weight-absolute> =
 //   normal             |
 //   bold               |

@@ -5,6 +5,7 @@ use std::fmt;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Context, Result};
+use gtk4::pango;
 
 use crate::renderer::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
 use crate::renderer::css::selector::Selector;
@@ -32,8 +33,8 @@ impl RenderTree {
         })
     }
 
-    pub fn to_box_tree(&self) -> Result<BoxTree> {
-        BoxTree::build(self)
+    pub fn to_box_tree(&self, draw_ctx: &pango::Context) -> Result<BoxTree> {
+        BoxTree::build(self, draw_ctx)
     }
 }
 

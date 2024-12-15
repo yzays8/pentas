@@ -273,6 +273,7 @@ impl ContentArea {
                 &html,
                 self.imp().drawing_area.width(),
                 self.imp().drawing_area.height(),
+                &self.imp().drawing_area.create_pango_context(),
                 *self.imp().verbosity.borrow(),
             )
             .unwrap(),
