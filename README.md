@@ -2,6 +2,8 @@
 
 This is a simple and small browser built from scratch for learning purposes. It loosely follows web standards. The core functionality is implemented without relying on external libraries, except for the UI, which uses [gtk4](https://docs.gtk.org/gtk4/).
 
+![example_com](./demo/example_pentas.jpg)
+
 ## Install
 
 ### Linux (Debian)
