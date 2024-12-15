@@ -60,7 +60,7 @@ mod imp {
 
             let obj = self.obj();
             self.drawing_area.get().set_draw_func(glib::clone!(
-                #[weak]
+                #[strong]
                 obj,
                 move |_, ctx, _, _| {
                     obj.imp().draw(ctx);
