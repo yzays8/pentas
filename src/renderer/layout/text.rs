@@ -7,7 +7,7 @@ use gtk4::pango;
 use regex::Regex;
 
 use crate::renderer::layout::box_model::{LayoutBox, LayoutInfo};
-use crate::renderer::style::property::{AbsoluteLengthUnit, CssValue, DisplayOutside, LengthUnit};
+use crate::renderer::style::property::{CssValue, DisplayOutside};
 use crate::renderer::style::style_model::RenderNode;
 
 #[derive(Debug)]
@@ -109,9 +109,7 @@ impl Text {
         .for_each(|(used_margin, comp_margin)| {
             *used_margin = match comp_margin {
                 CssValue::Ident(v) if v == "auto" => 0.0,
-                CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)) => {
-                    *size
-                }
+                CssValue::Length(..) => comp_margin.to_px().unwrap(),
                 CssValue::Percentage(_) => unimplemented!(),
                 _ => unreachable!(),
             };
@@ -131,12 +129,14 @@ impl Text {
     }
 
     fn calc_width_and_height(&mut self, containing_block_info: &LayoutInfo) {
-        let CssValue::Length(font_size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)) =
-            self.style_node.borrow().style.font_size.size
-        else {
-            unreachable!()
-        };
-
+        let font_size = self
+            .style_node
+            .borrow()
+            .style
+            .font_size
+            .size
+            .to_px()
+            .unwrap();
         let font_family = self.style_node.borrow().style.font_family.to_name_list();
         let font_weight = &self.style_node.borrow().style.font_weight.to_name();
         let font_desc = pango::FontDescription::from_string(&format!(

@@ -87,6 +87,20 @@ impl fmt::Display for CssValue {
     }
 }
 
+impl CssValue {
+    /// Converts the length value to pixels, if its unit is `px`.
+    pub fn to_px(&self) -> Result<f32> {
+        if let CssValue::Length(value, unit) = self {
+            if unit == &LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px) {
+                return Ok(*value);
+            }
+            bail!("Expected px unit but found: {:?}", unit);
+        } else {
+            bail!("Expected length value but found: {:?}", self);
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum LengthUnit {
     RelativeLengthUnit(RelativeLengthUnit),

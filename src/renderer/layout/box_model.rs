@@ -441,46 +441,14 @@ impl BoxNode {
 
         // Set the used values for the padding and border properties.
         // The margin property is set later because it needs to be resolved if an `auto` value is set.
-        let padding = if let (
-            CssValue::Length(top_px, _),
-            CssValue::Length(right_px, _),
-            CssValue::Length(bottom_px, _),
-            CssValue::Length(left_px, _),
-        ) = (
-            &style_node.borrow().style.padding.top,
-            &style_node.borrow().style.padding.right,
-            &style_node.borrow().style.padding.bottom,
-            &style_node.borrow().style.padding.left,
-        ) {
-            Edge {
-                top: *top_px,
-                right: *right_px,
-                bottom: *bottom_px,
-                left: *left_px,
-            }
-        } else {
-            unreachable!()
-        };
-        let border = if let (
-            CssValue::Length(top_px, _),
-            CssValue::Length(right_px, _),
-            CssValue::Length(bottom_px, _),
-            CssValue::Length(left_px, _),
-        ) = (
-            &style_node.borrow().style.border.border_width.top,
-            &style_node.borrow().style.border.border_width.right,
-            &style_node.borrow().style.border.border_width.bottom,
-            &style_node.borrow().style.border.border_width.left,
-        ) {
-            Edge {
-                top: *top_px,
-                right: *right_px,
-                bottom: *bottom_px,
-                left: *left_px,
-            }
-        } else {
-            unreachable!();
-        };
+        let padding = style_node.borrow().style.padding.to_px().unwrap();
+        let border = style_node
+            .borrow()
+            .style
+            .border
+            .border_width
+            .to_px()
+            .unwrap();
 
         match style_node.borrow().get_display_type() {
             DisplayOutside::Block => Some(Self::BlockBox(BlockBox {

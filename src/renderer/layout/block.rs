@@ -73,7 +73,10 @@ impl LayoutBox for BlockBox {
                     _ => unreachable!(),
                 };
 
+                // This is where the margin collapse happens, which is tricky. This
+                // implementation is quite simple and does not cover complex cases.
                 // https://www.w3.org/TR/CSS22/box.html#collapsing-margins
+                // https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_box_model/Mastering_margin_collapsing
                 if let Some(info) = &prev_sib_info {
                     if child_layout_info.used_values.margin.top < info.used_values.margin.bottom {
                         self.layout_info.size.height +=
@@ -164,10 +167,7 @@ impl BlockBox {
                     .iter()
                     .map(|v| match v {
                         CssValue::Ident(v) if v == "auto" => 0.0,
-                        CssValue::Length(
-                            size,
-                            LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
-                        ) => *size,
+                        CssValue::Length(..) => v.to_px().unwrap(),
                         CssValue::Percentage(_) => unimplemented!(),
                         _ => unreachable!(),
                     })
@@ -207,39 +207,25 @@ impl BlockBox {
                     match (is_width_auto, is_margin_left_auto, is_margin_right_auto) {
                         (false, false, false) => {
                             // Assume that the `direction` property of the containing block is `ltr`.
-                            let CssValue::Length(margin_right_px, _) = margin_right else {
-                                unreachable!()
-                            };
-                            let CssValue::Length(margin_left_px, _) = margin_left else {
-                                unreachable!()
-                            };
-                            let CssValue::Length(width_px, _) = width.size else {
-                                unreachable!()
-                            };
-                            (width_px, margin_left_px, margin_right_px + leeway)
+                            (
+                                width.size.to_px().unwrap(),
+                                margin_left.to_px().unwrap(),
+                                margin_right.to_px().unwrap() + leeway,
+                            )
                         }
                         (false, true, true) => {
-                            let CssValue::Length(width_px, _) = width.size else {
-                                unreachable!()
-                            };
-                            (width_px, leeway / 2.0, leeway / 2.0)
+                            (width.size.to_px().unwrap(), leeway / 2.0, leeway / 2.0)
                         }
                         (true, _, _) => {
                             let margin_left_px = match margin_left {
                                 CssValue::Ident(v) if v == "auto" => 0.0,
-                                CssValue::Length(
-                                    size,
-                                    LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
-                                ) => size,
+                                CssValue::Length(..) => margin_left.to_px().unwrap(),
                                 CssValue::Percentage(_) => unimplemented!(),
                                 _ => unreachable!(),
                             };
                             let margin_right_px = match margin_right {
                                 CssValue::Ident(v) if v == "auto" => 0.0,
-                                CssValue::Length(
-                                    size,
-                                    LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
-                                ) => size,
+                                CssValue::Length(..) => margin_right.to_px().unwrap(),
                                 CssValue::Percentage(_) => unimplemented!(),
                                 _ => unreachable!(),
                             };
@@ -258,19 +244,13 @@ impl BlockBox {
                 self.layout_info.used_values.margin.right = margin_right_px;
                 self.layout_info.used_values.margin.top = match margin.top {
                     CssValue::Ident(v) if v == "auto" => 0.0,
-                    CssValue::Length(
-                        size,
-                        LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
-                    ) => size,
+                    CssValue::Length(..) => margin.top.to_px().unwrap(),
                     CssValue::Percentage(_) => unimplemented!(),
                     _ => unreachable!(),
                 };
                 self.layout_info.used_values.margin.bottom = match margin.bottom {
                     CssValue::Ident(v) if v == "auto" => 0.0,
-                    CssValue::Length(
-                        size,
-                        LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
-                    ) => size,
+                    CssValue::Length(..) => margin.bottom.to_px().unwrap(),
                     CssValue::Percentage(_) => unimplemented!(),
                     _ => unreachable!(),
                 };
@@ -292,11 +272,12 @@ impl BlockBox {
             + containing_block_info.used_values.padding.left
             + self.layout_info.used_values.margin.left
             + self.layout_info.used_values.border.left;
+
+        // This is where the margin collapse happens, which is tricky. This
+        // implementation is quite simple and does not cover complex cases.
+        // https://www.w3.org/TR/CSS22/box.html#collapsing-margins
+        // https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_box_model/Mastering_margin_collapsing
         self.layout_info.pos.y = self.layout_info.used_values.border.top
-            // This is where the margin collapse happens, which is tricky. This
-            // implementation is quite simple and does not cover complex cases.
-            // https://www.w3.org/TR/CSS22/box.html#collapsing-margins
-            // https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_box_model/Mastering_margin_collapsing
             + if let Some(info) = prev_sibling_info {
                 if self.layout_info.used_values.margin.top < info.used_values.margin.bottom {
                     info.get_expanded_pos().y + info.get_expanded_size().height
@@ -307,9 +288,9 @@ impl BlockBox {
                         - info.used_values.margin.bottom
                 }
             } else {
-                self.layout_info.used_values.margin.top
-                    + containing_block_info.pos.y
+                containing_block_info.pos.y
                     + containing_block_info.used_values.padding.top
+                    + self.layout_info.used_values.margin.top
             };
     }
 }

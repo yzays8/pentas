@@ -5,6 +5,7 @@ use anyhow::{bail, Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::CssToken;
+use crate::renderer::layout::box_model::Edge;
 use crate::renderer::style::property::font_size::{self, FontSizeProp};
 use crate::renderer::style::property::{
     parse_length_percentage_type, AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit,
@@ -126,6 +127,15 @@ impl PaddingProp {
             CssValue::Percentage(_) => unimplemented!(),
             _ => bail!("Invalid padding value: {:?}", &value),
         }
+    }
+
+    pub fn to_px(&self) -> Result<Edge> {
+        Ok(Edge {
+            top: self.top.to_px()?,
+            right: self.right.to_px()?,
+            bottom: self.bottom.to_px()?,
+            left: self.left.to_px()?,
+        })
     }
 }
 

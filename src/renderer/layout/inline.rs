@@ -4,7 +4,7 @@ use std::rc::Rc;
 use crate::renderer::layout::box_model::{BoxNode, BoxPosition, BoxSize, LayoutBox, LayoutInfo};
 use crate::renderer::layout::text::Text;
 use crate::renderer::style::property::display::{DisplayInside, DisplayOutside};
-use crate::renderer::style::property::{AbsoluteLengthUnit, CssValue, LengthUnit};
+use crate::renderer::style::property::CssValue;
 use crate::renderer::style::style_model::RenderNode;
 
 #[derive(Debug)]
@@ -101,13 +101,13 @@ impl InlineBox {
 
         self.layout_info.used_values.margin.top = match margin.top {
             CssValue::Ident(v) if v == "auto" => 0.0,
-            CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)) => size,
+            CssValue::Length(..) => margin.top.to_px().unwrap(),
             CssValue::Percentage(_) => unimplemented!(),
             _ => unreachable!(),
         };
         self.layout_info.used_values.margin.bottom = match margin.bottom {
             CssValue::Ident(v) if v == "auto" => 0.0,
-            CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)) => size,
+            CssValue::Length(..) => margin.bottom.to_px().unwrap(),
             CssValue::Percentage(_) => unimplemented!(),
             _ => unreachable!(),
         };

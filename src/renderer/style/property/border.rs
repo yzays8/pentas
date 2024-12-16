@@ -3,6 +3,7 @@ use std::fmt;
 use anyhow::{Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
+use crate::renderer::layout::box_model::Edge;
 use crate::renderer::style::property::color::ColorProp;
 use crate::renderer::style::property::{AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit};
 use crate::renderer::style::style_model::SpecifiedValues;
@@ -134,5 +135,16 @@ impl Default for BorderWidthProp {
             bottom: CssValue::Ident("medium".to_string()),
             left: CssValue::Ident("medium".to_string()),
         }
+    }
+}
+
+impl BorderWidthProp {
+    pub fn to_px(&self) -> Result<Edge> {
+        Ok(Edge {
+            top: self.top.to_px()?,
+            right: self.right.to_px()?,
+            bottom: self.bottom.to_px()?,
+            left: self.left.to_px()?,
+        })
     }
 }
