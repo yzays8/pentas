@@ -12,6 +12,7 @@ use crate::renderer::style::property::{
 };
 use crate::renderer::style::style_model::SpecifiedValues;
 
+/// https://developer.mozilla.org/en-US/docs/Web/CSS/margin
 #[derive(Clone, Debug, PartialEq)]
 pub struct MarginProp {
     pub top: CssValue,
@@ -135,6 +136,7 @@ impl MarginProp {
     }
 }
 
+/// https://developer.mozilla.org/en-US/docs/Web/CSS/margin-block
 #[derive(Clone, Debug, PartialEq)]
 pub struct MarginBlockProp {
     pub start: CssValue,

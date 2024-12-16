@@ -11,6 +11,7 @@ use crate::renderer::style::property::{
 };
 use crate::renderer::style::style_model::SpecifiedValues;
 
+/// https://developer.mozilla.org/en-US/docs/Web/CSS/width
 #[derive(Clone, Debug, PartialEq)]
 pub struct WidthProp {
     pub size: CssValue,

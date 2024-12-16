@@ -14,6 +14,7 @@ use crate::renderer::style::style_model::SpecifiedValues;
 // const THICK: f32 = 5.0;
 
 // todo: Add BorderColorProp for border-color
+/// https://developer.mozilla.org/en-US/docs/Web/CSS/border
 #[derive(Clone, Debug)]
 pub struct BorderProp {
     pub border_color: ColorProp,

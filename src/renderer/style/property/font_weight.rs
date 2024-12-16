@@ -8,6 +8,7 @@ use crate::renderer::css::token::{CssToken, NumericType};
 use crate::renderer::style::property::{CssProperty, CssValue};
 use crate::renderer::style::style_model::SpecifiedValues;
 
+/// https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight
 #[derive(Clone, Debug, PartialEq)]
 pub struct FontWeightProp {
     pub weight: CssValue,

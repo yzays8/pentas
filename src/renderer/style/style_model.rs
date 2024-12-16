@@ -9,7 +9,7 @@ use gtk4::pango;
 
 use crate::renderer::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
 use crate::renderer::css::selector::Selector;
-use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
+use crate::renderer::html::dom::{DocumentTree, DomNode, NodeType};
 use crate::renderer::layout::box_model::BoxTree;
 use crate::renderer::style::property::{
     BackGroundColorProp, BorderProp, ColorProp, CssProperty, DisplayBox, DisplayOutside,
@@ -95,12 +95,7 @@ impl RenderNode {
     ) -> Result<Option<Self>> {
         // Omit nodes that are not rendered.
         match &node.borrow().node_type {
-            NodeType::Element(Element { tag_name, .. }) => {
-                if let "script" | "meta" = tag_name.as_str() {
-                    return Ok(None);
-                }
-            }
-            NodeType::Comment(_) => {
+            NodeType::DocumentType(_) | NodeType::Comment(_) => {
                 return Ok(None);
             }
             _ => {}
@@ -127,6 +122,7 @@ impl RenderNode {
         };
 
         // All elements with a value of none for the display property and their descendants are not rendered.
+        // Some elements such as <meta>, <title>, <script>, <style> are marked as `none` in the UA style sheet.
         // https://developer.mozilla.org/en-US/docs/Web/CSS/display#none
         if computed_style.display.display_box == Some(DisplayBox::None) {
             return Ok(None);
@@ -225,19 +221,19 @@ impl DeclaredValues {
         sorted_list.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| b.0.cmp(&a.0)));
 
         // Determine the winning (highest-priority) declarations.
-        let mut cascaded_values = HashMap::new();
+        let mut final_style_map = HashMap::new();
         for declarations in sorted_list.iter().map(|(_, declarations, _)| declarations) {
             for declaration in declarations {
                 // The higher-priority declarations are placed first in the hash table,
                 // and declarations placed later in the table that have lower-priority
                 // with the same name are ignored.
-                cascaded_values
+                final_style_map
                     .entry(declaration.name.clone())
                     .or_insert_with(|| declaration.value.clone());
             }
         }
 
-        CascadedValues::new(cascaded_values)
+        CascadedValues::new(final_style_map)
     }
 }
 
@@ -326,63 +322,46 @@ impl SpecifiedValues {
     pub fn set_from(&mut self, cascaded_values: &CascadedValues) {
         for (name, values) in &cascaded_values.values {
             match name.as_str() {
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/background-color
                 "background-color" => {
                     if let Ok(v) = BackGroundColorProp::parse(values) {
                         self.background_color = Some(v);
                     }
                 }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/color
                 "color" => {
                     if let Ok(v) = ColorProp::parse(values) {
                         self.color = Some(v);
                     }
                 }
-
-                // https://drafts.csswg.org/css-display/#the-display-properties
                 "display" => {
                     if let Ok(v) = DisplayProp::parse(values) {
                         self.display = Some(v);
                     }
                 }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/font-family
                 "font-family" => {
                     if let Ok(v) = FontFamilyProp::parse(values) {
                         self.font_family = Some(v);
                     }
                 }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/font-size
                 "font-size" => {
                     if let Ok(v) = FontSizeProp::parse(values) {
                         self.font_size = Some(v);
                     }
                 }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight
                 "font-weight" => {
                     if let Ok(v) = FontWeightProp::parse(values) {
                         self.font_weight = Some(v);
                     }
                 }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration
                 "text-decoration" => {
                     if let Ok(v) = TextDecorationProp::parse(values) {
                         self.text_decoration = Some(v);
                     }
                 }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/margin
                 "margin" => {
                     if let Ok(v) = MarginProp::parse(values) {
                         self.margin = Some(v);
                     }
                 }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/margin-block
                 "margin-block" => {
                     if let Ok(v) = MarginBlockProp::parse(values) {
                         self.margin_block = Some(v);
@@ -405,35 +384,26 @@ impl SpecifiedValues {
                         }
                     }
                 }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/border
                 "border" => {
                     if let Ok(v) = BorderProp::parse(values) {
                         self.border = Some(v);
                     }
                 }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/padding
                 "padding" => {
                     if let Ok(v) = PaddingProp::parse(values) {
                         self.padding = Some(v);
                     }
                 }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/width
                 "width" => {
                     if let Ok(v) = WidthProp::parse(values) {
                         self.width = Some(v);
                     }
                 }
-
-                // https://developer.mozilla.org/en-US/docs/Web/CSS/height
                 "height" => {
                     if let Ok(v) = HeightProp::parse(values) {
                         self.height = Some(v);
                     }
                 }
-
                 _ => {}
             }
         }

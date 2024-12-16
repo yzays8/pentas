@@ -11,6 +11,7 @@ use crate::renderer::style::property::{CssProperty, CssValue};
 use crate::renderer::style::style_model::SpecifiedValues;
 
 // todo: add TextDecorationColor, TextDecorationLine, TextDecorationStyle structs for each member
+/// https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextDecorationProp {
     pub color: ColorProp,

@@ -7,6 +7,7 @@ use crate::renderer::css::token::CssToken;
 use crate::renderer::style::property::{CssProperty, CssValue};
 use crate::renderer::style::style_model::SpecifiedValues;
 
+/// https://developer.mozilla.org/en-US/docs/Web/CSS/font-family
 #[derive(Clone, Debug, PartialEq)]
 pub struct FontFamilyProp {
     pub family: Vec<CssValue>,

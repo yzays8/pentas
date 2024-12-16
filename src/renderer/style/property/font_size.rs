@@ -15,6 +15,7 @@ pub const SMALL: f32 = 13.0;
 pub const MEDIUM: f32 = 16.0;
 pub const LARGE: f32 = 18.0;
 
+/// https://developer.mozilla.org/en-US/docs/Web/CSS/font-size
 #[derive(Clone, Debug, PartialEq)]
 pub struct FontSizeProp {
     pub size: CssValue,
