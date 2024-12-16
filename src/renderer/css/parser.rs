@@ -106,9 +106,9 @@ impl CssParser {
                     return Ok(None);
                 }
                 Some(CssToken::OpenCurlyBrace) => {
-                    // Here, the consume-list-of-declarations algorithm should be called on the
-                    // result (a list of ComponentValue) after calling the consume-simple-block algorithm,
-                    // but for the sake of simplicity, the consume-list-of-declarations algorithm is called from the beginning.
+                    // The consume-list-of-declarations algorithm should be called on the result (a list of ComponentValue)
+                    // here after calling the consume-simple-block algorithm, but for the sake of simplicity, the
+                    // consume-list-of-declarations algorithm is called from the beginning.
                     qualified_rule
                         .declarations
                         .extend(self.consume_list_of_declarations());
