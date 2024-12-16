@@ -60,8 +60,8 @@ impl fmt::Display for RenderTree {
             }
             indent_and_branches.push_str(if is_last_child { "└─" } else { "├─" });
             node_tree.push_str(&format!("{}{}\n", indent_and_branches, node.borrow()));
-            let children_num = node.borrow().child_nodes.len();
-            for (i, child) in node.borrow().child_nodes.iter().enumerate() {
+            let children_num = node.borrow().children.len();
+            for (i, child) in node.borrow().children.iter().enumerate() {
                 construct_node_view(
                     node_tree,
                     child,
@@ -82,9 +82,9 @@ impl PrintableTree for RenderTree {}
 
 #[derive(Debug)]
 pub struct RenderNode {
-    pub node: Rc<RefCell<DomNode>>,
+    pub dom_node: Rc<RefCell<DomNode>>,
     pub style: ComputedValues,
-    pub child_nodes: Vec<Rc<RefCell<Self>>>,
+    pub children: Vec<Rc<RefCell<Self>>>,
 }
 
 impl RenderNode {
@@ -134,7 +134,7 @@ impl RenderNode {
 
         let child_nodes = node
             .borrow()
-            .child_nodes
+            .children
             .iter()
             .map(|child| Self::build(Rc::clone(child), style_sheets, Some(computed_style.clone())))
             .collect::<Result<Vec<_>>>()?
@@ -145,9 +145,9 @@ impl RenderNode {
             .collect::<Vec<_>>();
 
         Ok(Some(Self {
-            node: Rc::clone(&node),
+            dom_node: Rc::clone(&node),
             style: computed_style,
-            child_nodes,
+            children: child_nodes,
         }))
     }
 
@@ -158,15 +158,15 @@ impl RenderNode {
 
 impl fmt::Display for RenderNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.node.borrow().node_type {
+        match &self.dom_node.borrow().node_type {
             NodeType::Element(elm) => write!(f, "{}, Computed( {})", elm, self.style),
             NodeType::Text(_) => write!(
                 f,
                 "{:?}, Computed( {})",
-                self.node.borrow().node_type,
+                self.dom_node.borrow().node_type,
                 self.style
             ),
-            _ => write!(f, "{:?}", self.node.borrow().node_type),
+            _ => write!(f, "{:?}", self.dom_node.borrow().node_type),
         }
     }
 }

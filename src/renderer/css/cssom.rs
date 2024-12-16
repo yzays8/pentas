@@ -9,8 +9,6 @@ use crate::renderer::html::dom::DomNode;
 #[derive(Debug)]
 pub struct StyleSheet {
     pub rules: Vec<Rule>,
-    // pub parent_style_sheet: Option<Box<StyleSheet>>,
-    // pub owner_rule: Option<Rule>,
 }
 
 impl StyleSheet {

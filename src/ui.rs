@@ -9,8 +9,8 @@ use crate::app::VerbosityLevel;
 use widgets::window::Window;
 
 const GTK_APP_ID: &str = "app.pentas";
-pub const DEFAULT_WINDOW_WIDTH: usize = 1200;
-pub const DEFAULT_WINDOW_HEIGHT: usize = 800;
+pub const DEFAULT_WINDOW_WIDTH: i32 = 1200;
+pub const DEFAULT_WINDOW_HEIGHT: i32 = 800;
 
 pub fn show_ui(verbosity: VerbosityLevel) -> glib::ExitCode {
     gio::resources_register_include!("pentas.gresource").expect("Failed to register resources.");
@@ -26,7 +26,7 @@ pub fn show_ui(verbosity: VerbosityLevel) -> glib::ExitCode {
 fn build_ui(app: &Application, verbosity: VerbosityLevel) {
     let window = Window::new(app);
     window.set_title(Some("pentas"));
-    window.set_default_size(DEFAULT_WINDOW_WIDTH as i32, DEFAULT_WINDOW_HEIGHT as i32);
+    window.set_default_size(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
     window.set_verbosity(verbosity);
     window.present();
 }

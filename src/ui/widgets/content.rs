@@ -6,7 +6,7 @@ use gtk4::subclass::prelude::ObjectSubclassIsExt;
 
 use crate::app::VerbosityLevel;
 use crate::net::http::HttpClient;
-use crate::renderer::Renderer;
+use crate::renderer::get_render_objects;
 
 mod imp {
     use std::cell::RefCell;
@@ -187,7 +187,7 @@ impl ContentArea {
         };
 
         self.imp().replace_objects(
-            &Renderer::run(
+            &get_render_objects(
                 &html,
                 self.imp().drawing_area.width(),
                 self.imp().drawing_area.height(),

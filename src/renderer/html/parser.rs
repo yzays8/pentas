@@ -681,7 +681,7 @@ impl HtmlParser {
     /// https://html.spec.whatwg.org/multipage/parsing.html#insert-a-character
     fn insert_char_to_token(&mut self, c: char) {
         let mut need_to_push_node = false;
-        if let Some(n) = &mut self.stack.last().unwrap().borrow_mut().child_nodes.last() {
+        if let Some(n) = &mut self.stack.last().unwrap().borrow_mut().children.last() {
             if let NodeType::Text(text) = &mut n.borrow_mut().node_type {
                 text.push(c);
             } else {
@@ -707,7 +707,7 @@ impl HtmlParser {
     ) -> Result<()> {
         // When the UA should parse the CSS for the new stylesheet is not clearly defined:
         // https://github.com/whatwg/html/issues/2997
-        if let NodeType::Text(css) = &node.borrow().child_nodes.last().unwrap().borrow().node_type {
+        if let NodeType::Text(css) = &node.borrow().children.last().unwrap().borrow().node_type {
             let style_sheet = CssParser::new(&CssTokenizer::new(css).tokenize()?).parse()?;
             style_sheets.push(style_sheet);
         }

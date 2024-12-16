@@ -142,8 +142,7 @@ impl Selector {
                     // https://www.w3.org/TR/selectors-3/#descendant-combinators
                     Combinator::Whitespace => {
                         // NOTE: html tag has no parent element.
-                        let right_node_parent =
-                            right_node.borrow().parent_node.as_ref()?.upgrade()?;
+                        let right_node_parent = right_node.borrow().parent.as_ref()?.upgrade()?;
                         let mut ancestor = right_node_parent;
 
                         // Check whether the left selector exists in the ancestor of the right selector.
@@ -153,10 +152,10 @@ impl Selector {
                                     return Some(Rc::clone(&ancestor));
                                 }
                             }
-                            if ancestor.borrow().parent_node.is_none() {
+                            if ancestor.borrow().parent.is_none() {
                                 break;
                             }
-                            let a = ancestor.borrow().parent_node.as_ref()?.upgrade()?;
+                            let a = ancestor.borrow().parent.as_ref()?.upgrade()?;
                             ancestor = a;
                         }
                         None
@@ -165,8 +164,7 @@ impl Selector {
                     // https://www.w3.org/TR/selectors-3/#child-combinators
                     Combinator::GreaterThan => {
                         // NOTE: html tag has no parent element.
-                        let right_node_parent =
-                            right_node.borrow().parent_node.as_ref()?.upgrade()?;
+                        let right_node_parent = right_node.borrow().parent.as_ref()?.upgrade()?;
 
                         // Check that the left selector is a parent of the right selector.
                         for simple_selector in left {
@@ -180,7 +178,7 @@ impl Selector {
                     // https://www.w3.org/TR/selectors-3/#adjacent-sibling-combinators
                     Combinator::Plus => {
                         let mut right_node_prev_sibling =
-                            right_node.borrow().previous_sibling.as_ref()?.upgrade()?;
+                            right_node.borrow().prev_sib.as_ref()?.upgrade()?;
 
                         loop {
                             // Non-element nodes (e.g. text between elements) are ignored when considering adjacency of elements.
@@ -197,7 +195,7 @@ impl Selector {
                             // Set the previous sibling of the previous sibling if previous sibling is not Element.
                             let s = right_node_prev_sibling
                                 .borrow()
-                                .previous_sibling
+                                .prev_sib
                                 .as_ref()?
                                 .upgrade()?;
                             right_node_prev_sibling = s;
@@ -207,7 +205,7 @@ impl Selector {
                     // https://www.w3.org/TR/selectors-3/#general-sibling-combinators
                     Combinator::Tilde => {
                         let mut right_node_prev_sibling =
-                            right_node.borrow().previous_sibling.as_ref()?.upgrade()?;
+                            right_node.borrow().prev_sib.as_ref()?.upgrade()?;
 
                         loop {
                             // Non-element nodes (e.g. text between elements) are ignored when considering adjacency of elements.
@@ -224,7 +222,7 @@ impl Selector {
                             // Set the previous sibling of the previous sibling if previous sibling is not Element.
                             let s = right_node_prev_sibling
                                 .borrow()
-                                .previous_sibling
+                                .prev_sib
                                 .as_ref()?
                                 .upgrade()?;
                             right_node_prev_sibling = s;

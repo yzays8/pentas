@@ -2,7 +2,7 @@ use anyhow::{Ok, Result};
 use gtk4::prelude::WidgetExt;
 use gtk4::{self, DrawingArea};
 
-use crate::renderer::Renderer;
+use crate::renderer::{display_css, display_html};
 use crate::ui::show_ui;
 
 #[derive(Debug)]
@@ -34,14 +34,14 @@ impl Runner {
         match (&self.config.no_window_html, &self.config.no_window_css) {
             (Some(p), None) => {
                 gtk4::init()?;
-                Renderer::display_html(
+                display_html(
                     &std::fs::read_to_string(p)?,
                     &DrawingArea::new().pango_context(),
                     self.config.verbosity,
                 )?;
             }
             (None, Some(p)) => {
-                Renderer::display_css(&std::fs::read_to_string(p)?)?;
+                display_css(&std::fs::read_to_string(p)?)?;
             }
             (None, None) => {
                 show_ui(self.config.verbosity);

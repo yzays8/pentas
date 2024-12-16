@@ -24,15 +24,15 @@ pub struct BoxTree {
 impl BoxTree {
     pub fn build(render_tree: &RenderTree, draw_ctx: &pango::Context) -> Result<Self> {
         ensure!(
-            render_tree.root.borrow().node.borrow().node_type == NodeType::Document,
+            render_tree.root.borrow().dom_node.borrow().node_type == NodeType::Document,
             "The root node of the render tree must be a document node."
         );
 
         // https://www.w3.org/TR/css-display-3/#root-element
         let mut root = None;
-        for child in render_tree.root.borrow().child_nodes.iter() {
+        for child in render_tree.root.borrow().children.iter() {
             if let NodeType::Element(Element { tag_name: n, .. }) =
-                &child.borrow().node.borrow().node_type
+                &child.borrow().dom_node.borrow().node_type
             {
                 if n == "html" {
                     root = Some(Rc::clone(child));
@@ -52,13 +52,16 @@ impl BoxTree {
         })
     }
 
-    pub fn layout(&mut self, viewport_width: f32) -> Result<&mut Self> {
+    pub fn layout(&mut self, viewport_width: i32, viewport_height: i32) -> Result<&mut Self> {
         self.root.borrow_mut().layout(
+            // The containing block of the root element is initial containing block,
+            // which has the dimensions of the viewport and is positioned at the origin of the canvas.
+            // https://www.w3.org/TR/CSS22/visudet.html#containing-block-details
             &LayoutInfo {
                 size: BoxSize {
                     // https://www.w3.org/TR/CSS22/visuren.html#viewport
-                    width: viewport_width,
-                    height: 0.0,
+                    width: viewport_width as f32,
+                    height: viewport_height as f32,
                 },
                 pos: BoxPosition { x: 0.0, y: 0.0 },
                 used_values: UsedValues::default(),
@@ -84,18 +87,11 @@ impl BoxTree {
             let mut remove_list: Vec<usize> = vec![];
             let mut n = node.borrow_mut();
             let children_enum = match &mut *n {
-                BoxNode::BlockBox(BlockBox {
-                    children: child_nodes,
-                    ..
-                })
-                | BoxNode::InlineBox(InlineBox {
-                    children: child_nodes,
-                    ..
-                })
-                | BoxNode::AnonymousBox(AnonymousBox {
-                    children: child_nodes,
-                    ..
-                }) => child_nodes.iter_mut().enumerate(),
+                BoxNode::BlockBox(BlockBox { children, .. })
+                | BoxNode::InlineBox(InlineBox { children, .. })
+                | BoxNode::AnonymousBox(AnonymousBox { children, .. }) => {
+                    children.iter_mut().enumerate()
+                }
                 BoxNode::Text(_) => unreachable!(),
             };
             let children_num = children_enum.len();
@@ -105,7 +101,7 @@ impl BoxTree {
                     t.trim_text(i == 0, i == children_num - 1)?;
                     if t.style_node
                         .borrow()
-                        .node
+                        .dom_node
                         .borrow()
                         .get_inside_text()
                         .unwrap()
@@ -120,19 +116,10 @@ impl BoxTree {
             }
             for i in remove_list.iter().rev() {
                 match &mut *n {
-                    BoxNode::BlockBox(BlockBox {
-                        children: child_nodes,
-                        ..
-                    })
-                    | BoxNode::InlineBox(InlineBox {
-                        children: child_nodes,
-                        ..
-                    })
-                    | BoxNode::AnonymousBox(AnonymousBox {
-                        children: child_nodes,
-                        ..
-                    }) => {
-                        child_nodes.remove(*i);
+                    BoxNode::BlockBox(BlockBox { children, .. })
+                    | BoxNode::InlineBox(InlineBox { children, .. })
+                    | BoxNode::AnonymousBox(AnonymousBox { children, .. }) => {
+                        children.remove(*i);
                     }
                     BoxNode::Text(_) => {}
                 }
@@ -153,29 +140,18 @@ impl BoxTree {
 
             let mut n = node.borrow_mut();
             let children_enum = match &mut *n {
-                BoxNode::BlockBox(BlockBox {
-                    children: child_nodes,
-                    ..
-                })
-                | BoxNode::InlineBox(InlineBox {
-                    children: child_nodes,
-                    ..
-                })
-                | BoxNode::AnonymousBox(AnonymousBox {
-                    children: child_nodes,
-                    ..
-                }) => child_nodes.iter_mut().enumerate(),
+                BoxNode::BlockBox(BlockBox { children, .. })
+                | BoxNode::InlineBox(InlineBox { children, .. })
+                | BoxNode::AnonymousBox(AnonymousBox { children, .. }) => {
+                    children.iter_mut().enumerate()
+                }
                 BoxNode::Text(_) => unreachable!(),
             };
             let mut remove_list: Vec<usize> = vec![];
 
             for (i, child) in children_enum {
-                if let BoxNode::AnonymousBox(AnonymousBox {
-                    children: child_nodes,
-                    ..
-                }) = &*child.borrow()
-                {
-                    if child_nodes.is_empty() {
+                if let BoxNode::AnonymousBox(AnonymousBox { children, .. }) = &*child.borrow() {
+                    if children.is_empty() {
                         remove_list.push(i);
                     }
                 }
@@ -187,19 +163,10 @@ impl BoxTree {
             }
             for i in remove_list.iter().rev() {
                 match &mut *n {
-                    BoxNode::BlockBox(BlockBox {
-                        children: child_nodes,
-                        ..
-                    })
-                    | BoxNode::InlineBox(InlineBox {
-                        children: child_nodes,
-                        ..
-                    })
-                    | BoxNode::AnonymousBox(AnonymousBox {
-                        children: child_nodes,
-                        ..
-                    }) => {
-                        child_nodes.remove(*i);
+                    BoxNode::BlockBox(BlockBox { children, .. })
+                    | BoxNode::InlineBox(InlineBox { children, .. })
+                    | BoxNode::AnonymousBox(AnonymousBox { children, .. }) => {
+                        children.remove(*i);
                     }
                     BoxNode::Text(_) => {}
                 }
@@ -253,18 +220,11 @@ impl fmt::Display for BoxTree {
 
             let mut n = node.borrow_mut();
             let children_enum = match &mut *n {
-                BoxNode::BlockBox(BlockBox {
-                    children: child_nodes,
-                    ..
-                })
-                | BoxNode::InlineBox(InlineBox {
-                    children: child_nodes,
-                    ..
-                })
-                | BoxNode::AnonymousBox(AnonymousBox {
-                    children: child_nodes,
-                    ..
-                }) => child_nodes.iter_mut().enumerate(),
+                BoxNode::BlockBox(BlockBox { children, .. })
+                | BoxNode::InlineBox(InlineBox { children, .. })
+                | BoxNode::AnonymousBox(AnonymousBox { children, .. }) => {
+                    children.iter_mut().enumerate()
+                }
                 BoxNode::Text(_) => unreachable!(),
             };
             let children_num = children_enum.len();
@@ -394,7 +354,7 @@ impl BoxNode {
         parent_style_node: Option<Rc<RefCell<RenderNode>>>,
         draw_ctx: &pango::Context,
     ) -> Option<Self> {
-        match style_node.borrow().node.borrow().node_type {
+        match style_node.borrow().dom_node.borrow().node_type {
             NodeType::Document | NodeType::Comment(_) | NodeType::DocumentType(_) => return None,
             NodeType::Text(_) => {
                 if parent_style_node.is_none() {
@@ -412,11 +372,8 @@ impl BoxNode {
         // Create box nodes for the children of the current node.
         let mut children: Vec<Rc<RefCell<BoxNode>>> = Vec::new();
         let mut i = 0;
-        while i < style_node.borrow().child_nodes.len() {
-            match style_node.borrow().child_nodes[i]
-                .borrow()
-                .get_display_type()
-            {
+        while i < style_node.borrow().children.len() {
+            match style_node.borrow().children[i].borrow().get_display_type() {
                 DisplayOutside::Block => {
                     if style_node.borrow().get_display_type() == DisplayOutside::Inline {
                         // todo: It is tricky to handle block-level boxes within an inline box.
@@ -424,12 +381,12 @@ impl BoxNode {
                         // https://github.com/w3c/csswg-drafts/issues/1477
                         unimplemented!(
                             "Block-level boxes within an inline box are not yet supported: {}",
-                            style_node.borrow().node.borrow().node_type
+                            style_node.borrow().dom_node.borrow().node_type
                         );
                     }
 
                     let child = Self::build(
-                        Rc::clone(&style_node.borrow().child_nodes[i]),
+                        Rc::clone(&style_node.borrow().children[i]),
                         Some(Rc::clone(&style_node)),
                         draw_ctx,
                     );
@@ -440,7 +397,7 @@ impl BoxNode {
                 DisplayOutside::Inline => {
                     // If the number of children is greater than 1, wrap all inline-level contents in an anonymous box.
                     if (style_node.borrow().get_display_type() == DisplayOutside::Block)
-                        && (style_node.borrow().child_nodes.len() > 1)
+                        && (style_node.borrow().children.len() > 1)
                     {
                         let mut anon_box = AnonymousBox {
                             style_node: Box::new(style_node.borrow().style.clone()),
@@ -450,14 +407,12 @@ impl BoxNode {
 
                         // If there are successive inline-level contents, they are wrapped in the same anonymous box.
                         // https://www.w3.org/TR/css-inline-3/#root-inline-box
-                        while i < style_node.borrow().child_nodes.len()
-                            && style_node.borrow().child_nodes[i]
-                                .borrow()
-                                .get_display_type()
+                        while i < style_node.borrow().children.len()
+                            && style_node.borrow().children[i].borrow().get_display_type()
                                 == DisplayOutside::Inline
                         {
                             let child = Self::build(
-                                Rc::clone(&style_node.borrow().child_nodes[i]),
+                                Rc::clone(&style_node.borrow().children[i]),
                                 Some(Rc::clone(&style_node)),
                                 draw_ctx,
                             );
@@ -470,7 +425,7 @@ impl BoxNode {
                         children.push(Rc::new(RefCell::new(Self::AnonymousBox(anon_box))));
                     } else {
                         let child = Self::build(
-                            Rc::clone(&style_node.borrow().child_nodes[i]),
+                            Rc::clone(&style_node.borrow().children[i]),
                             Some(Rc::clone(&style_node)),
                             draw_ctx,
                         );
@@ -558,6 +513,7 @@ impl BoxNode {
     /// Sets the width, height, position, and used values for some properties of the box and its children.
     pub fn layout(
         &mut self,
+        // https://www.w3.org/TR/CSS22/visudet.html#containing-block-details
         containing_block_info: &LayoutInfo,
         parent_info: Option<LayoutInfo>,
         prev_sibling_info: Option<LayoutInfo>,
@@ -631,7 +587,7 @@ impl BoxNode {
                     text: t
                         .style_node
                         .borrow()
-                        .node
+                        .dom_node
                         .borrow()
                         .get_inside_text()
                         .unwrap(),
@@ -669,7 +625,7 @@ impl BoxNode {
                 };
                 // The style of the body element is applied to the whole viewport.
                 let is_body = if let NodeType::Element(Element { tag_name: n, .. }) =
-                    &block.style_node.borrow().node.borrow().node_type
+                    &block.style_node.borrow().dom_node.borrow().node_type
                 {
                     n == "body"
                 } else {

@@ -1,3 +1,5 @@
+use std::fmt;
+
 use anyhow::{Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
@@ -18,8 +20,8 @@ pub struct BorderProp {
     pub border_width: BorderWidthProp,
 }
 
-impl std::fmt::Display for BorderProp {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for BorderProp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{} {} {}",
@@ -85,8 +87,8 @@ pub struct BorderStyleProp {
     pub left: CssValue,
 }
 
-impl std::fmt::Display for BorderStyleProp {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for BorderStyleProp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{} {} {} {}",
@@ -114,8 +116,8 @@ pub struct BorderWidthProp {
     pub left: CssValue,
 }
 
-impl std::fmt::Display for BorderWidthProp {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for BorderWidthProp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{} {} {} {}",

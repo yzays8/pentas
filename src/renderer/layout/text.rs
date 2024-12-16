@@ -45,7 +45,7 @@ impl Text {
         let text = self
             .style_node
             .borrow()
-            .node
+            .dom_node
             .borrow()
             .get_inside_text()
             .unwrap();
@@ -79,7 +79,7 @@ impl Text {
 
         self.style_node
             .borrow_mut()
-            .node
+            .dom_node
             .borrow_mut()
             .set_inside_text(text);
 
@@ -150,7 +150,7 @@ impl Text {
         let height = self
             .style_node
             .borrow()
-            .node
+            .dom_node
             .borrow()
             .get_inside_text()
             .unwrap()
@@ -182,7 +182,7 @@ impl Text {
         let text = self
             .style_node
             .borrow()
-            .node
+            .dom_node
             .borrow()
             .get_inside_text()
             .unwrap();
@@ -223,7 +223,7 @@ impl Text {
         max_line_width = max_by(max_line_width, curr_width, |a, b| a.partial_cmp(b).unwrap());
         self.style_node
             .borrow()
-            .node
+            .dom_node
             .borrow_mut()
             .set_inside_text(&new_text);
 

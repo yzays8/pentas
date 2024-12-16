@@ -12,9 +12,9 @@ use crate::renderer::utils::PrintableTree;
 #[derive(Debug)]
 pub struct DomNode {
     pub node_type: NodeType,
-    pub child_nodes: Vec<Rc<RefCell<Self>>>,
-    pub parent_node: Option<Weak<RefCell<Self>>>,
-    pub previous_sibling: Option<Weak<RefCell<Self>>>,
+    pub children: Vec<Rc<RefCell<Self>>>,
+    pub parent: Option<Weak<RefCell<Self>>>,
+    pub prev_sib: Option<Weak<RefCell<Self>>>,
     pub next_sibling: Option<Rc<RefCell<Self>>>,
 }
 
@@ -22,9 +22,9 @@ impl Default for DomNode {
     fn default() -> Self {
         Self {
             node_type: NodeType::Document,
-            child_nodes: Vec::new(),
-            parent_node: None,
-            previous_sibling: None,
+            children: Vec::new(),
+            parent: None,
+            prev_sib: None,
             next_sibling: None,
         }
     }
@@ -40,16 +40,16 @@ impl DomNode {
 
     pub fn append_child(node_ref: &Rc<RefCell<Self>>, child: Self) -> Rc<RefCell<Self>> {
         let child = Rc::new(RefCell::new(child));
-        child.borrow_mut().parent_node = Some(Rc::downgrade(node_ref));
-        if node_ref.borrow().child_nodes.is_empty() {
-            child.borrow_mut().previous_sibling = None;
+        child.borrow_mut().parent = Some(Rc::downgrade(node_ref));
+        if node_ref.borrow().children.is_empty() {
+            child.borrow_mut().prev_sib = None;
             child.borrow_mut().next_sibling = None;
         } else {
-            let last_child = Rc::clone(node_ref.borrow().child_nodes.last().unwrap());
-            child.borrow_mut().previous_sibling = Some(Rc::downgrade(&last_child));
+            let last_child = Rc::clone(node_ref.borrow().children.last().unwrap());
+            child.borrow_mut().prev_sib = Some(Rc::downgrade(&last_child));
             last_child.borrow_mut().next_sibling = Some(Rc::clone(&child));
         }
-        node_ref.borrow_mut().child_nodes.push(Rc::clone(&child));
+        node_ref.borrow_mut().children.push(Rc::clone(&child));
         child
     }
 
@@ -152,7 +152,7 @@ impl DocumentTree {
         let mut stack = vec![Rc::clone(&self.root)];
         std::iter::from_fn(move || -> Option<Rc<RefCell<DomNode>>> {
             let current = stack.pop()?;
-            stack.extend(current.borrow().child_nodes.iter().map(Rc::clone).rev());
+            stack.extend(current.borrow().children.iter().map(Rc::clone).rev());
             Some(Rc::clone(&current))
         })
     }
@@ -180,8 +180,8 @@ impl fmt::Display for DocumentTree {
             }
             indent_and_branches.push_str(if is_last_child { "└─" } else { "├─" });
             node_tree.push_str(&format!("{}{}\n", indent_and_branches, node.borrow()));
-            let children_num = node.borrow().child_nodes.len();
-            for (i, child) in node.borrow().child_nodes.iter().enumerate() {
+            let children_num = node.borrow().children.len();
+            for (i, child) in node.borrow().children.iter().enumerate() {
                 construct_node_view(
                     node_tree,
                     child,

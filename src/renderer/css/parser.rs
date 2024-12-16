@@ -5,10 +5,9 @@ use anyhow::{ensure, Result};
 use crate::renderer::css::cssom::{
     AtRule, ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet,
 };
+use crate::renderer::css::selector::SelectorParser;
 use crate::renderer::css::token::CssToken;
 use crate::renderer::utils::TokenIterator;
-
-use super::selector::SelectorParser;
 
 #[derive(Debug)]
 pub struct CssParser {
