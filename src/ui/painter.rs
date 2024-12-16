@@ -4,7 +4,7 @@ use pangocairo::functions::show_layout;
 
 use crate::renderer::RenderObject;
 
-pub fn paint(drawing_area: &DrawingArea, objects: &[RenderObject], cairo_ctx: &cairo::Context) {
+pub fn paint(canvas: &DrawingArea, objects: &[RenderObject], cairo_ctx: &cairo::Context) {
     for object in objects.iter() {
         match object {
             RenderObject::Text {
@@ -20,9 +20,12 @@ pub fn paint(drawing_area: &DrawingArea, objects: &[RenderObject], cairo_ctx: &c
                 decoration_style,
             } => {
                 cairo_ctx.move_to(*x, *y);
-                let pango_ctx = drawing_area.create_pango_context();
+
+                let pango_ctx = canvas.create_pango_context();
                 let layout = pango::Layout::new(&pango_ctx);
                 let attrs = pango::AttrList::new();
+
+                // https://docs.gtk.org/Pango/struct.Color.html
                 let font_color = (
                     (color.0 * 65535.0) as u16,
                     (color.1 * 65535.0) as u16,
@@ -78,9 +81,9 @@ pub fn paint(drawing_area: &DrawingArea, objects: &[RenderObject], cairo_ctx: &c
                 layout.set_attributes(Some(&attrs));
                 show_layout(cairo_ctx, &layout);
 
-                // Adjust the height of the drawing area for scrolling.
-                if *y + layout.pixel_size().1 as f64 > drawing_area.height() as f64 {
-                    drawing_area.set_height_request((*y + layout.pixel_size().1 as f64) as i32 + 5);
+                // Adjust the height of the canvas for scrolling.
+                if *y + layout.pixel_size().1 as f64 > canvas.height() as f64 {
+                    canvas.set_height_request((*y + layout.pixel_size().1 as f64) as i32 + 5);
                 }
             }
             RenderObject::Rectangle {
@@ -94,9 +97,9 @@ pub fn paint(drawing_area: &DrawingArea, objects: &[RenderObject], cairo_ctx: &c
                 cairo_ctx.rectangle(*x, *y, *width, *height);
                 let _ = cairo_ctx.fill();
 
-                // Adjust the height of the drawing area for scrolling.
-                if *y + *height > drawing_area.height() as f64 {
-                    drawing_area.set_height_request((*y + *height) as i32 + 5);
+                // Adjust the height of the canvas for scrolling.
+                if *y + *height > canvas.height() as f64 {
+                    canvas.set_height_request((*y + *height) as i32 + 5);
                 }
             }
         }

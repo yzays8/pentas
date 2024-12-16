@@ -29,8 +29,9 @@ mod imp {
     #[template(resource = "/pentas/ui/content.ui")]
     #[properties(wrapper_type = super::ContentArea)]
     pub struct ContentArea {
+        /// https://www.w3.org/TR/CSS2/intro.html#canvas
         #[template_child]
-        pub drawing_area: TemplateChild<gtk4::DrawingArea>,
+        pub canvas: TemplateChild<gtk4::DrawingArea>,
         pub objects: RefCell<Vec<RenderObject>>,
         pub history: RefCell<History>,
         #[property(get, set)]
@@ -59,15 +60,11 @@ mod imp {
             self.parent_constructed();
 
             let obj = self.obj();
-            self.drawing_area.get().set_draw_func(glib::clone!(
+            self.canvas.get().set_draw_func(glib::clone!(
                 #[strong]
                 obj,
                 move |_, ctx, _, _| {
-                    paint(
-                        &obj.imp().drawing_area.get(),
-                        &obj.imp().objects.borrow(),
-                        ctx,
-                    )
+                    paint(&obj.imp().canvas.get(), &obj.imp().objects.borrow(), ctx)
                 }
             ));
 
@@ -113,18 +110,18 @@ mod imp {
             self.objects.borrow_mut().push(RenderObject::Rectangle {
                 x: 0.0,
                 y: 0.0,
-                width: self.drawing_area.width() as f64,
-                height: self.drawing_area.height() as f64,
+                width: self.canvas.width() as f64,
+                height: self.canvas.height() as f64,
                 color: (1.0, 1.0, 1.0),
             });
-            self.drawing_area.queue_draw();
+            self.canvas.queue_draw();
             self.objects.borrow_mut().clear();
-            self.drawing_area.set_height_request(-1);
+            self.canvas.set_height_request(-1);
         }
 
         /// Paints all added objects.
         pub fn present(&self) {
-            self.drawing_area.queue_draw();
+            self.canvas.queue_draw();
         }
     }
 }
@@ -189,9 +186,9 @@ impl ContentArea {
         self.imp().replace_objects(
             &get_render_objects(
                 &html,
-                self.imp().drawing_area.width(),
-                self.imp().drawing_area.height(),
-                &self.imp().drawing_area.create_pango_context(),
+                self.imp().canvas.width(),
+                self.imp().canvas.height(),
+                &self.imp().canvas.create_pango_context(),
                 *self.imp().verbosity.borrow(),
             )
             .unwrap(),

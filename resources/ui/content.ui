@@ -9,7 +9,7 @@
           <child>
             <object class="GtkViewport" id="viewport">
               <child>
-                <object class="GtkDrawingArea" id="drawing_area"/>
+                <object class="GtkDrawingArea" id="canvas"/>
               </child>
             </object>
           </child>
