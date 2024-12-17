@@ -27,7 +27,7 @@ mod imp {
     #[derive(Debug, CompositeTemplate, Default)]
     #[template(resource = "/pentas/ui/content.ui")]
     pub struct ContentArea {
-        /// https://www.w3.org/TR/CSS2/intro.html#canvas
+        /// https://www.w3.org/TR/CSS22/intro.html#the-canvas
         #[template_child]
         pub canvas: TemplateChild<gtk4::DrawingArea>,
         pub objects: RefCell<Vec<RenderObject>>,
