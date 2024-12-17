@@ -78,12 +78,6 @@ impl CssProperty for FontFamilyProp {
 
 impl FontFamilyProp {
     pub fn to_name_list(&self) -> Result<Vec<String>> {
-        // self.family
-        //     .iter()
-        //     .map(|v| {
-        //         v.to_name().unwrap()
-        //     })
-        //     .collect::<Vec<String>>()
         self.family
             .iter()
             .map(|v| v.to_name())
