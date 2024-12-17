@@ -92,14 +92,14 @@ impl CssProperty for FontWeightProp {
 }
 
 impl FontWeightProp {
-    pub fn to_name(&self) -> String {
+    pub fn to_name(&self) -> Result<String> {
         // https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight#common_weight_name_mapping
         // https://docs.gtk.org/Pango/type_func.FontDescription.from_string.html
         let weight = match &self.weight {
             CssValue::Ident(weight) => match weight.as_str() {
                 "normal" => "Regular",
                 "bold" => "Bold",
-                _ => unreachable!(),
+                _ => bail!("Invalid font weight: {:?}", weight),
             },
             CssValue::Number(weight) => match weight {
                 0.0..150.0 => "Thin",
@@ -112,11 +112,11 @@ impl FontWeightProp {
                 750.0..850.0 => "Extra-Bold",
                 850.0..950.0 => "Black",
                 950.0.. => "Extra-Black",
-                _ => unreachable!(),
+                _ => bail!("Invalid font weight: {:?}", weight),
             },
-            _ => unreachable!(),
+            _ => bail!("Invalid font weight: {:?}", self.weight),
         };
-        weight.to_string()
+        Ok(weight.to_string())
     }
 }
 

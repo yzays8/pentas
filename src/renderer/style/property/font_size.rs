@@ -124,6 +124,12 @@ impl CssProperty for FontSizeProp {
     }
 }
 
+impl FontSizeProp {
+    pub fn to_px(&self) -> Result<f32> {
+        self.size.to_px()
+    }
+}
+
 // <absolute-size> = xx-small | x-small | small | medium | large | x-large | xx-large | xxx-large
 pub fn parse_absolute_size_type<I>(values: &mut Peekable<I>) -> Result<CssValue>
 where

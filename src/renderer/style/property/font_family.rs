@@ -30,6 +30,7 @@ impl fmt::Display for FontFamilyProp {
 impl Default for FontFamilyProp {
     fn default() -> Self {
         Self {
+            // Define the default font family of the browser.
             family: vec![
                 CssValue::String("Times New Roman".to_string()),
                 CssValue::Ident("serif".to_string()),
@@ -76,16 +77,16 @@ impl CssProperty for FontFamilyProp {
 }
 
 impl FontFamilyProp {
-    pub fn to_name_list(&self) -> Vec<String> {
+    pub fn to_name_list(&self) -> Result<Vec<String>> {
+        // self.family
+        //     .iter()
+        //     .map(|v| {
+        //         v.to_name().unwrap()
+        //     })
+        //     .collect::<Vec<String>>()
         self.family
             .iter()
-            .map(|v| {
-                if let CssValue::Ident(font) | CssValue::String(font) = v {
-                    font.to_owned()
-                } else {
-                    unreachable!()
-                }
-            })
-            .collect::<Vec<String>>()
+            .map(|v| v.to_name())
+            .collect::<Result<Vec<String>>>()
     }
 }

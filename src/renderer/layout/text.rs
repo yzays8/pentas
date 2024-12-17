@@ -129,16 +129,21 @@ impl Text {
     }
 
     fn calc_width_and_height(&mut self, containing_block_info: &LayoutInfo) {
-        let font_size = self
+        let font_size = self.style_node.borrow().style.font_size.to_px().unwrap();
+        let font_family = self
             .style_node
             .borrow()
             .style
-            .font_size
-            .size
-            .to_px()
+            .font_family
+            .to_name_list()
             .unwrap();
-        let font_family = self.style_node.borrow().style.font_family.to_name_list();
-        let font_weight = &self.style_node.borrow().style.font_weight.to_name();
+        let font_weight = &self
+            .style_node
+            .borrow()
+            .style
+            .font_weight
+            .to_name()
+            .unwrap();
         let font_desc = pango::FontDescription::from_string(&format!(
             "{} {} {}px",
             font_family.join(", "),

@@ -10,7 +10,6 @@ use crate::renderer::layout::block::{AnonymousBox, BlockBox};
 use crate::renderer::layout::inline::InlineBox;
 use crate::renderer::layout::text::Text;
 use crate::renderer::style::property::display::DisplayOutside;
-use crate::renderer::style::property::CssValue;
 use crate::renderer::style::style_model::{RenderNode, RenderTree};
 use crate::renderer::utils::PrintableTree;
 use crate::renderer::RenderObject;
@@ -511,26 +510,15 @@ impl BoxNode {
     ) {
         match self {
             BoxNode::Text(t) => {
-                let CssValue::Length(font_size_px, _) = t.style_node.borrow().style.font_size.size
-                else {
-                    unreachable!()
-                };
-                let font_family = t.style_node.borrow().style.font_family.to_name_list();
-                let font_weight = &t.style_node.borrow().style.font_weight.to_name();
-                let color = if let CssValue::Color { r, g, b, a } =
-                    t.style_node.borrow().style.color.value
-                {
-                    (r, g, b, a)
-                } else {
-                    return;
-                };
-                let decoration_color = if let CssValue::Color { r, g, b, a } =
-                    t.style_node.borrow().style.text_decoration.color.value
-                {
-                    (r, g, b, a)
-                } else {
-                    unreachable!()
-                };
+                let color = t.style_node.borrow().style.color.to_rgba().unwrap();
+                let decoration_color = t
+                    .style_node
+                    .borrow()
+                    .style
+                    .text_decoration
+                    .color
+                    .to_rgba()
+                    .unwrap();
                 let decoration_line = t
                     .style_node
                     .borrow()
@@ -538,19 +526,16 @@ impl BoxNode {
                     .text_decoration
                     .line
                     .iter()
-                    .map(|v| {
-                        if let CssValue::Ident(v) = v {
-                            v.clone()
-                        } else {
-                            unreachable!()
-                        }
-                    })
+                    .map(|v| v.to_name().unwrap())
                     .collect::<Vec<String>>();
-                let CssValue::Ident(decoration_style) =
-                    t.style_node.borrow().style.text_decoration.style.clone()
-                else {
-                    unreachable!()
-                };
+                let decoration_style = t
+                    .style_node
+                    .borrow()
+                    .style
+                    .text_decoration
+                    .style
+                    .to_name()
+                    .unwrap();
                 objects.push(RenderObject::Text {
                     text: t
                         .style_node
@@ -561,9 +546,15 @@ impl BoxNode {
                         .unwrap(),
                     x: t.layout_info.pos.x as f64,
                     y: t.layout_info.pos.y as f64,
-                    font_family,
-                    font_size: font_size_px as f64,
-                    font_weight: font_weight.to_string(),
+                    font_family: t
+                        .style_node
+                        .borrow()
+                        .style
+                        .font_family
+                        .to_name_list()
+                        .unwrap(),
+                    font_size: t.style_node.borrow().style.font_size.to_px().unwrap() as f64,
+                    font_weight: t.style_node.borrow().style.font_weight.to_name().unwrap(),
                     color: (
                         color.0 as f64 / 255.0,
                         color.1 as f64 / 255.0,
@@ -579,18 +570,14 @@ impl BoxNode {
                 });
             }
             BoxNode::BlockBox(block) => {
-                let (r, g, b, a) = if let CssValue::Color { r, g, b, a } =
-                    block.style_node.borrow().style.background_color.value
-                {
-                    (r, g, b, a)
-                } else {
-                    for child in block.children.iter() {
-                        child
-                            .borrow()
-                            .to_render_objects(objects, viewport_width, viewport_height);
-                    }
-                    return;
-                };
+                let (r, g, b, a) = block
+                    .style_node
+                    .borrow()
+                    .style
+                    .background_color
+                    .to_rgba()
+                    .unwrap();
+
                 // The style of the body element is applied to the whole viewport.
                 let is_body = if let NodeType::Element(Element { tag_name: n, .. }) =
                     &block.style_node.borrow().dom_node.borrow().node_type
@@ -600,7 +587,7 @@ impl BoxNode {
                     false
                 };
 
-                // transparent
+                // Draw the rectangle only if the background color is not transparent.
                 if a != 0.0 {
                     objects.push(RenderObject::Rectangle {
                         x: block.layout_info.pos.x as f64,

@@ -99,6 +99,24 @@ impl CssValue {
             bail!("Expected length value but found: {:?}", self);
         }
     }
+
+    /// Converts the color value to rgba. R: 0-255, G: 0-255, B: 0-255, A: 0.0-1.0
+    pub fn to_rgba(&self) -> Result<(u8, u8, u8, f32)> {
+        if let CssValue::Color { r, g, b, a } = self {
+            Ok((*r, *g, *b, *a))
+        } else {
+            bail!("Expected color value but found: {:?}", self);
+        }
+    }
+
+    /// Converts the ident or string value to a string name.
+    pub fn to_name(&self) -> Result<String> {
+        if let CssValue::Ident(s) | CssValue::String(s) = self {
+            Ok(s.to_owned())
+        } else {
+            bail!("Expected string value but found: {:?}", self);
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

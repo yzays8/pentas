@@ -90,6 +90,12 @@ impl CssProperty for ColorProp {
     }
 }
 
+impl ColorProp {
+    pub fn to_rgba(&self) -> Result<(u8, u8, u8, f32)> {
+        self.value.to_rgba()
+    }
+}
+
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/background-color
 #[derive(Clone, Debug, PartialEq)]
 pub struct BackGroundColorProp {
@@ -163,6 +169,12 @@ impl CssProperty for BackGroundColorProp {
             _ => bail!("Failed to compute color: {:?}", self.value),
         }
         Ok(self)
+    }
+}
+
+impl BackGroundColorProp {
+    pub fn to_rgba(&self) -> Result<(u8, u8, u8, f32)> {
+        self.value.to_rgba()
     }
 }
 

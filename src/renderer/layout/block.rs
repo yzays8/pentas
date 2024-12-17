@@ -101,8 +101,7 @@ impl LayoutBox for BlockBox {
                 + self.layout_info.used_values.border.bottom;
 
             // If `height` is not `auto`, the height of the box is the value of `height`.
-            let height = self.style_node.borrow().style.height.clone();
-            if let CssValue::Length(height, _) = height.size {
+            if let CssValue::Length(height, _) = self.style_node.borrow().style.height.size {
                 self.layout_info.size.height = height;
             }
         } else if is_every_child_inline {
