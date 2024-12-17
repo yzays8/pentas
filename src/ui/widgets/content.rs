@@ -199,7 +199,7 @@ impl ContentArea {
 
     pub fn on_backward_button_click(&self) {
         if self.imp().history.borrow().is_rewindable() {
-            let history = self.imp().history.borrow_mut().rewind().unwrap();
+            let history = self.imp().history.borrow_mut().rewind().unwrap().clone();
             self.emit_by_name::<()>(
                 "history-updated",
                 &[
@@ -217,7 +217,7 @@ impl ContentArea {
 
     pub fn on_forward_button_click(&self) {
         if self.imp().history.borrow().is_forwardable() {
-            let history = self.imp().history.borrow_mut().forward().unwrap();
+            let history = self.imp().history.borrow_mut().forward().unwrap().clone();
             self.emit_by_name::<()>(
                 "history-updated",
                 &[
