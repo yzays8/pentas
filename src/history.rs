@@ -3,9 +3,16 @@ use anyhow::{bail, Result};
 use crate::renderer::RenderObject;
 
 #[derive(Debug, Clone)]
+pub struct HistoryEntry {
+    pub query: String,
+    pub objects: Vec<RenderObject>,
+}
+
+#[derive(Debug, Clone)]
 pub struct History {
     back_stack: Vec<HistoryEntry>,
     forward_stack: Vec<HistoryEntry>,
+    unreachable_stack: Vec<HistoryEntry>,
 }
 
 impl Default for History {
@@ -19,6 +26,7 @@ impl History {
         Self {
             back_stack: Vec::new(),
             forward_stack: Vec::new(),
+            unreachable_stack: Vec::new(),
         }
     }
 
@@ -31,8 +39,8 @@ impl History {
     pub fn add(&mut self, query: &str, objects: &[RenderObject]) {
         let query = query.to_owned();
         let objects = objects.to_owned();
-        if !self.forward_stack.is_empty() {
-            self.forward_stack.clear();
+        while let Some(e) = self.forward_stack.pop() {
+            self.unreachable_stack.push(e);
         }
         self.back_stack.push(HistoryEntry { query, objects });
     }
@@ -61,10 +69,4 @@ impl History {
     pub fn is_forwardable(&self) -> bool {
         !self.forward_stack.is_empty()
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct HistoryEntry {
-    pub query: String,
-    pub objects: Vec<RenderObject>,
 }
