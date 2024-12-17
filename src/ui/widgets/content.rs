@@ -14,28 +14,24 @@ mod imp {
 
     use glib::subclass::InitializingObject;
     use gtk4::glib::subclass::Signal;
-    use gtk4::glib::Properties;
     use gtk4::prelude::*;
     use gtk4::subclass::prelude::*;
     use gtk4::{glib, CompositeTemplate};
 
     use crate::app::VerbosityLevel;
+    use crate::history::History;
     use crate::renderer::RenderObject;
-    use crate::ui::history::{History, HistoryEntry};
     use crate::ui::painter::paint;
 
     // "/pentas" is just a prefix. See resouces.gresource.xml
-    #[derive(Debug, CompositeTemplate, Default, Properties)]
+    #[derive(Debug, CompositeTemplate, Default)]
     #[template(resource = "/pentas/ui/content.ui")]
-    #[properties(wrapper_type = super::ContentArea)]
     pub struct ContentArea {
         /// https://www.w3.org/TR/CSS2/intro.html#canvas
         #[template_child]
         pub canvas: TemplateChild<gtk4::DrawingArea>,
         pub objects: RefCell<Vec<RenderObject>>,
         pub history: RefCell<History>,
-        #[property(get, set)]
-        current_history_index: RefCell<i32>,
         pub verbosity: RefCell<VerbosityLevel>,
     }
 
@@ -54,7 +50,6 @@ mod imp {
         }
     }
 
-    #[glib::derived_properties]
     impl ObjectImpl for ContentArea {
         fn constructed(&self) {
             self.parent_constructed();
@@ -68,7 +63,7 @@ mod imp {
                 }
             ));
 
-            // The initial history is an empty page.
+            // The initial history is a blank page.
             self.history.borrow_mut().add("", &[]);
         }
 
@@ -86,14 +81,6 @@ mod imp {
     impl BoxImpl for ContentArea {}
 
     impl ContentArea {
-        pub fn add_history(&self, query: &str, objects: &[RenderObject]) {
-            self.history.borrow_mut().add(query, objects);
-        }
-
-        pub fn get_history(&self, index: usize) -> Option<HistoryEntry> {
-            self.history.borrow().get(index).cloned()
-        }
-
         /// Adds an object to the list of objects to be painted.
         pub fn add_object(&self, object: RenderObject) {
             self.objects.borrow_mut().push(object);
@@ -194,20 +181,16 @@ impl ContentArea {
             .unwrap(),
         );
 
-        self.imp().add_history(query, &self.imp().objects.borrow());
-
-        // This is inaccurate behaviour.
-        self.set_current_history_index(self.imp().history.borrow().entries.len() as i32 - 1);
+        self.imp()
+            .history
+            .borrow_mut()
+            .add(query, &self.imp().objects.borrow());
         self.emit_by_name::<()>(
             "history-updated",
             &[
-                &self
-                    .imp()
-                    .get_history(self.current_history_index() as usize)
-                    .unwrap()
-                    .query,
-                &false,
-                &true,
+                &query.to_string(),
+                &self.imp().history.borrow().is_rewindable(),
+                &self.imp().history.borrow().is_forwardable(),
             ],
         );
 
@@ -215,59 +198,37 @@ impl ContentArea {
     }
 
     pub fn on_backward_button_click(&self) {
-        let index = self.current_history_index() as usize;
-        if index > 0 {
-            self.set_current_history_index(index as i32 - 1);
-            let (is_first_history, is_last_history) = (
-                self.current_history_index() == 0,
-                self.current_history_index()
-                    == self.imp().history.borrow().entries.len() as i32 - 1,
-            );
+        if self.imp().history.borrow().is_rewindable() {
+            let history = self.imp().history.borrow_mut().rewind().unwrap();
             self.emit_by_name::<()>(
                 "history-updated",
                 &[
-                    &self
-                        .imp()
-                        .get_history(self.current_history_index() as usize)
-                        .unwrap()
-                        .query,
-                    &is_first_history,
-                    &is_last_history,
+                    &history.query,
+                    &self.imp().history.borrow().is_rewindable(),
+                    &self.imp().history.borrow().is_forwardable(),
                 ],
             );
 
             self.imp().clear();
-            self.imp()
-                .replace_objects(&self.imp().history.borrow().get(index - 1).unwrap().objects);
+            self.imp().replace_objects(&history.objects);
             self.imp().present();
         }
     }
 
     pub fn on_forward_button_click(&self) {
-        let index = self.current_history_index() as usize;
-        if index < self.imp().history.borrow().entries.len() - 1 {
-            self.set_current_history_index(index as i32 + 1);
-            let (is_first_history, is_last_history) = (
-                self.current_history_index() == 0,
-                self.current_history_index()
-                    == self.imp().history.borrow().entries.len() as i32 - 1,
-            );
+        if self.imp().history.borrow().is_forwardable() {
+            let history = self.imp().history.borrow_mut().forward().unwrap();
             self.emit_by_name::<()>(
                 "history-updated",
                 &[
-                    &self
-                        .imp()
-                        .get_history(self.current_history_index() as usize)
-                        .unwrap()
-                        .query,
-                    &is_first_history,
-                    &is_last_history,
+                    &history.query,
+                    &self.imp().history.borrow().is_rewindable(),
+                    &self.imp().history.borrow().is_forwardable(),
                 ],
             );
 
             self.imp().clear();
-            self.imp()
-                .replace_objects(&self.imp().history.borrow().get(index + 1).unwrap().objects);
+            self.imp().replace_objects(&history.objects);
             self.imp().present();
         }
     }

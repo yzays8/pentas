@@ -85,9 +85,13 @@ mod imp {
                 false,
                 closure_local!(move |_: ContentArea,
                                      query: String,
-                                     is_first_history: bool,
-                                     is_last_history: bool| {
-                    toolbar.on_history_update(&query, is_first_history, is_last_history);
+                                     is_history_rewindable: bool,
+                                     is_history_forwardable: bool| {
+                    toolbar.on_history_update(
+                        &query,
+                        is_history_rewindable,
+                        is_history_forwardable,
+                    );
                 }),
             );
         }

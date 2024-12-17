@@ -1,4 +1,3 @@
-mod history;
 mod painter;
 mod widgets;
 

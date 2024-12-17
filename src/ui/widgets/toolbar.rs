@@ -103,22 +103,33 @@ impl Toolbar {
         self.emit_by_name::<()>("toolbar-entry-activated", &[&self.imp().entry.text()]);
     }
 
-    pub fn on_history_update(&self, query: &str, is_first_history: bool, is_last_history: bool) {
+    pub fn on_history_update(
+        &self,
+        query: &str,
+        is_history_rewindable: bool,
+        is_history_forwardable: bool,
+    ) {
         self.imp().entry.set_text(query);
-        match (self.imp().backward_button.is_sensitive(), is_first_history) {
-            (true, true) => {
+        match (
+            self.imp().backward_button.is_sensitive(),
+            is_history_rewindable,
+        ) {
+            (true, false) => {
                 self.imp().backward_button.set_sensitive(false);
             }
-            (false, false) => {
+            (false, true) => {
                 self.imp().backward_button.set_sensitive(true);
             }
             _ => {}
         }
-        match (self.imp().forward_button.is_sensitive(), is_last_history) {
-            (true, true) => {
+        match (
+            self.imp().forward_button.is_sensitive(),
+            is_history_forwardable,
+        ) {
+            (true, false) => {
                 self.imp().forward_button.set_sensitive(false);
             }
-            (false, false) => {
+            (false, true) => {
                 self.imp().forward_button.set_sensitive(true);
             }
             _ => {}

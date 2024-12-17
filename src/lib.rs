@@ -1,4 +1,5 @@
 mod app;
+mod history;
 mod net;
 mod renderer;
 mod ui;
