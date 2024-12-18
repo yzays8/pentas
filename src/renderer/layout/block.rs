@@ -6,7 +6,7 @@ use crate::renderer::layout::inline::InlineBox;
 use crate::renderer::layout::text::Text;
 use crate::renderer::style::property::display::{DisplayInside, DisplayOutside};
 use crate::renderer::style::property::{AbsoluteLengthUnit, CssValue, LengthUnit};
-use crate::renderer::style::style_model::{ComputedValues, RenderNode};
+use crate::renderer::style::style_model::{ComputedStyle, RenderNode};
 
 #[derive(Debug)]
 pub struct BlockBox {
@@ -300,7 +300,7 @@ impl BlockBox {
 
 #[derive(Debug)]
 pub struct AnonymousBox {
-    pub style_node: Box<ComputedValues>,
+    pub style_node: Box<ComputedStyle>,
     pub layout_info: LayoutInfo,
     pub children: Vec<Rc<RefCell<BoxNode>>>,
 }

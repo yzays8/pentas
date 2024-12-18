@@ -9,7 +9,7 @@ use crate::renderer::style::property::{
     parse_length_percentage_type, AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit,
     RelativeLengthUnit,
 };
-use crate::renderer::style::style_model::SpecifiedValues;
+use crate::renderer::style::style_model::SpecifiedStyle;
 
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/border-radius
 #[derive(Clone, Debug, PartialEq)]
@@ -107,7 +107,7 @@ impl CssProperty for BorderRadiusProp {
         }
     }
 
-    fn compute(&mut self, current_style: Option<&SpecifiedValues>) -> Result<&Self> {
+    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self> {
         self.top_left = Self::compute_top(&self.top_left, current_style)?;
         self.top_right = Self::compute_top(&self.top_right, current_style)?;
         self.bottom_right = Self::compute_top(&self.bottom_right, current_style)?;
@@ -117,7 +117,7 @@ impl CssProperty for BorderRadiusProp {
 }
 
 impl BorderRadiusProp {
-    fn compute_top(value: &CssValue, current_style: Option<&SpecifiedValues>) -> Result<CssValue> {
+    fn compute_top(value: &CssValue, current_style: Option<&SpecifiedStyle>) -> Result<CssValue> {
         let current_font_size = current_style.and_then(|s| s.font_size.as_ref());
         let current_font_size = match current_font_size {
             Some(FontSizeProp {

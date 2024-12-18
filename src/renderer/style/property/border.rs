@@ -6,7 +6,7 @@ use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::layout::box_model::Edge;
 use crate::renderer::style::property::color::ColorProp;
 use crate::renderer::style::property::{AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit};
-use crate::renderer::style::style_model::SpecifiedValues;
+use crate::renderer::style::style_model::SpecifiedStyle;
 
 // The values of these properties are not clearly defined in the CSS specification.
 // const THIN: f32 = 1.0;
@@ -69,7 +69,7 @@ impl CssProperty for BorderProp {
 
     // todo: proper implementation
     #[allow(unused_variables)]
-    fn compute(&mut self, current_style: Option<&SpecifiedValues>) -> Result<&Self> {
+    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self> {
         self.border_color.compute(current_style)?;
         self.border_width = BorderWidthProp {
             top: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),

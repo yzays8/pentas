@@ -11,7 +11,7 @@ use crate::renderer::style::property::{
     parse_length_percentage_type, AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit,
     RelativeLengthUnit,
 };
-use crate::renderer::style::style_model::SpecifiedValues;
+use crate::renderer::style::style_model::SpecifiedStyle;
 
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/padding
 #[derive(Clone, Debug, PartialEq)]
@@ -97,7 +97,7 @@ impl CssProperty for PaddingProp {
         }
     }
 
-    fn compute(&mut self, current_style: Option<&SpecifiedValues>) -> Result<&Self> {
+    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self> {
         self.top = Self::compute_top(&self.top, current_style)?;
         self.right = Self::compute_top(&self.right, current_style)?;
         self.bottom = Self::compute_top(&self.bottom, current_style)?;
@@ -107,7 +107,7 @@ impl CssProperty for PaddingProp {
 }
 
 impl PaddingProp {
-    fn compute_top(value: &CssValue, current_style: Option<&SpecifiedValues>) -> Result<CssValue> {
+    fn compute_top(value: &CssValue, current_style: Option<&SpecifiedStyle>) -> Result<CssValue> {
         let current_font_size = current_style.and_then(|s| s.font_size.as_ref());
         let current_font_size = match current_font_size {
             Some(FontSizeProp {

@@ -6,7 +6,7 @@ use anyhow::{bail, Ok, Result};
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::{CssToken, NumericType};
 use crate::renderer::style::property::{CssProperty, CssValue};
-use crate::renderer::style::style_model::SpecifiedValues;
+use crate::renderer::style::style_model::SpecifiedStyle;
 
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight
 #[derive(Clone, Debug, PartialEq)]
@@ -52,7 +52,7 @@ impl CssProperty for FontWeightProp {
         }
     }
 
-    fn compute(&mut self, parent_style: Option<&SpecifiedValues>) -> Result<&Self> {
+    fn compute(&mut self, parent_style: Option<&SpecifiedStyle>) -> Result<&Self> {
         let parent_weight = parent_style.and_then(|s| s.font_weight.as_ref());
         let parent_weight = match parent_weight {
             Some(FontWeightProp {

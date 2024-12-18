@@ -10,7 +10,7 @@ use crate::renderer::style::property::{
     parse_length_percentage_type, AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit,
     RelativeLengthUnit,
 };
-use crate::renderer::style::style_model::SpecifiedValues;
+use crate::renderer::style::style_model::SpecifiedStyle;
 
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/margin
 #[derive(Clone, Debug, PartialEq)]
@@ -96,7 +96,7 @@ impl CssProperty for MarginProp {
         }
     }
 
-    fn compute(&mut self, current_style: Option<&SpecifiedValues>) -> Result<&Self> {
+    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self> {
         self.top = Self::compute_top(&self.top, current_style)?;
         self.right = Self::compute_top(&self.right, current_style)?;
         self.bottom = Self::compute_top(&self.bottom, current_style)?;
@@ -106,7 +106,7 @@ impl CssProperty for MarginProp {
 }
 
 impl MarginProp {
-    fn compute_top(value: &CssValue, current_style: Option<&SpecifiedValues>) -> Result<CssValue> {
+    fn compute_top(value: &CssValue, current_style: Option<&SpecifiedStyle>) -> Result<CssValue> {
         let current_font_size = current_style.and_then(|s| s.font_size.as_ref());
         let current_font_size = match current_font_size {
             Some(FontSizeProp {
@@ -189,7 +189,7 @@ impl CssProperty for MarginBlockProp {
         }
     }
 
-    fn compute(&mut self, current_style: Option<&SpecifiedValues>) -> Result<&Self> {
+    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self> {
         self.start = Self::compute_top(&self.start, current_style)?;
         self.end = Self::compute_top(&self.end, current_style)?;
         Ok(self)
@@ -197,7 +197,7 @@ impl CssProperty for MarginBlockProp {
 }
 
 impl MarginBlockProp {
-    fn compute_top(value: &CssValue, current_style: Option<&SpecifiedValues>) -> Result<CssValue> {
+    fn compute_top(value: &CssValue, current_style: Option<&SpecifiedStyle>) -> Result<CssValue> {
         let current_font_size = current_style.and_then(|s| s.font_size.as_ref());
         let current_font_size = match current_font_size {
             Some(FontSizeProp {

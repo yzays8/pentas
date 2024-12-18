@@ -9,7 +9,7 @@ use crate::renderer::style::property::{
     parse_length_percentage_type, AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit,
     RelativeLengthUnit,
 };
-use crate::renderer::style::style_model::SpecifiedValues;
+use crate::renderer::style::style_model::SpecifiedStyle;
 
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/height
 #[derive(Clone, Debug, PartialEq)]
@@ -57,7 +57,7 @@ impl CssProperty for HeightProp {
         }
     }
 
-    fn compute(&mut self, current_style: Option<&SpecifiedValues>) -> Result<&Self> {
+    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self> {
         let current_font_size = current_style.and_then(|s| s.font_size.as_ref());
         let current_font_size = match current_font_size {
             Some(FontSizeProp {

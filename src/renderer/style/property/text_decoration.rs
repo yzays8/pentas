@@ -8,7 +8,7 @@ use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::CssToken;
 use crate::renderer::style::property::color::{parse_color_type, ColorProp};
 use crate::renderer::style::property::{CssProperty, CssValue};
-use crate::renderer::style::style_model::SpecifiedValues;
+use crate::renderer::style::style_model::SpecifiedStyle;
 
 // todo: add TextDecorationColor, TextDecorationLine, TextDecorationStyle structs for each member
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration
@@ -113,7 +113,7 @@ impl CssProperty for TextDecorationProp {
         Ok(ret)
     }
 
-    fn compute(&mut self, current_style: Option<&SpecifiedValues>) -> Result<&Self> {
+    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self> {
         self.color.compute(current_style)?;
         Ok(self)
     }

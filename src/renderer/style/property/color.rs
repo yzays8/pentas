@@ -6,7 +6,7 @@ use anyhow::{anyhow, bail, ensure, Ok, Result};
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::{CssToken, NumericType};
 use crate::renderer::style::property::{CssProperty, CssValue};
-use crate::renderer::style::style_model::SpecifiedValues;
+use crate::renderer::style::style_model::SpecifiedStyle;
 
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/color
 #[derive(Clone, Debug, PartialEq)]
@@ -42,7 +42,7 @@ impl CssProperty for ColorProp {
         })
     }
 
-    fn compute(&mut self, current_color: Option<&SpecifiedValues>) -> Result<&Self> {
+    fn compute(&mut self, current_color: Option<&SpecifiedStyle>) -> Result<&Self> {
         let current_color = current_color.and_then(|v| v.color.as_ref());
         match &self.value {
             CssValue::Ident(name) => match name.to_ascii_lowercase().as_str() {
@@ -125,7 +125,7 @@ impl CssProperty for BackGroundColorProp {
         })
     }
 
-    fn compute(&mut self, current_style: Option<&SpecifiedValues>) -> Result<&Self> {
+    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self> {
         match &self.value {
             CssValue::Ident(name) => match name.to_ascii_lowercase().as_str() {
                 "currentcolor" => {

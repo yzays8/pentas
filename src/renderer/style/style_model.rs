@@ -1,11 +1,11 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::default::Default;
 use std::fmt;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Context, Result};
 use gtk4::pango;
+use indexmap::IndexMap;
 
 use crate::renderer::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
 use crate::renderer::css::selector::Selector;
@@ -83,7 +83,7 @@ impl PrintableTree for RenderTree {}
 #[derive(Debug)]
 pub struct RenderNode {
     pub dom_node: Rc<RefCell<DomNode>>,
-    pub style: ComputedValues,
+    pub style: ComputedStyle,
     pub children: Vec<Rc<RefCell<Self>>>,
 }
 
@@ -91,7 +91,7 @@ impl RenderNode {
     pub fn build(
         node: Rc<RefCell<DomNode>>,
         style_sheets: &Vec<StyleSheet>,
-        parent_style: Option<ComputedValues>,
+        parent_style: Option<ComputedStyle>,
     ) -> Result<Option<Self>> {
         // Omit nodes that are not rendered.
         match &node.borrow().node_type {
@@ -118,7 +118,7 @@ impl RenderNode {
                     unreachable!()
                 }
             }
-            _ => ComputedValues::default(),
+            _ => ComputedStyle::default(),
         };
 
         // All elements with a value of none for the display property and their descendants are not rendered.
@@ -169,8 +169,8 @@ impl fmt::Display for RenderNode {
 
 /// Returns all declared values that match the node.
 /// https://www.w3.org/TR/css-cascade-3/#filtering
-fn apply_filtering(node: Rc<RefCell<DomNode>>, style_sheets: &[StyleSheet]) -> DeclaredValues {
-    let mut declared_values = Vec::new();
+fn apply_filtering(node: Rc<RefCell<DomNode>>, style_sheets: &[StyleSheet]) -> DeclaredStyle {
+    let mut declared_values = DeclaredStyle::new();
 
     // As for the order of appearance in the subsequent cascading stage, the declarations from style sheets independently
     // linked by the originating document are treated as if they were concatenated in linking order, as determined by the host document language.
@@ -182,29 +182,34 @@ fn apply_filtering(node: Rc<RefCell<DomNode>>, style_sheets: &[StyleSheet]) -> D
                     unreachable!();
                 };
                 for selector in selectors.unwrap() {
-                    declared_values.push((selector, qualified_rule.declarations.clone()));
+                    declared_values.add(selector, &qualified_rule.declarations);
                 }
             }
         });
     });
 
-    DeclaredValues::new(declared_values)
+    declared_values
 }
 
+/// https://www.w3.org/TR/css-cascade-3/#declared
 #[derive(Debug)]
-pub struct DeclaredValues {
+pub struct DeclaredStyle {
     pub values: Vec<(Selector, Vec<Declaration>)>,
 }
 
-impl DeclaredValues {
-    pub fn new(values: Vec<(Selector, Vec<Declaration>)>) -> Self {
-        Self { values }
+impl DeclaredStyle {
+    pub fn new() -> Self {
+        Self { values: Vec::new() }
+    }
+
+    pub fn add(&mut self, selector: Selector, declarations: &[Declaration]) {
+        self.values.push((selector, declarations.to_vec()));
     }
 
     /// Returns the cascaded values, which are the declared values that "win" the cascade.
     /// There is at most one cascaded value per property per element.
     /// https://www.w3.org/TR/css-cascade-3/#cascading
-    pub fn apply_cascading(&self) -> CascadedValues {
+    pub fn apply_cascading(&self) -> CascadedStyle {
         // Vec<(index, declaration, specificity)>
         let mut sorted_list = self
             .values
@@ -221,40 +226,44 @@ impl DeclaredValues {
         sorted_list.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| b.0.cmp(&a.0)));
 
         // Determine the winning (highest-priority) declarations.
-        let mut final_style_map = HashMap::new();
+        let mut cascaded_values = CascadedStyle::new();
         for declarations in sorted_list.iter().map(|(_, declarations, _)| declarations) {
             for declaration in declarations {
-                // The higher-priority declarations are placed first in the hash table,
+                // The higher-priority declarations are placed first in the table,
                 // and declarations placed later in the table that have lower-priority
                 // with the same name are ignored.
-                final_style_map
-                    .entry(declaration.name.clone())
-                    .or_insert_with(|| declaration.value.clone());
+                cascaded_values.add(&declaration.name, &declaration.value);
             }
         }
 
-        CascadedValues::new(final_style_map)
+        cascaded_values
     }
 }
 
+/// https://www.w3.org/TR/css-cascade-3/#cascaded
 #[derive(Debug)]
-pub struct CascadedValues {
-    // todo: Use IndexMap to preserve the order of insertion.
-    pub values: HashMap<String, Vec<ComponentValue>>,
+pub struct CascadedStyle {
+    pub values: IndexMap<String, Vec<ComponentValue>>,
 }
 
-impl CascadedValues {
-    pub fn new(values: HashMap<String, Vec<ComponentValue>>) -> Self {
-        Self { values }
+impl CascadedStyle {
+    pub fn new() -> Self {
+        Self {
+            values: IndexMap::new(),
+        }
+    }
+
+    /// Keeps the order of addition.
+    pub fn add(&mut self, name: &str, values: &[ComponentValue]) {
+        self.values
+            .entry(name.to_string())
+            .or_insert_with(|| values.to_vec());
     }
 
     /// Returns the specified values. All properties are set to their initial values or inherited values.
     /// https://www.w3.org/TR/css-cascade-3/#defaulting
-    pub fn apply_defaulting(
-        &self,
-        parent_style: &Option<ComputedValues>,
-    ) -> Result<SpecifiedValues> {
-        let mut specified_values = SpecifiedValues::new();
+    pub fn apply_defaulting(&self, parent_style: &Option<ComputedStyle>) -> Result<SpecifiedStyle> {
+        let mut specified_values = SpecifiedStyle::new();
 
         specified_values.initialize();
 
@@ -268,8 +277,9 @@ impl CascadedValues {
     }
 }
 
+/// https://www.w3.org/TR/css-cascade-3/#specified
 #[derive(Clone, Debug, Default)]
-pub struct SpecifiedValues {
+pub struct SpecifiedStyle {
     pub background_color: Option<BackGroundColorProp>,
     pub color: Option<ColorProp>,
     pub display: Option<DisplayProp>,
@@ -286,7 +296,7 @@ pub struct SpecifiedValues {
     pub border_radius: Option<BorderRadiusProp>,
 }
 
-impl SpecifiedValues {
+impl SpecifiedStyle {
     pub fn new() -> Self {
         Self::default()
     }
@@ -312,17 +322,21 @@ impl SpecifiedValues {
 
     /// Sets the inherited values for all "inherited properties".
     /// The values inherited from the parent element must be the computed values.
-    pub fn inherit(&mut self, parent_values: &ComputedValues) {
+    pub fn inherit(&mut self, parent_values: &ComputedStyle) {
         self.color = Some(parent_values.color.clone());
         self.font_family = Some(parent_values.font_family.clone());
         self.font_size = Some(parent_values.font_size.clone());
         self.font_weight = Some(parent_values.font_weight.clone());
     }
 
-    // todo: Need to keep the order of the declarations of the properties. HashMap does not guarantee the order.
     // Assumes that the computed values have been initialized and inherited.
-    pub fn set_from(&mut self, cascaded_values: &CascadedValues) {
-        for (name, values) in &cascaded_values.values {
+    pub fn set_from(&mut self, cascaded_values: &CascadedStyle) {
+        let mut cascaded_values = cascaded_values.values.clone();
+        // The higher priority styles are placed first in the values, so
+        // it must be reversed to process according to the priority.
+        // O(n) time
+        cascaded_values.reverse();
+        for (name, values) in &cascaded_values {
             match name.as_str() {
                 "background-color" => {
                     if let Ok(v) = BackGroundColorProp::parse(values) {
@@ -363,28 +377,25 @@ impl SpecifiedValues {
                     if let Ok(v) = MarginProp::parse(values) {
                         self.margin = Some(v);
                     }
+                    // Assume that the margin-block-start and margin-block-end values
+                    // are the same as the margin-top and margin-bottom values.
+                    // todo: Handle the direction of the text.
+                    self.margin_block.as_mut().unwrap().start =
+                        self.margin.as_ref().unwrap().top.clone();
+                    self.margin_block.as_mut().unwrap().end =
+                        self.margin.as_ref().unwrap().bottom.clone();
                 }
                 "margin-block" => {
                     if let Ok(v) = MarginBlockProp::parse(values) {
                         self.margin_block = Some(v);
                     }
-                    if self.margin_block.is_some() {
-                        // Assume that the margin-block-start and margin-block-end values
-                        // are the same as the margin-top and margin-bottom values.
-                        // todo: Handle the direction of the text.
-                        if self.margin.is_some() {
-                            self.margin.as_mut().unwrap().top =
-                                self.margin_block.as_ref().unwrap().start.clone();
-                            self.margin.as_mut().unwrap().bottom =
-                                self.margin_block.as_ref().unwrap().end.clone();
-                        } else {
-                            self.margin = Some(MarginProp {
-                                top: self.margin_block.as_ref().unwrap().start.clone(),
-                                bottom: self.margin_block.as_ref().unwrap().end.clone(),
-                                ..Default::default()
-                            })
-                        }
-                    }
+                    // Assume that the margin-block-start and margin-block-end values
+                    // are the same as the margin-top and margin-bottom values.
+                    // todo: Handle the direction of the text.
+                    self.margin.as_mut().unwrap().top =
+                        self.margin_block.as_ref().unwrap().start.clone();
+                    self.margin.as_mut().unwrap().bottom =
+                        self.margin_block.as_ref().unwrap().end.clone();
                 }
                 "border" => {
                     if let Ok(v) = BorderProp::parse(values) {
@@ -418,14 +429,14 @@ impl SpecifiedValues {
 
     /// Converts the relative values to absolute values.
     /// https://www.w3.org/TR/css-cascade-3/#computed
-    pub fn apply_computing(&self) -> ComputedValues {
+    pub fn apply_computing(&self) -> ComputedStyle {
         let mut v = self.clone();
 
         Self::compute_earlier(&mut v, self);
         let earlier_style = v.clone();
         Self::compute_later(&mut v, &earlier_style);
 
-        ComputedValues {
+        ComputedStyle {
             background_color: v.background_color.unwrap(),
             color: v.color.unwrap(),
             display: v.display.unwrap(),
@@ -477,8 +488,9 @@ impl SpecifiedValues {
     }
 }
 
+/// https://www.w3.org/TR/css-cascade-3/#computed
 #[derive(Clone, Debug, Default)]
-pub struct ComputedValues {
+pub struct ComputedStyle {
     pub background_color: BackGroundColorProp,
     pub color: ColorProp,
     pub display: DisplayProp,
@@ -495,7 +507,7 @@ pub struct ComputedValues {
     pub border_radius: BorderRadiusProp,
 }
 
-impl fmt::Display for ComputedValues {
+impl fmt::Display for ComputedStyle {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut style_str = String::new();
         style_str.push_str(&format!("background-color: {}; ", self.background_color));

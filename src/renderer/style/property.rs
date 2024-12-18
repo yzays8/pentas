@@ -32,13 +32,13 @@ use anyhow::{bail, Result};
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::{CssToken, NumericType};
 use crate::renderer::style::property::color::rgb_to_name;
-use crate::renderer::style::style_model::SpecifiedValues;
+use crate::renderer::style::style_model::SpecifiedStyle;
 
 pub trait CssProperty {
     fn parse(values: &[ComponentValue]) -> Result<Self>
     where
         Self: Sized;
-    fn compute(&mut self, current_style: Option<&SpecifiedValues>) -> Result<&Self>
+    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self>
     where
         Self: Sized;
 }
