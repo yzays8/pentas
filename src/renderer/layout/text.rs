@@ -24,12 +24,6 @@ impl LayoutBox for Text {
         parent_info: Option<LayoutInfo>,
         prev_sibling_info: Option<LayoutInfo>,
     ) {
-        // let orig_x = if let Some(prev_sibling_info) = prev_sibling_info {
-        //     prev_sibling_info.pos.x + prev_sibling_info.size.width + prev_sibling_info.used_values.padding.right
-        // } else {
-        //     parent_info.unwrap().pos.x
-        // };
-
         self.calc_used_values();
         self.calc_width_and_height(containing_block_info);
         self.calc_pos(containing_block_info, parent_info, prev_sibling_info);
