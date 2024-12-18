@@ -99,11 +99,6 @@ impl LayoutBox for BlockBox {
                 + self.layout_info.used_values.border.top
                 + self.layout_info.used_values.padding.bottom
                 + self.layout_info.used_values.border.bottom;
-
-            // If `height` is not `auto`, the height of the box is the value of `height`.
-            if let CssValue::Length(height, _) = self.style_node.borrow().style.height.size {
-                self.layout_info.size.height = height;
-            }
         } else if is_every_child_inline {
             let mut inline_max_height = 0.0;
             let mut prev_sib_info = None;
@@ -144,6 +139,11 @@ impl LayoutBox for BlockBox {
                 + self.layout_info.used_values.border.bottom;
         } else {
             unreachable!()
+        }
+
+        // If `height` is not `auto`, the height of the box is the value of `height`.
+        if let CssValue::Length(height, _) = self.style_node.borrow().style.height.size {
+            self.layout_info.size.height = height;
         }
     }
 }
