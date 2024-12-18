@@ -143,7 +143,11 @@ impl LayoutBox for BlockBox {
 
         // If `height` is not `auto`, the height of the box is the value of `height`.
         if let CssValue::Length(height, _) = self.style_node.borrow().style.height.size {
-            self.layout_info.size.height = height;
+            self.layout_info.size.height = self.layout_info.used_values.border.top
+                + self.layout_info.used_values.padding.top
+                + height
+                + self.layout_info.used_values.padding.bottom
+                + self.layout_info.used_values.border.bottom;
         }
     }
 }

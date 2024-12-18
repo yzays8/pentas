@@ -24,15 +24,15 @@ impl LayoutBox for Text {
         parent_info: Option<LayoutInfo>,
         prev_sibling_info: Option<LayoutInfo>,
     ) {
-        let orig_x = if let Some(prev_sibling_info) = prev_sibling_info {
-            prev_sibling_info.pos.x + prev_sibling_info.size.width
-        } else {
-            parent_info.unwrap().pos.x
-        };
+        // let orig_x = if let Some(prev_sibling_info) = prev_sibling_info {
+        //     prev_sibling_info.pos.x + prev_sibling_info.size.width + prev_sibling_info.used_values.padding.right
+        // } else {
+        //     parent_info.unwrap().pos.x
+        // };
 
         self.calc_used_values();
         self.calc_width_and_height(containing_block_info);
-        self.calc_pos(containing_block_info, orig_x);
+        self.calc_pos(containing_block_info, parent_info, prev_sibling_info);
     }
 
     fn layout_children(&mut self, _: &LayoutInfo) {}
@@ -117,12 +117,24 @@ impl Text {
         self.layout_info.used_values.width = None;
     }
 
-    fn calc_pos(&mut self, containing_block_info: &LayoutInfo, orig_x: f32) {
+    fn calc_pos(
+        &mut self,
+        containing_block_info: &LayoutInfo,
+        parent_info: Option<LayoutInfo>,
+        prev_sibling_info: Option<LayoutInfo>,
+    ) {
+        let orig_x = if let Some(prev_sibling_info) = prev_sibling_info {
+            prev_sibling_info.pos.x + prev_sibling_info.size.width
+        } else {
+            parent_info.as_ref().unwrap().pos.x + parent_info.unwrap().used_values.padding.left
+        };
+
         self.layout_info.pos.x = orig_x
             + self.layout_info.used_values.margin.left
             + self.layout_info.used_values.border.left
             + self.layout_info.used_values.padding.left;
         self.layout_info.pos.y = containing_block_info.pos.y
+            + containing_block_info.used_values.padding.top
             + self.layout_info.used_values.margin.top
             + self.layout_info.used_values.border.top
             + self.layout_info.used_values.padding.top;

@@ -80,11 +80,6 @@ pub fn paint(canvas: &DrawingArea, objects: &[RenderObject], cairo_ctx: &cairo::
                 ))));
                 layout.set_attributes(Some(&attrs));
                 show_layout(cairo_ctx, &layout);
-
-                // Adjust the height of the canvas for scrolling.
-                if *y + layout.pixel_size().1 as f64 > canvas.height() as f64 {
-                    canvas.set_height_request((*y + layout.pixel_size().1 as f64) as i32 + 5);
-                }
             }
             RenderObject::Rect {
                 x,
@@ -155,17 +150,6 @@ pub fn paint(canvas: &DrawingArea, objects: &[RenderObject], cairo_ctx: &cairo::
                     cairo_ctx.close_path();
                     let _ = cairo_ctx.fill();
                 }
-
-                // Adjust the height of the canvas for scrolling.
-                if *y + *height > canvas.height() as f64 {
-                    canvas.set_height_request((*y + *height) as i32 + 5);
-                }
-            }
-            RenderObject::Clear => {
-                cairo_ctx.set_source_rgb(1.0, 1.0, 1.0);
-                cairo_ctx.rectangle(0.0, 0.0, canvas.width() as f64, canvas.height() as f64);
-                let _ = cairo_ctx.fill();
-                canvas.set_height_request(canvas.height());
             }
         }
     }

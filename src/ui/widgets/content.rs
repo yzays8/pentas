@@ -20,17 +20,20 @@ mod imp {
 
     use crate::app::VerbosityLevel;
     use crate::history::History;
-    use crate::renderer::RenderObject;
+    use crate::renderer::RenderObjects;
     use crate::ui::painter::paint;
 
     // "/pentas" is just a prefix. See resouces.gresource.xml
     #[derive(Debug, CompositeTemplate, Default)]
     #[template(resource = "/pentas/ui/content.ui")]
     pub struct ContentArea {
+        /// https://www.w3.org/TR/CSS22/visuren.html#viewport
+        #[template_child]
+        pub viewport: TemplateChild<gtk4::Viewport>,
         /// https://www.w3.org/TR/CSS22/intro.html#the-canvas
         #[template_child]
         pub canvas: TemplateChild<gtk4::DrawingArea>,
-        pub objects: RefCell<Vec<RenderObject>>,
+
         pub history: RefCell<History>,
         pub verbosity: RefCell<VerbosityLevel>,
     }
@@ -59,12 +62,78 @@ mod imp {
                 #[strong]
                 obj,
                 move |_, ctx, _, _| {
-                    paint(&obj.imp().canvas.get(), &obj.imp().objects.borrow(), ctx)
+                    // Adjust the width and the height of the canvas for scrolling.
+                    // Note: Each time the canvas is resized, this closure is called.
+                    if obj.imp().canvas.width()
+                        != obj
+                            .imp()
+                            .history
+                            .borrow()
+                            .get_current()
+                            .unwrap()
+                            .objects
+                            .max_width
+                            .round() as i32
+                    {
+                        obj.imp().canvas.set_width_request(
+                            obj.imp()
+                                .history
+                                .borrow()
+                                .get_current()
+                                .unwrap()
+                                .objects
+                                .max_width
+                                .round() as i32,
+                        );
+                    }
+                    if obj.imp().canvas.height()
+                        != obj
+                            .imp()
+                            .history
+                            .borrow()
+                            .get_current()
+                            .unwrap()
+                            .objects
+                            .max_height
+                            .round() as i32
+                            + 5
+                    {
+                        obj.imp().canvas.set_height_request(
+                            obj.imp()
+                                .history
+                                .borrow()
+                                .get_current()
+                                .unwrap()
+                                .objects
+                                .max_height
+                                .round() as i32
+                                + 5,
+                        );
+                    }
+
+                    paint(
+                        &obj.imp().canvas.get(),
+                        &obj.imp()
+                            .history
+                            .borrow()
+                            .get_current()
+                            .unwrap()
+                            .objects
+                            .list,
+                        ctx,
+                    )
                 }
             ));
 
             // The initial history is a blank page.
-            self.history.borrow_mut().add("", &[]);
+            self.history.borrow_mut().add(
+                "",
+                &RenderObjects {
+                    list: vec![],
+                    max_width: self.canvas.width() as f32,
+                    max_height: self.canvas.height() as f32,
+                },
+            );
         }
 
         fn signals() -> &'static [glib::subclass::Signal] {
@@ -81,27 +150,8 @@ mod imp {
     impl BoxImpl for ContentArea {}
 
     impl ContentArea {
-        /// Adds an object to the list of objects to be painted.
-        pub fn add_object(&self, object: RenderObject) {
-            self.objects.borrow_mut().push(object);
-        }
-
-        /// Replaces the list of objects to be painted with the given list.
-        pub fn replace_objects(&self, objects: &[RenderObject]) {
-            self.objects.replace(objects.to_owned());
-        }
-
-        /// Deletes all objects and repaints the background.
-        pub fn clear(&self) {
-            self.objects.borrow_mut().clear();
-            self.objects.borrow_mut().push(RenderObject::Clear);
-            self.canvas.queue_draw();
-            self.objects.borrow_mut().clear();
-            self.canvas.set_height_request(-1);
-        }
-
         /// Paints all added objects.
-        pub fn present(&self) {
+        pub fn paint(&self) {
             self.canvas.queue_draw();
         }
     }
@@ -119,8 +169,6 @@ impl ContentArea {
     }
 
     pub fn on_toolbar_entry_activate(&self, query: &str) {
-        self.imp().clear();
-
         // todo: Add a proper URL parser.
         let url = query
             .trim_start_matches("http://")
@@ -164,21 +212,16 @@ impl ContentArea {
             }
         };
 
-        self.imp().replace_objects(
-            &get_render_objects(
-                &html,
-                self.imp().canvas.width(),
-                self.imp().canvas.height(),
-                &self.imp().canvas.create_pango_context(),
-                *self.imp().verbosity.borrow(),
-            )
-            .unwrap(),
-        );
+        let objects = get_render_objects(
+            &html,
+            self.imp().canvas.width(),
+            self.imp().canvas.height(),
+            &self.imp().canvas.create_pango_context(),
+            *self.imp().verbosity.borrow(),
+        )
+        .unwrap();
 
-        self.imp()
-            .history
-            .borrow_mut()
-            .add(query, &self.imp().objects.borrow());
+        self.imp().history.borrow_mut().add(query, &objects);
         self.emit_by_name::<()>(
             "history-updated",
             &[
@@ -188,7 +231,7 @@ impl ContentArea {
             ],
         );
 
-        self.imp().present();
+        self.imp().paint();
     }
 
     pub fn on_backward_button_click(&self) {
@@ -202,10 +245,7 @@ impl ContentArea {
                     &self.imp().history.borrow().is_forwardable(),
                 ],
             );
-
-            self.imp().clear();
-            self.imp().replace_objects(&history.objects);
-            self.imp().present();
+            self.imp().paint();
         }
     }
 
@@ -220,10 +260,7 @@ impl ContentArea {
                     &self.imp().history.borrow().is_forwardable(),
                 ],
             );
-
-            self.imp().clear();
-            self.imp().replace_objects(&history.objects);
-            self.imp().present();
+            self.imp().paint();
         }
     }
 }

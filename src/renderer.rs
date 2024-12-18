@@ -16,7 +16,7 @@ use html::dom::DocumentTree;
 use html::parser::HtmlParser;
 use html::token::HtmlTokenizer;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RenderObject {
     Text {
         text: String,
@@ -42,9 +42,13 @@ pub enum RenderObject {
         /// (top-left, top-right, bottom-right, bottom-left)
         border_radius: (f64, f64, f64, f64),
     },
+}
 
-    /// Special object to clear the canvas.
-    Clear,
+#[derive(Debug, Clone, Default)]
+pub struct RenderObjects {
+    pub list: Vec<RenderObject>,
+    pub max_width: f32,
+    pub max_height: f32,
 }
 
 pub fn get_render_objects(
@@ -53,7 +57,7 @@ pub fn get_render_objects(
     viewport_height: i32,
     draw_ctx: &pango::Context,
     verbosity: VerbosityLevel,
-) -> Result<Vec<RenderObject>> {
+) -> Result<RenderObjects> {
     let (doc_root, style_sheets) = HtmlParser::new(HtmlTokenizer::new(html)).parse()?;
     let style_sheets = std::iter::once(get_ua_style_sheet()?)
         .chain(style_sheets)

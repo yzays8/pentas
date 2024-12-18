@@ -11,7 +11,7 @@ use crate::renderer::layout::inline::InlineBox;
 use crate::renderer::layout::text::Text;
 use crate::renderer::style::property::display::DisplayOutside;
 use crate::renderer::style::style_model::{RenderNode, RenderTree};
-use crate::renderer::RenderObject;
+use crate::renderer::{RenderObject, RenderObjects};
 use crate::utils::PrintableTree;
 
 /// https://www.w3.org/TR/css-display-3/#box-tree
@@ -176,16 +176,20 @@ impl BoxTree {
         self
     }
 
-    pub fn to_render_objects(
-        &self,
-        viewport_width: i32,
-        viewport_height: i32,
-    ) -> Vec<RenderObject> {
+    pub fn to_render_objects(&self, viewport_width: i32, viewport_height: i32) -> RenderObjects {
         let mut objects = Vec::new();
-        self.root
-            .borrow()
-            .to_render_objects(&mut objects, viewport_width, viewport_height);
-        objects
+        let (w, h) = self.root.borrow().to_render_objects(
+            &mut objects,
+            viewport_width,
+            viewport_height,
+            0.0,
+            0.0,
+        );
+        RenderObjects {
+            list: objects,
+            max_width: w,
+            max_height: h,
+        }
     }
 }
 
@@ -507,7 +511,9 @@ impl BoxNode {
         objects: &mut Vec<RenderObject>,
         viewport_width: i32,
         viewport_height: i32,
-    ) {
+        largest_width: f32,
+        largest_height: f32,
+    ) -> (f32, f32) {
         match self {
             BoxNode::Text(t) => {
                 let color = t.style_node.borrow().style.color.to_rgba().unwrap();
@@ -568,6 +574,15 @@ impl BoxNode {
                     decoration_line,
                     decoration_style,
                 });
+                let mut largest_width = largest_width;
+                let mut largest_height = largest_height;
+                if t.layout_info.size.width > largest_width {
+                    largest_width = t.layout_info.size.width;
+                }
+                if t.layout_info.size.height > largest_height {
+                    largest_height = t.layout_info.size.height;
+                }
+                (largest_width, largest_height)
             }
             BoxNode::BlockBox(block) => {
                 let (r, g, b, a) = block
@@ -613,25 +628,88 @@ impl BoxNode {
                         border_radius,
                     });
                 }
+                let mut largest_width = if block.layout_info.size.width > largest_width {
+                    block.layout_info.size.width
+                } else {
+                    largest_width
+                };
+                let mut largest_height = if block.layout_info.size.height > largest_height {
+                    block.layout_info.size.height
+                } else {
+                    largest_height
+                };
                 for child in block.children.iter() {
-                    child
-                        .borrow()
-                        .to_render_objects(objects, viewport_width, viewport_height);
+                    let (w, h) = child.borrow().to_render_objects(
+                        objects,
+                        viewport_width,
+                        viewport_height,
+                        largest_width,
+                        largest_height,
+                    );
+                    if w > largest_width {
+                        largest_width = w;
+                    }
+                    if h > largest_height {
+                        largest_height = h;
+                    }
                 }
+                (largest_width, largest_height)
             }
             BoxNode::InlineBox(inline) => {
+                let mut largest_width = if inline.layout_info.size.width > largest_width {
+                    inline.layout_info.size.width
+                } else {
+                    largest_width
+                };
+                let mut largest_height = if inline.layout_info.size.height > largest_height {
+                    inline.layout_info.size.height
+                } else {
+                    largest_height
+                };
                 for child in inline.children.iter() {
-                    child
-                        .borrow()
-                        .to_render_objects(objects, viewport_width, viewport_height);
+                    let (w, h) = child.borrow().to_render_objects(
+                        objects,
+                        viewport_width,
+                        viewport_height,
+                        largest_width,
+                        largest_height,
+                    );
+                    if w > largest_width {
+                        largest_width = w;
+                    }
+                    if h > largest_height {
+                        largest_height = h;
+                    }
                 }
+                (largest_width, largest_height)
             }
             BoxNode::AnonymousBox(anonymous) => {
+                let mut largest_width = if anonymous.layout_info.size.width > largest_width {
+                    anonymous.layout_info.size.width
+                } else {
+                    largest_width
+                };
+                let mut largest_height = if anonymous.layout_info.size.height > largest_height {
+                    anonymous.layout_info.size.height
+                } else {
+                    largest_height
+                };
                 for child in anonymous.children.iter() {
-                    child
-                        .borrow()
-                        .to_render_objects(objects, viewport_width, viewport_height);
+                    let (w, h) = child.borrow().to_render_objects(
+                        objects,
+                        viewport_width,
+                        viewport_height,
+                        largest_width,
+                        largest_height,
+                    );
+                    if w > largest_width {
+                        largest_width = w;
+                    }
+                    if h > largest_height {
+                        largest_height = h;
+                    }
                 }
+                (largest_width, largest_height)
             }
         }
     }
