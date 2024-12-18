@@ -25,21 +25,26 @@ pub enum RenderObject {
         font_family: Vec<String>,
         font_size: f64,
         font_weight: String,
-        /// (r, g, b), 0.0 <= r, g, b <= 1.0
+        /// 0.0 <= (r, g, b) <= 1.0
         color: (f64, f64, f64),
-        /// (r, g, b), 0.0 <= r, g, b <= 1.0
+        /// 0.0 <= (r, g, b) <= 1.0
         decoration_color: (f64, f64, f64),
         decoration_line: Vec<String>,
         decoration_style: String,
     },
-    Rectangle {
+    Rect {
         x: f64,
         y: f64,
         width: f64,
         height: f64,
-        /// (r, g, b), 0.0 <= r, g, b <= 1.0
+        /// 0.0 <= (r, g, b) <= 1.0
         color: (f64, f64, f64),
+        /// (top-left, top-right, bottom-right, bottom-left)
+        border_radius: (f64, f64, f64, f64),
     },
+
+    /// Special object to clear the canvas.
+    Clear,
 }
 
 pub fn get_render_objects(

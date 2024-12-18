@@ -577,6 +577,13 @@ impl BoxNode {
                     .background_color
                     .to_rgba()
                     .unwrap();
+                let border_radius = block
+                    .style_node
+                    .borrow()
+                    .style
+                    .border_radius
+                    .to_px()
+                    .unwrap();
 
                 // The style of the body element is applied to the whole viewport.
                 let is_body = if let NodeType::Element(Element { tag_name: n, .. }) =
@@ -589,7 +596,7 @@ impl BoxNode {
 
                 // Draw the rectangle only if the background color is not transparent.
                 if a != 0.0 {
-                    objects.push(RenderObject::Rectangle {
+                    objects.push(RenderObject::Rect {
                         x: block.layout_info.pos.x as f64,
                         y: block.layout_info.pos.y as f64,
                         width: if is_body {
@@ -603,6 +610,7 @@ impl BoxNode {
                             block.layout_info.size.height as f64
                         },
                         color: (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0),
+                        border_radius,
                     });
                 }
                 for child in block.children.iter() {

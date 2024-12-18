@@ -1,4 +1,5 @@
 pub mod border;
+pub mod border_radius;
 pub mod color;
 pub mod display;
 pub mod font_family;
@@ -11,6 +12,7 @@ pub mod text_decoration;
 pub mod width;
 
 pub use border::BorderProp;
+pub use border_radius::BorderRadiusProp;
 pub use color::{BackGroundColorProp, ColorProp};
 pub use display::{DisplayBox, DisplayOutside, DisplayProp};
 pub use font_family::FontFamilyProp;

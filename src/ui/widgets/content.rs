@@ -94,13 +94,7 @@ mod imp {
         /// Deletes all objects and repaints the background.
         pub fn clear(&self) {
             self.objects.borrow_mut().clear();
-            self.objects.borrow_mut().push(RenderObject::Rectangle {
-                x: 0.0,
-                y: 0.0,
-                width: self.canvas.width() as f64,
-                height: self.canvas.height() as f64,
-                color: (1.0, 1.0, 1.0),
-            });
+            self.objects.borrow_mut().push(RenderObject::Clear);
             self.canvas.queue_draw();
             self.objects.borrow_mut().clear();
             self.canvas.set_height_request(-1);

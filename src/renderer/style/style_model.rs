@@ -12,9 +12,9 @@ use crate::renderer::css::selector::Selector;
 use crate::renderer::html::dom::{DocumentTree, DomNode, NodeType};
 use crate::renderer::layout::box_model::BoxTree;
 use crate::renderer::style::property::{
-    BackGroundColorProp, BorderProp, ColorProp, CssProperty, DisplayBox, DisplayOutside,
-    DisplayProp, FontFamilyProp, FontSizeProp, FontWeightProp, HeightProp, MarginBlockProp,
-    MarginProp, PaddingProp, TextDecorationProp, WidthProp,
+    BackGroundColorProp, BorderProp, BorderRadiusProp, ColorProp, CssProperty, DisplayBox,
+    DisplayOutside, DisplayProp, FontFamilyProp, FontSizeProp, FontWeightProp, HeightProp,
+    MarginBlockProp, MarginProp, PaddingProp, TextDecorationProp, WidthProp,
 };
 use crate::utils::PrintableTree;
 
@@ -283,6 +283,7 @@ pub struct SpecifiedValues {
     pub padding: Option<PaddingProp>,
     pub width: Option<WidthProp>,
     pub height: Option<HeightProp>,
+    pub border_radius: Option<BorderRadiusProp>,
 }
 
 impl SpecifiedValues {
@@ -306,6 +307,7 @@ impl SpecifiedValues {
         self.padding = Some(PaddingProp::default());
         self.width = Some(WidthProp::default());
         self.height = Some(HeightProp::default());
+        self.border_radius = Some(BorderRadiusProp::default());
     }
 
     /// Sets the inherited values for all "inherited properties".
@@ -404,6 +406,11 @@ impl SpecifiedValues {
                         self.height = Some(v);
                     }
                 }
+                "border-radius" => {
+                    if let Ok(v) = BorderRadiusProp::parse(values) {
+                        self.border_radius = Some(v);
+                    }
+                }
                 _ => {}
             }
         }
@@ -432,6 +439,7 @@ impl SpecifiedValues {
             padding: v.padding.unwrap(),
             width: v.width.unwrap(),
             height: v.height.unwrap(),
+            border_radius: v.border_radius.unwrap(),
         }
     }
 
@@ -454,6 +462,7 @@ impl SpecifiedValues {
         Self::compute_property(&mut v.padding, Some(earlier_style));
         Self::compute_property(&mut v.width, Some(earlier_style));
         Self::compute_property(&mut v.height, Some(earlier_style));
+        Self::compute_property(&mut v.border_radius, Some(earlier_style));
     }
 
     fn compute_property(prop: &mut Option<impl CssProperty>, current_style: Option<&Self>) {
@@ -483,6 +492,7 @@ pub struct ComputedValues {
     pub padding: PaddingProp,
     pub width: WidthProp,
     pub height: HeightProp,
+    pub border_radius: BorderRadiusProp,
 }
 
 impl fmt::Display for ComputedValues {
@@ -501,6 +511,7 @@ impl fmt::Display for ComputedValues {
         style_str.push_str(&format!("padding: {}; ", self.padding));
         style_str.push_str(&format!("width: {}; ", self.width));
         style_str.push_str(&format!("height: {}; ", self.height));
+        style_str.push_str(&format!("border-radius: {}", self.border_radius));
         write!(f, "{}", style_str)
     }
 }
