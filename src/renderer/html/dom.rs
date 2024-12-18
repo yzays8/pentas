@@ -6,7 +6,7 @@ use anyhow::{ensure, Result};
 
 use crate::renderer::css::cssom::StyleSheet;
 use crate::renderer::style::style_model::RenderTree;
-use crate::renderer::utils::PrintableTree;
+use crate::utils::PrintableTree;
 
 /// https://dom.spec.whatwg.org/#node
 #[derive(Debug)]

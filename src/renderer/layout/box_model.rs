@@ -11,8 +11,8 @@ use crate::renderer::layout::inline::InlineBox;
 use crate::renderer::layout::text::Text;
 use crate::renderer::style::property::display::DisplayOutside;
 use crate::renderer::style::style_model::{RenderNode, RenderTree};
-use crate::renderer::utils::PrintableTree;
 use crate::renderer::RenderObject;
+use crate::utils::PrintableTree;
 
 /// https://www.w3.org/TR/css-display-3/#box-tree
 #[derive(Debug)]

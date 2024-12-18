@@ -2,14 +2,13 @@ mod css;
 mod html;
 mod layout;
 mod style;
-mod utils;
 
 use anyhow::Result;
 use gtk4::pango;
-use utils::PrintableTree as _;
 
 use crate::app::VerbosityLevel;
 use crate::ui::{DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH};
+use crate::utils::PrintableTree as _;
 use css::get_ua_style_sheet;
 use css::parser::CssParser;
 use css::token::CssTokenizer;
@@ -76,8 +75,8 @@ pub fn get_render_objects(
     }
 }
 
-/// Displays the HTML as a box tree.
-pub fn display_html(
+/// Prints an HTML document as a box tree.
+pub fn print_box_tree(
     html: &str,
     draw_ctx: &pango::Context,
     verbosity: VerbosityLevel,
@@ -114,8 +113,8 @@ pub fn display_html(
     Ok(())
 }
 
-/// Displays the CSS as a style sheet.
-pub fn display_css(css: &str) -> Result<()> {
+/// Prints a CSS document as a style sheet.
+pub fn print_style_sheet(css: &str) -> Result<()> {
     CssParser::new(&CssTokenizer::new(css).tokenize()?)
         .parse()?
         .print();

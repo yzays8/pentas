@@ -16,7 +16,7 @@ use crate::renderer::style::property::{
     DisplayProp, FontFamilyProp, FontSizeProp, FontWeightProp, HeightProp, MarginBlockProp,
     MarginProp, PaddingProp, TextDecorationProp, WidthProp,
 };
-use crate::renderer::utils::PrintableTree;
+use crate::utils::PrintableTree;
 
 #[derive(Debug)]
 pub struct RenderTree {

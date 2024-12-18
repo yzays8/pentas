@@ -7,7 +7,7 @@ use crate::renderer::css::cssom::{
 };
 use crate::renderer::css::selector::SelectorParser;
 use crate::renderer::css::token::CssToken;
-use crate::renderer::utils::TokenIterator;
+use crate::utils::TokenIterator;
 
 #[derive(Debug)]
 pub struct CssParser {

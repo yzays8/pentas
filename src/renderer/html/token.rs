@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::renderer::utils::TokenIterator;
+use crate::utils::TokenIterator;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum TokenizationState {
