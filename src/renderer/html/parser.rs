@@ -446,6 +446,10 @@ impl HtmlParser {
                                 }
                                 self.insert_element(tag_name, attributes);
                             }
+                            "br" => {
+                                self.insert_element(tag_name, attributes);
+                                self.stack.pop();
+                            }
                             _ => {
                                 unimplemented!("token: {:?}", token);
                             }
