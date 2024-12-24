@@ -34,10 +34,6 @@ impl LayoutBox for BlockBox {
     }
 
     fn layout_children(&mut self, _: &LayoutInfo) {
-        if self.children.is_empty() {
-            return;
-        }
-
         let is_every_child_block = self.children.iter().all(|child| {
             matches!(
                 *child.borrow(),
@@ -137,6 +133,8 @@ impl LayoutBox for BlockBox {
                 + inline_max_height
                 + self.layout_info.used_values.padding.bottom
                 + self.layout_info.used_values.border.bottom;
+        } else if self.children.is_empty() {
+            // Do nothing
         } else {
             unreachable!()
         }
