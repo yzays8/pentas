@@ -300,7 +300,7 @@ impl BlockBox {
 
 #[derive(Debug)]
 pub struct AnonymousBox {
-    pub style_node: Box<ComputedStyle>,
+    pub style: Box<ComputedStyle>,
     pub layout_info: LayoutInfo,
     pub children: Vec<Rc<RefCell<BoxNode>>>,
 }

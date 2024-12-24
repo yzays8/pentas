@@ -403,7 +403,7 @@ impl BoxNode {
                         && (style_node.borrow().children.len() > 1)
                     {
                         let mut anon_box = AnonymousBox {
-                            style_node: Box::new(style_node.borrow().style.clone()),
+                            style: Box::new(style_node.borrow().style.clone()),
                             layout_info: LayoutInfo::default(),
                             children: vec![],
                         };
@@ -734,9 +734,7 @@ impl fmt::Display for BoxNode {
             }) => {
                 fmt_str.push_str(&format!("{}", node.borrow()));
             }
-            Self::AnonymousBox(AnonymousBox {
-                style_node: style, ..
-            }) => {
+            Self::AnonymousBox(AnonymousBox { style, .. }) => {
                 fmt_str.push_str(&format!("Box: Anonymous, Computed( {} )", style));
             }
         }
