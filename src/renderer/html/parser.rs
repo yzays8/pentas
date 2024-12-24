@@ -163,6 +163,7 @@ impl HtmlParser {
                             );
                             self.stack.push(Rc::clone(&n));
                             self.insertion_mode = InsertionMode::BeforeHead;
+                            continue;
                         }
                     },
 
@@ -181,7 +182,12 @@ impl HtmlParser {
                                 self.insert_element(tag_name, attributes);
                                 self.insertion_mode = InsertionMode::InHead;
                             }
-                            _ => unimplemented!("token: {:?}", token),
+                            "html" => unimplemented!("token: {:?}", token),
+                            _ => {
+                                self.insert_element("head", &Vec::new());
+                                self.insertion_mode = InsertionMode::InHead;
+                                continue;
+                            }
                         },
                         HtmlToken::EndTag { tag_name, .. } => {
                             if let "head" | "body" | "html" | "br" = tag_name.as_str() {
@@ -240,36 +246,52 @@ impl HtmlParser {
                                     self.orig_insertion_mode = Some(InsertionMode::InHead);
                                     self.insertion_mode = InsertionMode::Text;
                                 }
-                                _ => unimplemented!("token: {:?}", token),
+                                "head" => {
+                                    eprintln!("parse error, ignored the token: {:?}", token);
+                                }
+                                "html" | "template" | "noscript" | "script" | "noframes"
+                                | "base" | "basefont" | "bgsound" | "link" => {
+                                    unimplemented!("token: {:?}", token);
+                                }
+                                _ => {
+                                    self.stack.pop();
+                                    self.insertion_mode = InsertionMode::AfterHead;
+                                    continue;
+                                }
                             },
-                            HtmlToken::EndTag { tag_name, .. } if tag_name == "head" => {
-                                let elm = self.stack.pop().unwrap();
-                                if let NodeType::Element(elm) = &elm.borrow().node_type {
-                                    ensure!(
-                                        elm.tag_name == "head",
-                                        ParseError {
+                            HtmlToken::EndTag { tag_name, .. } => match tag_name.as_str() {
+                                "head" => {
+                                    let elm = self.stack.pop().unwrap();
+                                    if let NodeType::Element(elm) = &elm.borrow().node_type {
+                                        ensure!(
+                                            elm.tag_name == "head",
+                                            ParseError {
+                                                message: "Expected head element".to_string(),
+                                                current_token: token,
+                                                current_tree: DocumentTree::build(Rc::clone(
+                                                    &document_node
+                                                ))?
+                                                .to_string(),
+                                            }
+                                        );
+                                    } else {
+                                        bail!(ParseError {
                                             message: "Expected head element".to_string(),
                                             current_token: token,
                                             current_tree: DocumentTree::build(Rc::clone(
                                                 &document_node
                                             ))?
                                             .to_string(),
-                                        }
-                                    );
-                                } else {
-                                    bail!(ParseError {
-                                        message: "Expected head element".to_string(),
-                                        current_token: token,
-                                        current_tree: DocumentTree::build(Rc::clone(
-                                            &document_node
-                                        ))?
-                                        .to_string(),
-                                    });
+                                        });
+                                    }
+                                    self.insertion_mode = InsertionMode::AfterHead;
                                 }
-                                self.insertion_mode = InsertionMode::AfterHead;
-                            }
+                                _ => unimplemented!("token: {:?}", token),
+                            },
                             _ => {
-                                unimplemented!("token: {:?}", token);
+                                self.stack.pop();
+                                self.insertion_mode = InsertionMode::AfterHead;
+                                continue;
                             }
                         }
                     }
@@ -295,10 +317,24 @@ impl HtmlParser {
                                 self.insert_element(tag_name, attributes);
                                 self.insertion_mode = InsertionMode::InFrameset;
                             }
-                            _ => unimplemented!("token: {:?}", token),
+                            "head" => {
+                                eprintln!("parse error, ignored the token: {:?}", token);
+                            }
+                            "html" | "base" | "basefont" | "bgsound" | "link" | "meta"
+                            | "noframes" | "script" | "style" | "template" | "title" => {
+                                unimplemented!("token: {:?}", token);
+                            }
+                            _ => {
+                                self.insert_element("body", &Vec::new());
+                                self.insertion_mode = InsertionMode::InBody;
+                                continue;
+                            }
                         },
+                        HtmlToken::EndTag { .. } => unimplemented!("token: {:?}", token),
                         _ => {
-                            unimplemented!("token: {:?}", token);
+                            self.insert_element("body", &Vec::new());
+                            self.insertion_mode = InsertionMode::InBody;
+                            continue;
                         }
                     },
 
@@ -530,8 +566,8 @@ impl HtmlParser {
                             }
                             _ => unimplemented!("token: {:?}", token),
                         },
-                        _ => {
-                            unimplemented!("token: {:?}", token);
+                        HtmlToken::Eof => {
+                            end_of_parsing = true;
                         }
                     },
 
