@@ -356,19 +356,18 @@ mod tests {
         let style_sheet = CssParser::new(&CssTokenizer::new(css).tokenize().unwrap())
             .parse()
             .unwrap();
-        let mut rules = style_sheet.rules.iter();
-        assert_eq!(
-            rules.next().unwrap(),
-            &Rule::QualifiedRule(QualifiedRule {
+        let actual = style_sheet.rules;
+        let expected = vec![
+            Rule::QualifiedRule(QualifiedRule {
                 selectors: vec![Selector::Simple(vec![SimpleSelector::Type {
                     namespace_prefix: None,
-                    name: "h1".to_string()
+                    name: "h1".to_string(),
                 }])],
                 declarations: vec![
                     Declaration {
                         name: "color".to_string(),
                         value: vec![ComponentValue::PreservedToken(CssToken::Ident(
-                            "red".to_string()
+                            "red".to_string(),
                         ))],
                     },
                     Declaration {
@@ -376,18 +375,32 @@ mod tests {
                         value: vec![
                             ComponentValue::PreservedToken(CssToken::Dimension(
                                 NumericType::Integer(1),
-                                "fr".to_string()
+                                "fr".to_string(),
                             )),
                             ComponentValue::PreservedToken(CssToken::Whitespace),
                             ComponentValue::PreservedToken(CssToken::Dimension(
                                 NumericType::Integer(2),
-                                "fr".to_string()
+                                "fr".to_string(),
                             )),
                         ],
                     },
                 ],
-            })
-        );
+            }),
+            Rule::QualifiedRule(QualifiedRule {
+                selectors: vec![Selector::Simple(vec![SimpleSelector::Type {
+                    namespace_prefix: None,
+                    name: "h2".to_string(),
+                }])],
+                declarations: vec![Declaration {
+                    name: "color".to_string(),
+                    value: vec![ComponentValue::PreservedToken(CssToken::Ident(
+                        "blue".to_string(),
+                    ))],
+                }],
+            }),
+        ];
+
+        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -404,50 +417,46 @@ mod tests {
         let style_sheet = CssParser::new(&CssTokenizer::new(css).tokenize().unwrap())
             .parse()
             .unwrap();
-        let mut rules = style_sheet.rules.iter();
-        assert_eq!(
-            rules.next().unwrap(),
-            &Rule::QualifiedRule(QualifiedRule {
+        let actual = style_sheet.rules;
+        let expected = vec![
+            Rule::QualifiedRule(QualifiedRule {
                 selectors: vec![
                     Selector::Simple(vec![SimpleSelector::Type {
                         namespace_prefix: None,
-                        name: "h1".to_string()
+                        name: "h1".to_string(),
                     }]),
                     Selector::Simple(vec![SimpleSelector::Type {
                         namespace_prefix: None,
-                        name: "h2".to_string()
+                        name: "h2".to_string(),
                     }]),
                     Selector::Simple(vec![SimpleSelector::Type {
                         namespace_prefix: None,
-                        name: "h3".to_string()
+                        name: "h3".to_string(),
                     }]),
                 ],
                 declarations: vec![Declaration {
                     name: "color".to_string(),
                     value: vec![ComponentValue::PreservedToken(CssToken::Ident(
-                        "red".to_string()
+                        "red".to_string(),
                     ))],
                 }],
-            })
-        );
-        assert_eq!(
-            rules.next().unwrap(),
-            &Rule::QualifiedRule(QualifiedRule {
+            }),
+            Rule::QualifiedRule(QualifiedRule {
                 selectors: vec![Selector::Complex(
                     Box::new(Selector::Simple(vec![SimpleSelector::Id(
-                        "myId".to_string()
-                    ),])),
+                        "myId".to_string(),
+                    )])),
                     Combinator::GreaterThan,
                     Box::new(Selector::Complex(
                         Box::new(Selector::Simple(vec![SimpleSelector::Class(
-                            "myClass".to_string()
-                        ),])),
+                            "myClass".to_string(),
+                        )])),
                         Combinator::Plus,
                         Box::new(Selector::Complex(
                             Box::new(Selector::Simple(vec![SimpleSelector::Type {
                                 namespace_prefix: None,
-                                name: "div".to_string()
-                            },])),
+                                name: "div".to_string(),
+                            }])),
                             Combinator::GreaterThan,
                             Box::new(Selector::Simple(vec![
                                 SimpleSelector::Type {
@@ -460,26 +469,28 @@ mod tests {
                                     op: Some("=".to_string()),
                                     value: Some("hello".to_string()),
                                 },
-                            ]))
-                        ))
-                    ))
+                            ])),
+                        )),
+                    )),
                 )],
                 declarations: vec![
                     Declaration {
                         name: "color".to_string(),
                         value: vec![ComponentValue::PreservedToken(CssToken::Ident(
-                            "blue".to_string()
+                            "blue".to_string(),
                         ))],
                     },
                     Declaration {
                         name: "font-size".to_string(),
                         value: vec![ComponentValue::PreservedToken(CssToken::Dimension(
                             NumericType::Integer(16),
-                            "px".to_string()
+                            "px".to_string(),
                         ))],
                     },
                 ],
-            })
-        );
+            }),
+        ];
+
+        assert_eq!(actual, expected);
     }
 }
