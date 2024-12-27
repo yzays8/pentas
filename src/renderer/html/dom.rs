@@ -80,7 +80,7 @@ impl fmt::Display for DomNode {
 }
 
 /// https://dom.spec.whatwg.org/#dom-node-nodetype
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NodeType {
     Comment(String),
     Document,
@@ -102,7 +102,7 @@ impl fmt::Display for NodeType {
 }
 
 /// https://dom.spec.whatwg.org/#element
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Element {
     pub tag_name: String,
     pub attributes: Vec<(String, String)>,
@@ -147,7 +147,7 @@ impl DocumentTree {
         RenderTree::build(self, style_sheets)
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn get_dfs_iter(&self) -> impl Iterator<Item = Rc<RefCell<DomNode>>> {
         let mut stack = vec![Rc::clone(&self.root)];
         std::iter::from_fn(move || -> Option<Rc<RefCell<DomNode>>> {

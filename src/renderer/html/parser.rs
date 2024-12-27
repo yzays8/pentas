@@ -775,57 +775,35 @@ mod tests {
                 .0,
         )
         .unwrap();
-        let mut dfs_iter = tree.get_dfs_iter();
-
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Document
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::DocumentType("html".to_string())
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
+        let actual = tree
+            .get_dfs_iter()
+            .map(|node| node.borrow().node_type.clone())
+            .collect::<Vec<_>>();
+        let expected = vec![
+            NodeType::Document,
+            NodeType::DocumentType("html".to_string()),
             NodeType::Element(Element {
                 tag_name: "html".to_string(),
                 attributes: vec![("class".to_string(), "e".to_string())],
-            })
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
+            }),
             NodeType::Element(Element {
                 tag_name: "head".to_string(),
                 attributes: vec![],
-            })
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
+            }),
             NodeType::Element(Element {
                 tag_name: "title".to_string(),
                 attributes: vec![],
-            })
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Text("Aliens?".to_string())
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Text("\n\t".to_string())
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
+            }),
+            NodeType::Text("Aliens?".to_string()),
+            NodeType::Text("\n\t".to_string()),
             NodeType::Element(Element {
                 tag_name: "body".to_string(),
                 attributes: vec![],
-            })
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Text("Why yes.\n".to_string())
-        );
-        assert!(dfs_iter.next().is_none());
+            }),
+            NodeType::Text("Why yes.\n".to_string()),
+        ];
+
+        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -843,7 +821,8 @@ mod tests {
         //     </body>
         // </html>
 
-        let html = "<!DOCTYPE html>\n<html>\n\t<head><title>Lists</title></head>\n\t<body>\n\t\t<ul>\n\t\t\t<li>Item1\n\t\t\t\t<p class=\"foo\">Paragraph1\n\t\t\t<li>Item2</li>\n\t\t\t<li>Item3\n\t\t</ul>\n\t</body>\n</html>";
+        let html = "<!DOCTYPE html>\n<html>\n\t<head><title>Lists</title></head>\n\t<body>\n\t\t<ul>\n\t\t\t<li>Item1\n\t\t\t\t\
+        <p class=\"foo\">Paragraph1\n\t\t\t<li>Item2</li>\n\t\t\t<li>Item3\n\t\t</ul>\n\t</body>\n</html>";
         let tree = DocumentTree::build(
             HtmlParser::new(HtmlTokenizer::new(&html))
                 .parse()
@@ -851,118 +830,108 @@ mod tests {
                 .0,
         )
         .unwrap();
-        let mut dfs_iter = tree.get_dfs_iter();
-
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Document
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::DocumentType("html".to_string())
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
+        let actual = tree
+            .get_dfs_iter()
+            .map(|node| node.borrow().node_type.clone())
+            .collect::<Vec<_>>();
+        let expected = vec![
+            NodeType::Document,
+            NodeType::DocumentType("html".to_string()),
             NodeType::Element(Element {
                 tag_name: "html".to_string(),
                 attributes: vec![],
-            })
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
+            }),
             NodeType::Element(Element {
                 tag_name: "head".to_string(),
                 attributes: vec![],
-            })
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
+            }),
             NodeType::Element(Element {
                 tag_name: "title".to_string(),
                 attributes: vec![],
-            })
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Text("Lists".to_string())
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Text("\n\t".to_string())
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
+            }),
+            NodeType::Text("Lists".to_string()),
+            NodeType::Text("\n\t".to_string()),
             NodeType::Element(Element {
                 tag_name: "body".to_string(),
                 attributes: vec![],
-            })
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Text("\n\t\t".to_string())
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
+            }),
+            NodeType::Text("\n\t\t".to_string()),
             NodeType::Element(Element {
                 tag_name: "ul".to_string(),
                 attributes: vec![],
-            })
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Text("\n\t\t\t".to_string())
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
+            }),
+            NodeType::Text("\n\t\t\t".to_string()),
             NodeType::Element(Element {
                 tag_name: "li".to_string(),
                 attributes: vec![],
-            })
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Text("Item1\n\t\t\t\t".to_string())
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
+            }),
+            NodeType::Text("Item1\n\t\t\t\t".to_string()),
             NodeType::Element(Element {
                 tag_name: "p".to_string(),
                 attributes: vec![("class".to_string(), "foo".to_string())],
-            })
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Text("Paragraph1\n\t\t\t".to_string())
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
+            }),
+            NodeType::Text("Paragraph1\n\t\t\t".to_string()),
             NodeType::Element(Element {
                 tag_name: "li".to_string(),
                 attributes: vec![],
-            })
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Text("Item2".to_string())
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Text("\n\t\t\t".to_string())
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
+            }),
+            NodeType::Text("Item2".to_string()),
+            NodeType::Text("\n\t\t\t".to_string()),
             NodeType::Element(Element {
                 tag_name: "li".to_string(),
                 attributes: vec![],
-            })
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Text("Item3\n\t\t".to_string())
-        );
-        assert_eq!(
-            dfs_iter.next().unwrap().borrow().node_type,
-            NodeType::Text("\n\t\n".to_string())
-        );
+            }),
+            NodeType::Text("Item3\n\t\t".to_string()),
+            NodeType::Text("\n\t\n".to_string()),
+        ];
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn parse_incomplete_html() {
+        // <h1>Heading</h1>
+        // <p>paragraph
+
+        let html = "<h1>heading</h1>\n<p>paragraph</p>";
+        let tree = DocumentTree::build(
+            HtmlParser::new(HtmlTokenizer::new(&html))
+                .parse()
+                .unwrap()
+                .0,
+        )
+        .unwrap();
+        let actual = tree
+            .get_dfs_iter()
+            .map(|node| node.borrow().node_type.clone())
+            .collect::<Vec<_>>();
+        let expected = vec![
+            NodeType::Document,
+            NodeType::Element(Element {
+                tag_name: "html".to_string(),
+                attributes: vec![],
+            }),
+            NodeType::Element(Element {
+                tag_name: "head".to_string(),
+                attributes: vec![],
+            }),
+            NodeType::Element(Element {
+                tag_name: "body".to_string(),
+                attributes: vec![],
+            }),
+            NodeType::Element(Element {
+                tag_name: "h1".to_string(),
+                attributes: vec![],
+            }),
+            NodeType::Text("heading".to_string()),
+            NodeType::Text("\n".to_string()),
+            NodeType::Element(Element {
+                tag_name: "p".to_string(),
+                attributes: vec![],
+            }),
+            NodeType::Text("paragraph".to_string()),
+        ];
+
+        assert_eq!(actual, expected);
     }
 }
