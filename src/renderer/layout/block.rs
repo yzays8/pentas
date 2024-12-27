@@ -133,9 +133,7 @@ impl LayoutBox for BlockBox {
                 + inline_max_height
                 + self.layout_info.used_values.padding.bottom
                 + self.layout_info.used_values.border.bottom;
-        } else if self.children.is_empty() {
-            // Do nothing
-        } else {
+        } else if !self.children.is_empty() {
             unreachable!()
         }
 
