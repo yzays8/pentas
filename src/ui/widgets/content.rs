@@ -154,10 +154,12 @@ impl ContentArea {
             .trim_start_matches("http://")
             .trim_start_matches("https://");
         let mut url = url.split('/');
+        let mut has_port = false;
         let (host, port) = if let Some(hp) = url.by_ref().next() {
             let hp = hp.split(':').collect::<Vec<&str>>();
             let host = hp.first().unwrap();
             if let Some(port) = hp.get(1) {
+                has_port = true;
                 if let Ok(port) = port.parse::<u16>() {
                     (*host, port)
                 } else {
@@ -192,8 +194,15 @@ impl ContentArea {
             }
         };
 
+        let host = if has_port {
+            format!("{}:{}", host, port)
+        } else {
+            host.to_string()
+        };
+
         let objects = get_render_objects(
             &html,
+            &host,
             self.imp().canvas.width(),
             self.imp().canvas.height(),
             &self.imp().canvas.create_pango_context(),

@@ -32,6 +32,13 @@ enum InsertionMode {
     AfterAfterBody,
 }
 
+#[derive(Debug)]
+pub struct ParsedObject {
+    pub dom_root: Rc<RefCell<DomNode>>,
+    pub style_sheets: Vec<StyleSheet>,
+    pub title: Option<String>,
+}
+
 /// https://html.spec.whatwg.org/multipage/parsing.html#overview-of-the-parsing-model
 #[derive(Debug)]
 pub struct HtmlParser {
@@ -54,8 +61,8 @@ impl HtmlParser {
         }
     }
 
-    /// Returns a Document object node and its associated list of CSS style sheets.
-    pub fn parse(&mut self) -> Result<(Rc<RefCell<DomNode>>, Vec<StyleSheet>)> {
+    /// Returns a Document object node, CSS style sheets, and the title of the document.
+    pub fn parse(&mut self) -> Result<ParsedObject> {
         // The output of the whole parsing (tree construction) is a Document object.
         let document_node = Rc::new(RefCell::new(DomNode::new(NodeType::Document)));
 
@@ -65,6 +72,8 @@ impl HtmlParser {
         // 2. Any CSS style sheets associated with the DocumentOrShadowRoot, in tree order
         // https://drafts.csswg.org/cssom/#documentorshadowroot-document-or-shadow-root-css-style-sheets
         let mut style_sheets = Vec::new();
+
+        let mut title = None;
 
         let mut end_of_parsing = false;
         while !end_of_parsing {
@@ -586,6 +595,18 @@ impl HtmlParser {
                         HtmlToken::EndTag { tag_name, .. } if tag_name != "script" => {
                             let node = self.stack.pop().unwrap();
 
+                            if tag_name == "title" {
+                                title = Some(
+                                    node.borrow()
+                                        .children
+                                        .first()
+                                        .unwrap()
+                                        .borrow()
+                                        .get_inside_text()
+                                        .unwrap(),
+                                );
+                            }
+
                             // The user agent must run the update a style block algorithm whenever any of the following conditions occur:
                             // - The element is popped off the stack of open elements of an HTML parser or XML parser.
                             // - The element is not on the stack of open elements of an HTML parser or XML parser, and it becomes connected or disconnected.
@@ -594,6 +615,7 @@ impl HtmlParser {
                             if tag_name == "style" {
                                 self.update_style_block(node, &mut style_sheets)?;
                             }
+
                             self.insertion_mode = self.orig_insertion_mode.unwrap();
                         }
                         _ => {
@@ -652,7 +674,11 @@ impl HtmlParser {
             }
         }
 
-        Ok((document_node, style_sheets))
+        Ok(ParsedObject {
+            dom_root: document_node,
+            style_sheets,
+            title,
+        })
     }
 
     fn is_blank(c: char) -> bool {
@@ -772,7 +798,7 @@ mod tests {
             HtmlParser::new(HtmlTokenizer::new(&html))
                 .parse()
                 .unwrap()
-                .0,
+                .dom_root,
         )
         .unwrap();
         let actual = tree
@@ -827,7 +853,7 @@ mod tests {
             HtmlParser::new(HtmlTokenizer::new(&html))
                 .parse()
                 .unwrap()
-                .0,
+                .dom_root,
         )
         .unwrap();
         let actual = tree
@@ -898,7 +924,7 @@ mod tests {
             HtmlParser::new(HtmlTokenizer::new(&html))
                 .parse()
                 .unwrap()
-                .0,
+                .dom_root,
         )
         .unwrap();
         let actual = tree

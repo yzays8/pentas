@@ -53,52 +53,59 @@ pub struct RenderObjects {
 
 pub fn get_render_objects(
     html: &str,
+    host_name: &str,
     viewport_width: i32,
     viewport_height: i32,
     draw_ctx: &pango::Context,
     verbosity: VerbosityLevel,
 ) -> Result<RenderObjects> {
-    let (doc_root, style_sheets) = HtmlParser::new(HtmlTokenizer::new(html)).parse()?;
+    let parsed_object = HtmlParser::new(HtmlTokenizer::new(html)).parse()?;
     let style_sheets = std::iter::once(get_ua_style_sheet()?)
-        .chain(style_sheets)
+        .chain(parsed_object.style_sheets)
         .collect::<Vec<_>>();
 
     match verbosity {
-        VerbosityLevel::Quiet => Ok(DocumentTree::build(doc_root)?
+        VerbosityLevel::Quiet => Ok(DocumentTree::build(parsed_object.dom_root)?
             .to_render_tree(style_sheets)?
             .to_box_tree(draw_ctx)?
             .clean_up()?
             .layout(viewport_width, viewport_height)?
             .to_render_objects(viewport_width, viewport_height)),
-        VerbosityLevel::Normal | VerbosityLevel::Verbose => Ok(DocumentTree::build(doc_root)?
-            .print_in_chain(verbosity)
-            .to_render_tree(style_sheets)?
-            .print_in_chain(verbosity)
-            .to_box_tree(draw_ctx)?
-            .print_in_chain(verbosity)
-            .clean_up()?
-            .print_in_chain(verbosity)
-            .layout(viewport_width, viewport_height)?
-            .print_in_chain(verbosity)
-            .to_render_objects(viewport_width, viewport_height)),
+        VerbosityLevel::Normal | VerbosityLevel::Verbose => {
+            println!(
+                "Title: {}\n",
+                parsed_object.title.unwrap_or_else(|| host_name.to_string())
+            );
+            Ok(DocumentTree::build(parsed_object.dom_root)?
+                .print_in_chain(verbosity)
+                .to_render_tree(style_sheets)?
+                .print_in_chain(verbosity)
+                .to_box_tree(draw_ctx)?
+                .print_in_chain(verbosity)
+                .clean_up()?
+                .print_in_chain(verbosity)
+                .layout(viewport_width, viewport_height)?
+                .print_in_chain(verbosity)
+                .to_render_objects(viewport_width, viewport_height))
+        }
     }
 }
 
 /// Prints an HTML document as a box tree.
 pub fn print_box_tree(
     html: &str,
+    file_path: &str,
     draw_ctx: &pango::Context,
     verbosity: VerbosityLevel,
 ) -> Result<()> {
-    let (doc_root, style_sheets) = HtmlParser::new(HtmlTokenizer::new(html)).parse()?;
-
+    let parsed_object = HtmlParser::new(HtmlTokenizer::new(html)).parse()?;
     let style_sheets = std::iter::once(get_ua_style_sheet()?)
-        .chain(style_sheets)
+        .chain(parsed_object.style_sheets)
         .collect::<Vec<_>>();
 
     match verbosity {
         VerbosityLevel::Quiet => {
-            DocumentTree::build(doc_root)?
+            DocumentTree::build(parsed_object.dom_root)?
                 .to_render_tree(style_sheets)?
                 .to_box_tree(draw_ctx)?
                 .clean_up()?
@@ -106,7 +113,13 @@ pub fn print_box_tree(
                 .print(verbosity);
         }
         VerbosityLevel::Normal | VerbosityLevel::Verbose => {
-            DocumentTree::build(doc_root)?
+            println!(
+                "Title: {}\n",
+                parsed_object
+                    .title
+                    .unwrap_or_else(|| "file://".to_string() + file_path)
+            );
+            DocumentTree::build(parsed_object.dom_root)?
                 .print_in_chain(verbosity)
                 .to_render_tree(style_sheets)?
                 .print_in_chain(verbosity)

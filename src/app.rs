@@ -36,6 +36,7 @@ impl Runner {
                 gtk4::init()?;
                 print_box_tree(
                     &std::fs::read_to_string(p)?,
+                    p,
                     &DrawingArea::new().pango_context(),
                     self.config.verbosity,
                 )?;
