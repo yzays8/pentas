@@ -10,7 +10,7 @@ use indexmap::IndexMap;
 use crate::renderer::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
 use crate::renderer::css::selector::Selector;
 use crate::renderer::html::dom::{DocumentTree, DomNode, NodeType};
-use crate::renderer::layout::box_model::BoxTree;
+use crate::renderer::layout::BoxTree;
 use crate::renderer::style::property::{
     BackGroundColorProp, BorderProp, BorderRadiusProp, ColorProp, CssProperty, DisplayBox,
     DisplayOutside, DisplayProp, FontFamilyProp, FontSizeProp, FontWeightProp, HeightProp,

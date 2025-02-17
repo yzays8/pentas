@@ -1,8 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::renderer::layout::box_model::{BoxNode, BoxPosition, BoxSize, LayoutBox, LayoutInfo};
 use crate::renderer::layout::text::Text;
+use crate::renderer::layout::{BoxNode, BoxPosition, BoxSize, LayoutBox, LayoutInfo};
 use crate::renderer::style::property::display::{DisplayInside, DisplayOutside};
 use crate::renderer::style::property::CssValue;
 use crate::renderer::style::style_model::RenderNode;

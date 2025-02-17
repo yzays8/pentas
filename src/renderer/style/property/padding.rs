@@ -5,7 +5,7 @@ use anyhow::{bail, Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::CssToken;
-use crate::renderer::layout::box_model::Edge;
+use crate::renderer::layout::Edge;
 use crate::renderer::style::property::font_size::{self, FontSizeProp};
 use crate::renderer::style::property::{
     parse_length_percentage_type, AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit,

@@ -3,7 +3,7 @@ use std::fmt;
 use anyhow::{Ok, Result};
 
 use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::layout::box_model::Edge;
+use crate::renderer::layout::Edge;
 use crate::renderer::style::property::color::ColorProp;
 use crate::renderer::style::property::{AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit};
 use crate::renderer::style::style_model::SpecifiedStyle;

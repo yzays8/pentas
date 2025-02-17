@@ -6,7 +6,7 @@ use anyhow::Result;
 use gtk4::pango;
 use regex::Regex;
 
-use crate::renderer::layout::box_model::{LayoutBox, LayoutInfo};
+use crate::renderer::layout::{LayoutBox, LayoutInfo};
 use crate::renderer::style::property::{CssValue, DisplayOutside};
 use crate::renderer::style::style_model::RenderNode;
 
