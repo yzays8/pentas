@@ -152,6 +152,10 @@ impl RenderNode {
     pub fn get_display_type(&self) -> DisplayOutside {
         self.style.display.outside
     }
+
+    pub fn get_tag_name(&self) -> Option<String> {
+        self.dom_node.borrow().get_tag_name()
+    }
 }
 
 impl fmt::Display for RenderNode {

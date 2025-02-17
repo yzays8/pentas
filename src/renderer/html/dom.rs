@@ -67,6 +67,14 @@ impl DomNode {
             *t = text.to_string();
         }
     }
+
+    pub fn get_tag_name(&self) -> Option<String> {
+        if let NodeType::Element(elm) = &self.node_type {
+            Some(elm.tag_name.clone())
+        } else {
+            None
+        }
+    }
 }
 
 impl fmt::Display for DomNode {
