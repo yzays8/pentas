@@ -4,9 +4,10 @@ use std::rc::Rc;
 use crate::renderer::layout::inline::InlineBox;
 use crate::renderer::layout::text::Text;
 use crate::renderer::layout::{BoxNode, LayoutBox, LayoutInfo};
-use crate::renderer::style::property::display::{DisplayInside, DisplayOutside};
-use crate::renderer::style::property::{AbsoluteLengthUnit, CssValue, LengthUnit};
-use crate::renderer::style::style_model::{ComputedStyle, RenderNode};
+use crate::renderer::style::property::{
+    AbsoluteLengthUnit, CssValue, DisplayInside, DisplayOutside, LengthUnit,
+};
+use crate::renderer::style::{ComputedStyle, RenderNode};
 
 #[derive(Debug)]
 pub struct BlockBox {

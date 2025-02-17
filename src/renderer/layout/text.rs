@@ -8,7 +8,7 @@ use regex::Regex;
 
 use crate::renderer::layout::{LayoutBox, LayoutInfo};
 use crate::renderer::style::property::{CssValue, DisplayOutside};
-use crate::renderer::style::style_model::RenderNode;
+use crate::renderer::style::RenderNode;
 
 #[derive(Debug)]
 pub struct Text {

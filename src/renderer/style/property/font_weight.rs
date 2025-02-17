@@ -6,7 +6,7 @@ use anyhow::{bail, Ok, Result};
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::{CssToken, NumericType};
 use crate::renderer::style::property::{CssProperty, CssValue};
-use crate::renderer::style::style_model::SpecifiedStyle;
+use crate::renderer::style::SpecifiedStyle;
 
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight
 #[derive(Clone, Debug, PartialEq)]

@@ -10,8 +10,8 @@ use anyhow::{ensure, Context, Ok, Result};
 use gtk4::pango;
 
 use crate::renderer::html::dom::{Element, NodeType};
-use crate::renderer::style::property::display::DisplayOutside;
-use crate::renderer::style::style_model::{RenderNode, RenderTree};
+use crate::renderer::style::property::DisplayOutside;
+use crate::renderer::style::{RenderNode, RenderTree};
 use crate::renderer::{RenderObject, RenderObjects};
 use crate::utils::PrintableTree;
 use block::{AnonymousBox, BlockBox};

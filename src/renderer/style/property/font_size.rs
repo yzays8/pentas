@@ -9,7 +9,7 @@ use crate::renderer::style::property::{
     parse_length_percentage_type, AbsoluteLengthUnit, AbsoluteSize, CssProperty, CssValue,
     LengthUnit, RelativeLengthUnit, RelativeSize,
 };
-use crate::renderer::style::style_model::SpecifiedStyle;
+use crate::renderer::style::SpecifiedStyle;
 
 pub const SMALL: f32 = 13.0;
 pub const MEDIUM: f32 = 16.0;

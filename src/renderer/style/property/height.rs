@@ -9,7 +9,7 @@ use crate::renderer::style::property::{
     parse_length_percentage_type, AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit,
     RelativeLengthUnit,
 };
-use crate::renderer::style::style_model::SpecifiedStyle;
+use crate::renderer::style::SpecifiedStyle;
 
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/height
 #[derive(Clone, Debug, PartialEq)]

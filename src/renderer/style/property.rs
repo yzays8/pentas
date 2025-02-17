@@ -1,20 +1,20 @@
-pub mod border;
-pub mod border_radius;
-pub mod color;
-pub mod display;
-pub mod font_family;
-pub mod font_size;
-pub mod font_weight;
-pub mod height;
-pub mod margin;
-pub mod padding;
-pub mod text_decoration;
-pub mod width;
+mod border;
+mod border_radius;
+mod color;
+mod display;
+mod font_family;
+mod font_size;
+mod font_weight;
+mod height;
+mod margin;
+mod padding;
+mod text_decoration;
+mod width;
 
 pub use border::BorderProp;
 pub use border_radius::BorderRadiusProp;
 pub use color::{BackGroundColorProp, ColorProp};
-pub use display::{DisplayBox, DisplayOutside, DisplayProp};
+pub use display::{DisplayBox, DisplayInside, DisplayOutside, DisplayProp};
 pub use font_family::FontFamilyProp;
 pub use font_size::FontSizeProp;
 pub use font_weight::FontWeightProp;
@@ -32,7 +32,7 @@ use anyhow::{bail, Result};
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::{CssToken, NumericType};
 use crate::renderer::style::property::color::rgb_to_name;
-use crate::renderer::style::style_model::SpecifiedStyle;
+use crate::renderer::style::SpecifiedStyle;
 
 pub trait CssProperty {
     fn parse(values: &[ComponentValue]) -> Result<Self>

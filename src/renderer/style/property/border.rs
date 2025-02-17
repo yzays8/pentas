@@ -6,7 +6,7 @@ use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::layout::Edge;
 use crate::renderer::style::property::color::ColorProp;
 use crate::renderer::style::property::{AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit};
-use crate::renderer::style::style_model::SpecifiedStyle;
+use crate::renderer::style::SpecifiedStyle;
 
 // The values of these properties are not clearly defined in the CSS specification.
 // const THIN: f32 = 1.0;

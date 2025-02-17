@@ -8,7 +8,7 @@ use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::CssToken;
 use crate::renderer::style::property::color::{parse_color_type, ColorProp};
 use crate::renderer::style::property::{CssProperty, CssValue};
-use crate::renderer::style::style_model::SpecifiedStyle;
+use crate::renderer::style::SpecifiedStyle;
 
 // todo: add TextDecorationColor, TextDecorationLine, TextDecorationStyle structs for each member
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration

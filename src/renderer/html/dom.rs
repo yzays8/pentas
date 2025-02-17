@@ -5,7 +5,7 @@ use std::rc::{Rc, Weak};
 use anyhow::{ensure, Result};
 
 use crate::renderer::css::cssom::StyleSheet;
-use crate::renderer::style::style_model::RenderTree;
+use crate::renderer::style::RenderTree;
 use crate::utils::PrintableTree;
 
 /// https://dom.spec.whatwg.org/#node
