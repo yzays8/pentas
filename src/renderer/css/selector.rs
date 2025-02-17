@@ -178,7 +178,7 @@ impl Selector {
                     // https://www.w3.org/TR/selectors-3/#adjacent-sibling-combinators
                     Combinator::Plus => {
                         let mut right_node_prev_sibling =
-                            right_node.borrow().prev_sib.as_ref()?.upgrade()?;
+                            right_node.borrow().prev_sibling.as_ref()?.upgrade()?;
 
                         loop {
                             // Non-element nodes (e.g. text between elements) are ignored when considering adjacency of elements.
@@ -195,7 +195,7 @@ impl Selector {
                             // Set the previous sibling of the previous sibling if previous sibling is not Element.
                             let s = right_node_prev_sibling
                                 .borrow()
-                                .prev_sib
+                                .prev_sibling
                                 .as_ref()?
                                 .upgrade()?;
                             right_node_prev_sibling = s;
@@ -205,7 +205,7 @@ impl Selector {
                     // https://www.w3.org/TR/selectors-3/#general-sibling-combinators
                     Combinator::Tilde => {
                         let mut right_node_prev_sibling =
-                            right_node.borrow().prev_sib.as_ref()?.upgrade()?;
+                            right_node.borrow().prev_sibling.as_ref()?.upgrade()?;
 
                         loop {
                             // Non-element nodes (e.g. text between elements) are ignored when considering adjacency of elements.
@@ -222,7 +222,7 @@ impl Selector {
                             // Set the previous sibling of the previous sibling if previous sibling is not Element.
                             let s = right_node_prev_sibling
                                 .borrow()
-                                .prev_sib
+                                .prev_sibling
                                 .as_ref()?
                                 .upgrade()?;
                             right_node_prev_sibling = s;

@@ -14,7 +14,7 @@ pub struct DomNode {
     pub node_type: NodeType,
     pub children: Vec<Rc<RefCell<Self>>>,
     pub parent: Option<Weak<RefCell<Self>>>,
-    pub prev_sib: Option<Weak<RefCell<Self>>>,
+    pub prev_sibling: Option<Weak<RefCell<Self>>>,
     pub next_sibling: Option<Rc<RefCell<Self>>>,
 }
 
@@ -24,7 +24,7 @@ impl Default for DomNode {
             node_type: NodeType::Document,
             children: Vec::new(),
             parent: None,
-            prev_sib: None,
+            prev_sibling: None,
             next_sibling: None,
         }
     }
@@ -42,11 +42,11 @@ impl DomNode {
         let child = Rc::new(RefCell::new(child));
         child.borrow_mut().parent = Some(Rc::downgrade(node_ref));
         if node_ref.borrow().children.is_empty() {
-            child.borrow_mut().prev_sib = None;
+            child.borrow_mut().prev_sibling = None;
             child.borrow_mut().next_sibling = None;
         } else {
             let last_child = Rc::clone(node_ref.borrow().children.last().unwrap());
-            child.borrow_mut().prev_sib = Some(Rc::downgrade(&last_child));
+            child.borrow_mut().prev_sibling = Some(Rc::downgrade(&last_child));
             last_child.borrow_mut().next_sibling = Some(Rc::clone(&child));
         }
         node_ref.borrow_mut().children.push(Rc::clone(&child));
