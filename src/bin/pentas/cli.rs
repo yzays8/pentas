@@ -1,3 +1,5 @@
+use std::fmt;
+
 use clap::{Parser, ValueEnum};
 
 #[derive(Parser, Debug)]
@@ -31,12 +33,22 @@ pub enum VerbosityLevel {
     Verbose,
 }
 
-impl std::fmt::Display for VerbosityLevel {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for VerbosityLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> fmt::Result {
         match self {
             VerbosityLevel::Quiet => write!(f, "quiet"),
             VerbosityLevel::Normal => write!(f, "normal"),
             VerbosityLevel::Verbose => write!(f, "verbose"),
+        }
+    }
+}
+
+impl From<VerbosityLevel> for pentas::VerbosityLevel {
+    fn from(level: VerbosityLevel) -> Self {
+        match level {
+            VerbosityLevel::Quiet => pentas::VerbosityLevel::Quiet,
+            VerbosityLevel::Normal => pentas::VerbosityLevel::Normal,
+            VerbosityLevel::Verbose => pentas::VerbosityLevel::Verbose,
         }
     }
 }

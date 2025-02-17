@@ -9,11 +9,7 @@ fn main() {
     let config = Config {
         no_window_html: args.no_window_html,
         no_window_css: args.no_window_css,
-        verbosity: match args.verbose {
-            cli::VerbosityLevel::Quiet => pentas::VerbosityLevel::Quiet,
-            cli::VerbosityLevel::Normal => pentas::VerbosityLevel::Normal,
-            cli::VerbosityLevel::Verbose => pentas::VerbosityLevel::Verbose,
-        },
+        verbosity: args.verbose.into(),
     };
 
     if let Err(e) = Runner::new(config).run() {
