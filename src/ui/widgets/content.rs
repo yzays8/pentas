@@ -62,53 +62,33 @@ mod imp {
                 #[strong]
                 obj,
                 move |_, ctx, _, _| {
+                    let new_page_width = obj
+                        .imp()
+                        .history
+                        .borrow()
+                        .get_current()
+                        .unwrap()
+                        .objects
+                        .max_width
+                        .round() as i32;
+                    let new_page_height = obj
+                        .imp()
+                        .history
+                        .borrow()
+                        .get_current()
+                        .unwrap()
+                        .objects
+                        .max_height
+                        .round() as i32
+                        + 5;
+
                     // Adjust the width and the height of the canvas for scrolling.
                     // Note: Each time the canvas is resized, this closure is called.
-                    if obj.imp().canvas.width()
-                        != obj
-                            .imp()
-                            .history
-                            .borrow()
-                            .get_current()
-                            .unwrap()
-                            .objects
-                            .max_width
-                            .round() as i32
-                    {
-                        obj.imp().canvas.set_width_request(
-                            obj.imp()
-                                .history
-                                .borrow()
-                                .get_current()
-                                .unwrap()
-                                .objects
-                                .max_width
-                                .round() as i32,
-                        );
+                    if obj.imp().canvas.width() != new_page_width {
+                        obj.imp().canvas.set_width_request(new_page_width);
                     }
-                    if obj.imp().canvas.height()
-                        != obj
-                            .imp()
-                            .history
-                            .borrow()
-                            .get_current()
-                            .unwrap()
-                            .objects
-                            .max_height
-                            .round() as i32
-                            + 5
-                    {
-                        obj.imp().canvas.set_height_request(
-                            obj.imp()
-                                .history
-                                .borrow()
-                                .get_current()
-                                .unwrap()
-                                .objects
-                                .max_height
-                                .round() as i32
-                                + 5,
-                        );
+                    if obj.imp().canvas.height() != new_page_height {
+                        obj.imp().canvas.set_height_request(new_page_height);
                     }
 
                     paint(

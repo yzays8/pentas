@@ -32,16 +32,13 @@ impl BoxTree {
         );
 
         // https://www.w3.org/TR/css-display-3/#root-element
-        let mut root = None;
-        for child in render_tree.root.borrow().children.iter() {
-            if let NodeType::Element(Element { tag_name: n, .. }) =
-                &child.borrow().dom_node.borrow().node_type
-            {
-                if n == "html" {
-                    root = Some(Rc::clone(child));
-                }
-            }
-        }
+        let root = render_tree
+            .root
+            .borrow()
+            .children
+            .iter()
+            .find(|child| child.borrow().get_tag_name() == Some("html".to_string()))
+            .map(Rc::clone);
         ensure!(
             root.is_some(),
             "The element at the root box of the box tree must be an HTML element node."
@@ -182,17 +179,22 @@ impl BoxTree {
 
     pub fn to_render_objects(&self, viewport_width: i32, viewport_height: i32) -> RenderObjects {
         let mut objects = Vec::new();
-        let (w, h) = self.root.borrow().to_render_objects(
-            &mut objects,
-            viewport_width,
-            viewport_height,
-            0.0,
-            0.0,
-        );
+        self.root
+            .borrow()
+            .to_render_objects(&mut objects, viewport_width, viewport_height);
+
+        // The width and height of the root element (<html>) are the maximum width and height of the box tree.
+        let (max_width, max_height) =
+            if let BoxNode::BlockBox(BlockBox { layout_info, .. }) = &*self.root.borrow() {
+                (layout_info.size.width, layout_info.size.height)
+            } else {
+                unreachable!()
+            };
+
         RenderObjects {
             list: objects,
-            max_width: w,
-            max_height: h,
+            max_width,
+            max_height,
         }
     }
 }
@@ -515,9 +517,7 @@ impl BoxNode {
         objects: &mut Vec<RenderObject>,
         viewport_width: i32,
         viewport_height: i32,
-        largest_width: f32,
-        largest_height: f32,
-    ) -> (f32, f32) {
+    ) {
         match self {
             BoxNode::Text(t) => {
                 let color = t.style_node.borrow().style.color.to_rgba().unwrap();
@@ -578,15 +578,6 @@ impl BoxNode {
                     decoration_line,
                     decoration_style,
                 });
-                let mut largest_width = largest_width;
-                let mut largest_height = largest_height;
-                if t.layout_info.size.width > largest_width {
-                    largest_width = t.layout_info.size.width;
-                }
-                if t.layout_info.size.height > largest_height {
-                    largest_height = t.layout_info.size.height;
-                }
-                (largest_width, largest_height)
             }
             BoxNode::BlockBox(block) => {
                 let (r, g, b, a) = block
@@ -632,88 +623,25 @@ impl BoxNode {
                         border_radius,
                     });
                 }
-                let mut largest_width = if block.layout_info.size.width > largest_width {
-                    block.layout_info.size.width
-                } else {
-                    largest_width
-                };
-                let mut largest_height = if block.layout_info.size.height > largest_height {
-                    block.layout_info.size.height
-                } else {
-                    largest_height
-                };
                 for child in block.children.iter() {
-                    let (w, h) = child.borrow().to_render_objects(
-                        objects,
-                        viewport_width,
-                        viewport_height,
-                        largest_width,
-                        largest_height,
-                    );
-                    if w > largest_width {
-                        largest_width = w;
-                    }
-                    if h > largest_height {
-                        largest_height = h;
-                    }
+                    child
+                        .borrow()
+                        .to_render_objects(objects, viewport_width, viewport_height);
                 }
-                (largest_width, largest_height)
             }
             BoxNode::InlineBox(inline) => {
-                let mut largest_width = if inline.layout_info.size.width > largest_width {
-                    inline.layout_info.size.width
-                } else {
-                    largest_width
-                };
-                let mut largest_height = if inline.layout_info.size.height > largest_height {
-                    inline.layout_info.size.height
-                } else {
-                    largest_height
-                };
                 for child in inline.children.iter() {
-                    let (w, h) = child.borrow().to_render_objects(
-                        objects,
-                        viewport_width,
-                        viewport_height,
-                        largest_width,
-                        largest_height,
-                    );
-                    if w > largest_width {
-                        largest_width = w;
-                    }
-                    if h > largest_height {
-                        largest_height = h;
-                    }
+                    child
+                        .borrow()
+                        .to_render_objects(objects, viewport_width, viewport_height);
                 }
-                (largest_width, largest_height)
             }
             BoxNode::AnonymousBox(anonymous) => {
-                let mut largest_width = if anonymous.layout_info.size.width > largest_width {
-                    anonymous.layout_info.size.width
-                } else {
-                    largest_width
-                };
-                let mut largest_height = if anonymous.layout_info.size.height > largest_height {
-                    anonymous.layout_info.size.height
-                } else {
-                    largest_height
-                };
                 for child in anonymous.children.iter() {
-                    let (w, h) = child.borrow().to_render_objects(
-                        objects,
-                        viewport_width,
-                        viewport_height,
-                        largest_width,
-                        largest_height,
-                    );
-                    if w > largest_width {
-                        largest_width = w;
-                    }
-                    if h > largest_height {
-                        largest_height = h;
-                    }
+                    child
+                        .borrow()
+                        .to_render_objects(objects, viewport_width, viewport_height);
                 }
-                (largest_width, largest_height)
             }
         }
     }
