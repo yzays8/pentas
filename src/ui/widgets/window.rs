@@ -63,6 +63,7 @@ mod imp {
                     content_area.on_toolbar_entry_activate(&query);
                 }),
             );
+
             let content_area = self.content_area.get();
             self.toolbar.connect_closure(
                 "backward-button-clicked",
@@ -71,6 +72,7 @@ mod imp {
                     content_area.on_backward_button_click();
                 }),
             );
+
             let content_area = self.content_area.get();
             self.toolbar.connect_closure(
                 "forward-button-clicked",
@@ -79,20 +81,37 @@ mod imp {
                     content_area.on_forward_button_click();
                 }),
             );
+
+            let obj = self.obj();
             let toolbar = self.toolbar.get();
-            self.content_area.connect_closure(
+            self.content_area.connect_local(
                 "history-updated",
                 false,
-                closure_local!(move |_: ContentArea,
-                                     query: String,
-                                     is_history_rewindable: bool,
-                                     is_history_forwardable: bool| {
-                    toolbar.on_history_update(
-                        &query,
-                        is_history_rewindable,
-                        is_history_forwardable,
-                    );
-                }),
+                glib::clone!(
+                    #[strong]
+                    obj,
+                    move |values: &[glib::Value]| {
+                        assert_eq!(
+                            values.first().unwrap().get::<ContentArea>(),
+                            Ok(obj.imp().content_area.get())
+                        );
+                        let query = values.get(1).unwrap().get::<String>().unwrap();
+                        let title = values.get(2).unwrap().get::<String>().unwrap();
+                        let is_history_rewindable = values.get(3).unwrap().get::<bool>().unwrap();
+                        let is_history_forwardable = values.get(4).unwrap().get::<bool>().unwrap();
+                        if title.is_empty() {
+                            obj.set_title(Some("pentas"));
+                        } else {
+                            obj.set_title(Some(format!("pentas - {}", title).as_str()));
+                        }
+                        toolbar.on_history_update(
+                            &query,
+                            is_history_rewindable,
+                            is_history_forwardable,
+                        );
+                        None
+                    }
+                ),
             );
         }
     }

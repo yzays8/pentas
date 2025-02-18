@@ -51,6 +51,7 @@ pub struct RenderObjects {
     pub max_height: f32,
 }
 
+/// Returns a list of render objects and the title of the HTML document.
 pub fn get_render_objects(
     html: &str,
     host_name: &str,
@@ -58,35 +59,39 @@ pub fn get_render_objects(
     viewport_height: i32,
     draw_ctx: &pango::Context,
     verbosity: VerbosityLevel,
-) -> Result<RenderObjects> {
+) -> Result<(RenderObjects, String)> {
     let parsed_object = HtmlParser::new(HtmlTokenizer::new(html)).parse()?;
     let style_sheets = std::iter::once(get_ua_style_sheet()?)
         .chain(parsed_object.style_sheets)
         .collect::<Vec<_>>();
+    let title = parsed_object.title.unwrap_or_else(|| host_name.to_string());
 
     match verbosity {
-        VerbosityLevel::Quiet => Ok(DocumentTree::build(parsed_object.dom_root)?
-            .to_render_tree(style_sheets)?
-            .to_box_tree(draw_ctx)?
-            .clean_up()?
-            .layout(viewport_width, viewport_height)?
-            .to_render_objects(viewport_width, viewport_height)),
-        VerbosityLevel::Normal | VerbosityLevel::Verbose => {
-            println!(
-                "Title: {}\n",
-                parsed_object.title.unwrap_or_else(|| host_name.to_string())
-            );
-            Ok(DocumentTree::build(parsed_object.dom_root)?
-                .print_in_chain(verbosity)
+        VerbosityLevel::Quiet => Ok((
+            DocumentTree::build(parsed_object.dom_root)?
                 .to_render_tree(style_sheets)?
-                .print_in_chain(verbosity)
                 .to_box_tree(draw_ctx)?
-                .print_in_chain(verbosity)
                 .clean_up()?
-                .print_in_chain(verbosity)
                 .layout(viewport_width, viewport_height)?
-                .print_in_chain(verbosity)
-                .to_render_objects(viewport_width, viewport_height))
+                .to_render_objects(viewport_width, viewport_height),
+            title,
+        )),
+        VerbosityLevel::Normal | VerbosityLevel::Verbose => {
+            println!("Title: {}\n", title);
+            Ok((
+                DocumentTree::build(parsed_object.dom_root)?
+                    .print_in_chain(verbosity)
+                    .to_render_tree(style_sheets)?
+                    .print_in_chain(verbosity)
+                    .to_box_tree(draw_ctx)?
+                    .print_in_chain(verbosity)
+                    .clean_up()?
+                    .print_in_chain(verbosity)
+                    .layout(viewport_width, viewport_height)?
+                    .print_in_chain(verbosity)
+                    .to_render_objects(viewport_width, viewport_height),
+                title,
+            ))
         }
     }
 }

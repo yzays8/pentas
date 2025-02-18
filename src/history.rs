@@ -3,6 +3,7 @@ use crate::renderer::RenderObjects;
 #[derive(Debug, Clone)]
 pub struct HistoryEntry {
     pub query: String,
+    pub title: String,
     pub objects: RenderObjects,
 }
 
@@ -30,9 +31,9 @@ impl History {
         }
     }
 
-    pub fn with_initial_page(query: &str, objects: &RenderObjects) -> Self {
+    pub fn with_initial_page(query: &str, title: &str, objects: &RenderObjects) -> Self {
         let mut history = Self::new();
-        history.add(query, objects);
+        history.add(query, title, objects);
         history
     }
 
@@ -40,16 +41,18 @@ impl History {
         self.current.as_ref()
     }
 
-    pub fn add(&mut self, query: &str, objects: &RenderObjects) {
-        let query = query.to_owned();
-        let objects = objects.to_owned();
+    pub fn add(&mut self, query: &str, title: &str, objects: &RenderObjects) {
         while let Some(e) = self.forward_stack.pop() {
             self.unreachable_stack.push(e);
         }
         if let Some(current) = self.current.take() {
             self.back_stack.push(current);
         }
-        self.current = Some(HistoryEntry { query, objects });
+        self.current = Some(HistoryEntry {
+            query: query.to_owned(),
+            title: title.to_owned(),
+            objects: objects.clone(),
+        });
     }
 
     pub fn forward(&mut self) -> Option<&HistoryEntry> {
@@ -89,7 +92,7 @@ mod tests {
 
     #[test]
     fn initial_page() {
-        let history = History::with_initial_page("p1", &RenderObjects::default());
+        let history = History::with_initial_page("p1", "p1", &RenderObjects::default());
         assert_eq!(history.get_current().unwrap().query, "p1");
         assert!(!history.is_rewindable());
         assert!(!history.is_forwardable());
@@ -97,8 +100,8 @@ mod tests {
 
     #[test]
     fn add_page() {
-        let mut history = History::with_initial_page("p1", &RenderObjects::default());
-        history.add("p2", &RenderObjects::default());
+        let mut history = History::with_initial_page("p1", "p1", &RenderObjects::default());
+        history.add("p2", "p2", &RenderObjects::default());
         assert_eq!(history.get_current().unwrap().query, "p2");
         assert!(history.is_rewindable());
         assert!(!history.is_forwardable());
@@ -106,9 +109,9 @@ mod tests {
 
     #[test]
     fn back_and_forth() {
-        let mut history = History::with_initial_page("p1", &RenderObjects::default());
-        history.add("p2", &RenderObjects::default());
-        history.add("p3", &RenderObjects::default());
+        let mut history = History::with_initial_page("p1", "p1", &RenderObjects::default());
+        history.add("p2", "p2", &RenderObjects::default());
+        history.add("p3", "p2", &RenderObjects::default());
 
         // back
         assert_eq!(history.rewind().unwrap().query, "p2");
@@ -137,12 +140,12 @@ mod tests {
 
     #[test]
     fn add_page_after_rewind() {
-        let mut history = History::with_initial_page("p1", &RenderObjects::default());
-        history.add("p2", &RenderObjects::default());
+        let mut history = History::with_initial_page("p1", "p1", &RenderObjects::default());
+        history.add("p2", "p2", &RenderObjects::default());
         history.rewind();
 
         // add (p2 is unreachable)
-        history.add("p3", &RenderObjects::default());
+        history.add("p3", "p3", &RenderObjects::default());
         assert_eq!(history.get_current().unwrap().query, "p3");
         assert!(!history.is_forwardable());
         assert!(history.is_rewindable());

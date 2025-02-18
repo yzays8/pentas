@@ -108,6 +108,7 @@ mod imp {
             // The initial history is a blank page.
             self.history.borrow_mut().add(
                 "",
+                "",
                 &RenderObjects {
                     list: vec![],
                     max_width: self.canvas.width() as f32,
@@ -120,7 +121,12 @@ mod imp {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
             SIGNALS.get_or_init(|| {
                 vec![Signal::builder("history-updated")
-                    .param_types([glib::Type::STRING, glib::Type::BOOL, glib::Type::BOOL])
+                    .param_types([
+                        glib::Type::STRING,
+                        glib::Type::STRING,
+                        glib::Type::BOOL,
+                        glib::Type::BOOL,
+                    ])
                     .build()]
             })
         }
@@ -200,7 +206,7 @@ impl ContentArea {
             host.to_string()
         };
 
-        let objects = get_render_objects(
+        let (objects, title) = get_render_objects(
             &html,
             &host,
             self.imp().canvas.width(),
@@ -210,11 +216,12 @@ impl ContentArea {
         )
         .unwrap();
 
-        self.imp().history.borrow_mut().add(query, &objects);
+        self.imp().history.borrow_mut().add(query, &title, &objects);
         self.emit_by_name::<()>(
             "history-updated",
             &[
                 &query.to_string(),
+                &title.to_string(),
                 &self.imp().history.borrow().is_rewindable(),
                 &self.imp().history.borrow().is_forwardable(),
             ],
@@ -230,6 +237,7 @@ impl ContentArea {
                 "history-updated",
                 &[
                     &history.query,
+                    &history.title,
                     &self.imp().history.borrow().is_rewindable(),
                     &self.imp().history.borrow().is_forwardable(),
                 ],
@@ -245,6 +253,7 @@ impl ContentArea {
                 "history-updated",
                 &[
                     &history.query,
+                    &history.title,
                     &self.imp().history.borrow().is_rewindable(),
                     &self.imp().history.borrow().is_forwardable(),
                 ],
