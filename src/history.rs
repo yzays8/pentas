@@ -7,7 +7,7 @@ pub struct HistoryEntry {
     pub objects: RenderObjects,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct History {
     current: Option<HistoryEntry>,
     back_stack: Vec<HistoryEntry>,
@@ -15,20 +15,9 @@ pub struct History {
     unreachable_stack: Vec<HistoryEntry>,
 }
 
-impl Default for History {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl History {
     pub fn new() -> Self {
-        Self {
-            current: None,
-            back_stack: Vec::new(),
-            forward_stack: Vec::new(),
-            unreachable_stack: Vec::new(),
-        }
+        Self::default()
     }
 
     pub fn with_initial_page(query: &str, title: &str, objects: &RenderObjects) -> Self {
