@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::fmt;
 
-use terminal_size::{terminal_size, Width};
+use terminal_size::{Width, terminal_size};
 
 use crate::app::VerbosityLevel;
 

@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use anyhow::{bail, ensure, Ok, Result};
+use anyhow::{Ok, Result, bail, ensure};
 use thiserror::Error;
 
 use crate::renderer::css::cssom::StyleSheet;
@@ -11,7 +11,9 @@ use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
 use crate::renderer::html::token::{HtmlToken, HtmlTokenizer, TokenizationState};
 
 #[derive(Error, Debug)]
-#[error("{message} (in the HTML tree construction stage)\nCurrent HTML token: {current_token:?}\nCurrent DOM tree:\n{current_tree}")]
+#[error(
+    "{message} (in the HTML tree construction stage)\nCurrent HTML token: {current_token:?}\nCurrent DOM tree:\n{current_tree}"
+)]
 struct ParseError {
     message: String,
     current_token: HtmlToken,

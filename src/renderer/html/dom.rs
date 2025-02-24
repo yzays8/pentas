@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::{Rc, Weak};
 
-use anyhow::{ensure, Result};
+use anyhow::{Result, ensure};
 
 use crate::renderer::css::cssom::StyleSheet;
 use crate::renderer::style::RenderTree;

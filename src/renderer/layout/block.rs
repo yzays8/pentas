@@ -324,7 +324,9 @@ impl LayoutBox for AnonymousBox {
             .iter()
             .all(|child| matches!(*child.borrow(), BoxNode::InlineBox(_) | BoxNode::Text(_)));
         if !is_every_child_inline {
-            unreachable!("AnonymousBox currently only supports inline-level boxes and text nodes as children.");
+            unreachable!(
+                "AnonymousBox currently only supports inline-level boxes and text nodes as children."
+            );
         }
 
         let mut inline_max_height = 0.0;

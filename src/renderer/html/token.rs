@@ -538,48 +538,48 @@ impl HtmlTokenizer {
                 },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#attribute-value-(unquoted)-state
-                TokenizationState::AttributeValueUnquoted => {
-                    match self.input.next() {
-                        Some(c) => match c {
-                            '\t' | '\n' | '\x0C' | ' ' => {
-                                self.state = TokenizationState::BeforeAttributeName;
-                            }
-                            '&' => {
-                                unimplemented!();
-                            }
-                            '>' => {
-                                self.state = TokenizationState::Data;
-                                self.emit_token(self.current_token.clone().unwrap());
-                            }
-                            '\u{0000}' => {
-                                eprintln!("unexpected-null-character parse error");
-                                if let Some(
-                                    HtmlToken::StartTag { attributes, .. }
-                                    | HtmlToken::EndTag { attributes, .. },
-                                ) = &mut self.current_token
-                                {
-                                    attributes.last_mut().unwrap().1.push('\u{FFFD}');
-                                }
-                            }
-                            _ => {
-                                if matches!(c, '"' | '\'' | '<' | '=' | '`') {
-                                    eprintln!("unexpected-character-in-unquoted-attribute-value parse error");
-                                }
-                                if let Some(
-                                    HtmlToken::StartTag { attributes, .. }
-                                    | HtmlToken::EndTag { attributes, .. },
-                                ) = &mut self.current_token
-                                {
-                                    attributes.last_mut().unwrap().1.push(c);
-                                }
-                            }
-                        },
-                        None => {
-                            eprintln!("eof-in-tag parse error");
-                            self.emit_token(HtmlToken::Eof);
+                TokenizationState::AttributeValueUnquoted => match self.input.next() {
+                    Some(c) => match c {
+                        '\t' | '\n' | '\x0C' | ' ' => {
+                            self.state = TokenizationState::BeforeAttributeName;
                         }
+                        '&' => {
+                            unimplemented!();
+                        }
+                        '>' => {
+                            self.state = TokenizationState::Data;
+                            self.emit_token(self.current_token.clone().unwrap());
+                        }
+                        '\u{0000}' => {
+                            eprintln!("unexpected-null-character parse error");
+                            if let Some(
+                                HtmlToken::StartTag { attributes, .. }
+                                | HtmlToken::EndTag { attributes, .. },
+                            ) = &mut self.current_token
+                            {
+                                attributes.last_mut().unwrap().1.push('\u{FFFD}');
+                            }
+                        }
+                        _ => {
+                            if matches!(c, '"' | '\'' | '<' | '=' | '`') {
+                                eprintln!(
+                                    "unexpected-character-in-unquoted-attribute-value parse error"
+                                );
+                            }
+                            if let Some(
+                                HtmlToken::StartTag { attributes, .. }
+                                | HtmlToken::EndTag { attributes, .. },
+                            ) = &mut self.current_token
+                            {
+                                attributes.last_mut().unwrap().1.push(c);
+                            }
+                        }
+                    },
+                    None => {
+                        eprintln!("eof-in-tag parse error");
+                        self.emit_token(HtmlToken::Eof);
                     }
-                }
+                },
 
                 // https://html.spec.whatwg.org/multipage/parsing.html#after-attribute-value-(quoted)-state
                 TokenizationState::AfterAttributeValueQuoted => match self.input.next() {

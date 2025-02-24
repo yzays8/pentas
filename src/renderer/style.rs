@@ -5,7 +5,7 @@ use std::default::Default;
 use std::fmt;
 use std::rc::Rc;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use gtk4::pango;
 use indexmap::IndexMap;
 

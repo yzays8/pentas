@@ -1,6 +1,6 @@
 use gtk4::glib::{self, Object};
 use gtk4::subclass::prelude::ObjectSubclassIsExt;
-use gtk4::{gio, Application};
+use gtk4::{Application, gio};
 
 use crate::app::VerbosityLevel;
 
@@ -9,7 +9,7 @@ mod imp {
     use gtk4::glib::closure_local;
     use gtk4::prelude::*;
     use gtk4::subclass::prelude::*;
-    use gtk4::{glib, style_context_add_provider_for_display, CompositeTemplate};
+    use gtk4::{CompositeTemplate, glib, style_context_add_provider_for_display};
 
     use crate::ui::widgets::content::ContentArea;
     use crate::ui::widgets::toolbar::Toolbar;

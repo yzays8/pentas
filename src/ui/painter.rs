@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{cairo, pango, DrawingArea};
+use gtk4::{DrawingArea, cairo, pango};
 use pangocairo::functions::show_layout;
 
 use crate::renderer::RenderObject;

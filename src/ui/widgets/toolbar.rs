@@ -9,7 +9,7 @@ mod imp {
     use gtk4::glib::subclass::Signal;
     use gtk4::prelude::*;
     use gtk4::subclass::prelude::*;
-    use gtk4::{glib, Button, CompositeTemplate, Entry};
+    use gtk4::{Button, CompositeTemplate, Entry, glib};
 
     // "/pentas" is just a prefix. See resouces.gresource.xml
     #[derive(Debug, CompositeTemplate, Default)]

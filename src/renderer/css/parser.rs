@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use anyhow::{ensure, Result};
+use anyhow::{Result, ensure};
 
 use crate::renderer::css::cssom::{
     AtRule, ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet,
@@ -234,9 +234,11 @@ impl CssParser {
     /// https://www.w3.org/TR/css-syntax-3/#consume-declaration
     fn consume_declaration(component_values: Vec<ComponentValue>) -> Option<Declaration> {
         let mut component_values = VecDeque::from(component_values);
-        assert!(component_values
-            .front()
-            .is_some_and(|t| matches!(t, ComponentValue::PreservedToken(CssToken::Ident(_)))));
+        assert!(
+            component_values
+                .front()
+                .is_some_and(|t| matches!(t, ComponentValue::PreservedToken(CssToken::Ident(_))))
+        );
         let Some(ComponentValue::PreservedToken(CssToken::Ident(name))) =
             component_values.pop_front()
         else {
@@ -305,10 +307,11 @@ impl CssParser {
 
     /// https://www.w3.org/TR/css-syntax-3/#consume-function
     fn consume_function(&mut self) -> ComponentValue {
-        assert!(self
-            .input
-            .get_last_consumed()
-            .is_some_and(|t| matches!(t, CssToken::Function(_))));
+        assert!(
+            self.input
+                .get_last_consumed()
+                .is_some_and(|t| matches!(t, CssToken::Function(_)))
+        );
         let CssToken::Function(name) = self.input.get_last_consumed().unwrap() else {
             unreachable!();
         };

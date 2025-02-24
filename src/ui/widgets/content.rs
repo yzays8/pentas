@@ -16,7 +16,7 @@ mod imp {
     use gtk4::glib::subclass::Signal;
     use gtk4::prelude::*;
     use gtk4::subclass::prelude::*;
-    use gtk4::{glib, CompositeTemplate};
+    use gtk4::{CompositeTemplate, glib};
 
     use crate::app::VerbosityLevel;
     use crate::history::History;
@@ -120,14 +120,16 @@ mod imp {
         fn signals() -> &'static [glib::subclass::Signal] {
             static SIGNALS: OnceLock<Vec<Signal>> = OnceLock::new();
             SIGNALS.get_or_init(|| {
-                vec![Signal::builder("history-updated")
-                    .param_types([
-                        glib::Type::STRING,
-                        glib::Type::STRING,
-                        glib::Type::BOOL,
-                        glib::Type::BOOL,
-                    ])
-                    .build()]
+                vec![
+                    Signal::builder("history-updated")
+                        .param_types([
+                            glib::Type::STRING,
+                            glib::Type::STRING,
+                            glib::Type::BOOL,
+                            glib::Type::BOOL,
+                        ])
+                        .build(),
+                ]
             })
         }
     }

@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 
 /// HTTP/1.1 Request
 #[allow(dead_code)]

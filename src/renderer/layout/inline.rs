@@ -3,8 +3,8 @@ use std::rc::Rc;
 
 use crate::renderer::layout::text::Text;
 use crate::renderer::layout::{BoxNode, BoxPosition, BoxSize, LayoutBox, LayoutInfo};
-use crate::renderer::style::property::{CssValue, DisplayInside, DisplayOutside};
 use crate::renderer::style::RenderNode;
+use crate::renderer::style::property::{CssValue, DisplayInside, DisplayOutside};
 
 #[derive(Debug)]
 pub struct InlineBox {
@@ -44,7 +44,9 @@ impl LayoutBox for InlineBox {
             .iter()
             .all(|child| matches!(*child.borrow(), BoxNode::InlineBox(_) | BoxNode::Text(_)));
         if !is_every_child_inline {
-            unimplemented!("Only inline-level boxes and text nodes are currently supported as children of a inline-level box.");
+            unimplemented!(
+                "Only inline-level boxes and text nodes are currently supported as children of a inline-level box."
+            );
         }
 
         let mut inline_width = 0.0;

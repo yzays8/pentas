@@ -2,13 +2,13 @@ use std::collections::HashMap;
 use std::fmt;
 use std::iter::Peekable;
 
-use anyhow::{bail, Ok, Result};
+use anyhow::{Ok, Result, bail};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::CssToken;
-use crate::renderer::style::property::color::{parse_color_type, ColorProp};
-use crate::renderer::style::property::{CssProperty, CssValue};
 use crate::renderer::style::SpecifiedStyle;
+use crate::renderer::style::property::color::{ColorProp, parse_color_type};
+use crate::renderer::style::property::{CssProperty, CssValue};
 
 // todo: add TextDecorationColor, TextDecorationLine, TextDecorationStyle structs for each member
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration

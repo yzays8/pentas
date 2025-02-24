@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
-use anyhow::{ensure, Context, Ok, Result};
+use anyhow::{Context, Ok, Result, ensure};
 use gtk4::pango;
 
 use crate::renderer::html::dom::{Element, NodeType};

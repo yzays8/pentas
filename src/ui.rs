@@ -2,7 +2,7 @@ mod painter;
 mod widgets;
 
 use gtk4::prelude::*;
-use gtk4::{gio, glib, Application};
+use gtk4::{Application, gio, glib};
 
 use crate::app::VerbosityLevel;
 use widgets::window::Window;

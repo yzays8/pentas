@@ -27,12 +27,12 @@ pub use width::WidthProp;
 use std::fmt;
 use std::iter::Peekable;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::{CssToken, NumericType};
-use crate::renderer::style::property::color::rgb_to_name;
 use crate::renderer::style::SpecifiedStyle;
+use crate::renderer::style::property::color::rgb_to_name;
 
 pub trait CssProperty {
     fn parse(values: &[ComponentValue]) -> Result<Self>

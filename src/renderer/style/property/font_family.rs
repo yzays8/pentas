@@ -1,11 +1,11 @@
 use std::fmt;
 
-use anyhow::{bail, Ok, Result};
+use anyhow::{Ok, Result, bail};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::CssToken;
-use crate::renderer::style::property::{CssProperty, CssValue};
 use crate::renderer::style::SpecifiedStyle;
+use crate::renderer::style::property::{CssProperty, CssValue};
 
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/font-family
 #[derive(Clone, Debug, PartialEq)]

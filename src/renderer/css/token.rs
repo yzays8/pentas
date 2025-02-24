@@ -1,6 +1,6 @@
 use std::vec;
 
-use anyhow::{ensure, Ok, Result};
+use anyhow::{Ok, Result, ensure};
 
 use crate::utils::TokenIterator;
 

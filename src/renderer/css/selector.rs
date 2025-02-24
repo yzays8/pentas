@@ -4,7 +4,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::vec::IntoIter;
 
-use anyhow::{bail, ensure, Ok, Result};
+use anyhow::{Ok, Result, bail, ensure};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::CssToken;
@@ -376,8 +376,9 @@ impl SelectorParser {
             Ok(Combinator::Whitespace)
         } else {
             bail!(
-            "Expected \"+\", \">\", \"~\", or whitespace but found {:?} when parsing CSS selectors in parse_combinator",
-            self.input.peek())
+                "Expected \"+\", \">\", \"~\", or whitespace but found {:?} when parsing CSS selectors in parse_combinator",
+                self.input.peek()
+            )
         }
     }
 
@@ -478,12 +479,13 @@ impl SelectorParser {
         let v = self.input.clone().take(2).collect::<Vec<_>>();
         match (v.first(), v.get(1)) {
             (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
-            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
-                Ok(SimpleSelector::Type {
-                    namespace_prefix: Some(self.parse_namespace_prefix()?),
-                    name: self.parse_element_name()?,
-                })
-            }
+            | (
+                Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))),
+                Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+            ) => Ok(SimpleSelector::Type {
+                namespace_prefix: Some(self.parse_namespace_prefix()?),
+                name: self.parse_element_name()?,
+            }),
             (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _) => {
                 Ok(SimpleSelector::Type {
                     namespace_prefix: None,
@@ -492,7 +494,8 @@ impl SelectorParser {
             }
             _ => bail!(
                 "Expected namespace prefix or element name but found {:?} when parsing CSS selectors in parse_type_selector",
-                self.input.peek())
+                self.input.peek()
+            ),
         }
     }
 
@@ -502,34 +505,33 @@ impl SelectorParser {
     fn parse_namespace_prefix(&mut self) -> Result<String> {
         let v = self.input.next();
         match v.as_ref() {
-            Some(ComponentValue::PreservedToken(CssToken::Delim('|'))) => {
-                Ok("".to_string())
-            }
+            Some(ComponentValue::PreservedToken(CssToken::Delim('|'))) => Ok("".to_string()),
             Some(ComponentValue::PreservedToken(CssToken::Ident(s))) => {
                 let v = self.input.next();
-                if v.as_ref() == Some(&ComponentValue::PreservedToken(CssToken::Delim('|')))
-                {
+                if v.as_ref() == Some(&ComponentValue::PreservedToken(CssToken::Delim('|'))) {
                     Ok(s.clone())
                 } else {
                     bail!(
                         "Expected \"|\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
-                        v);
+                        v
+                    );
                 }
             }
             Some(ComponentValue::PreservedToken(CssToken::Delim('*'))) => {
                 let v = self.input.next();
-                if v.as_ref() == Some(&ComponentValue::PreservedToken(CssToken::Delim('|')))
-                {
+                if v.as_ref() == Some(&ComponentValue::PreservedToken(CssToken::Delim('|'))) {
                     Ok("*".to_string())
                 } else {
                     bail!(
                         "Expected \"|\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
-                        v);
+                        v
+                    );
                 }
             }
             _ => bail!(
                 "Expected \"|\", ident, or \"*\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
-                v)
+                v
+            ),
         }
     }
 
@@ -555,7 +557,10 @@ impl SelectorParser {
         let v = self.input.clone().take(2).collect::<Vec<_>>();
         match (v.first(), v.get(1)) {
             (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
-            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
+            | (
+                Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))),
+                Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+            ) => {
                 let prefix = self.parse_namespace_prefix()?;
                 self.input.next();
                 Ok(SimpleSelector::Universal(Some(prefix)))
@@ -566,7 +571,8 @@ impl SelectorParser {
             }
             _ => bail!(
                 "Expected namespace prefix or \"*\" but found {:?} when parsing CSS selectors in parse_universal",
-                v.first())
+                v.first()
+            ),
         }
     }
 
@@ -624,15 +630,15 @@ impl SelectorParser {
         let v = values_in_block.clone().take(2).collect::<Vec<_>>();
         let prefix = match (v.first(), v.get(1)) {
             (Some(ComponentValue::PreservedToken(CssToken::Delim('|'))), _)
-            | (Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))), Some(ComponentValue::PreservedToken(CssToken::Delim('|')))) => {
-                Some(Self::new(values_in_block.clone().collect()).parse_namespace_prefix()?)
-            }
-            (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _) => {
-                None
-            }
+            | (
+                Some(ComponentValue::PreservedToken(CssToken::Ident(_) | CssToken::Delim('*'))),
+                Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
+            ) => Some(Self::new(values_in_block.clone().collect()).parse_namespace_prefix()?),
+            (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _) => None,
             _ => bail!(
                 "Expected namespace prefix or ident but found {:?} when parsing CSS selectors in parse_attrib",
-                v.first(),)
+                v.first(),
+            ),
         };
 
         let v = values_in_block.next();
@@ -685,7 +691,10 @@ impl SelectorParser {
                 {
                     Some(s)
                 } else {
-                    bail!("Expected ident or string but found {:?} when parsing CSS selectors in parse_attrib", v);
+                    bail!(
+                        "Expected ident or string but found {:?} when parsing CSS selectors in parse_attrib",
+                        v
+                    );
                 };
 
                 while values_in_block

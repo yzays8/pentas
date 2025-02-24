@@ -1,15 +1,15 @@
 use std::fmt;
 use std::iter::Peekable;
 
-use anyhow::{bail, Ok, Result};
+use anyhow::{Ok, Result, bail};
 
 use crate::renderer::css::cssom::ComponentValue;
 use crate::renderer::css::token::CssToken;
-use crate::renderer::style::property::{
-    parse_length_percentage_type, AbsoluteLengthUnit, AbsoluteSize, CssProperty, CssValue,
-    LengthUnit, RelativeLengthUnit, RelativeSize,
-};
 use crate::renderer::style::SpecifiedStyle;
+use crate::renderer::style::property::{
+    AbsoluteLengthUnit, AbsoluteSize, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
+    RelativeSize, parse_length_percentage_type,
+};
 
 pub const SMALL: f32 = 13.0;
 pub const MEDIUM: f32 = 16.0;
