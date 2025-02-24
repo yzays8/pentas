@@ -1,6 +1,7 @@
 mod css;
 mod html;
 mod layout;
+pub mod object;
 mod style;
 
 use anyhow::Result;
@@ -15,34 +16,7 @@ use css::token::CssTokenizer;
 use html::dom::DocumentTree;
 use html::parser::HtmlParser;
 use html::token::HtmlTokenizer;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum RenderObject {
-    Text {
-        text: String,
-        x: f64,
-        y: f64,
-        font_family: Vec<String>,
-        font_size: f64,
-        font_weight: String,
-        /// RGB, 0.0 to 1.0
-        color: (f64, f64, f64),
-        /// RGB, 0.0 to 1.0
-        decoration_color: (f64, f64, f64),
-        decoration_line: Vec<String>,
-        decoration_style: String,
-    },
-    Rect {
-        x: f64,
-        y: f64,
-        width: f64,
-        height: f64,
-        /// RGB, 0.0 to 1.0
-        color: (f64, f64, f64),
-        /// (top-left, top-right, bottom-right, bottom-left)
-        border_radius: (f64, f64, f64, f64),
-    },
-}
+use object::RenderObject;
 
 #[derive(Debug, Clone, Default)]
 pub struct RenderObjectsInfo {
@@ -55,7 +29,7 @@ pub struct RenderObjectsInfo {
 #[derive(Debug, Clone, Default)]
 pub struct Renderer {
     draw_ctx: pango::Context,
-    tree_trace_level: TreeTraceLevel,
+    trace_level: TreeTraceLevel,
 }
 
 impl Renderer {
@@ -74,8 +48,8 @@ impl Renderer {
         self.draw_ctx = draw_ctx.clone();
     }
 
-    pub fn set_tree_trace_level(&mut self, tree_trace_level: TreeTraceLevel) {
-        self.tree_trace_level = tree_trace_level;
+    pub fn set_trace_level(&mut self, tree_trace_level: TreeTraceLevel) {
+        self.trace_level = tree_trace_level;
     }
 
     /// Returns a list of render objects and the title of the HTML document.
@@ -92,7 +66,7 @@ impl Renderer {
             .collect::<Vec<_>>();
         let title = parsed_object.title.unwrap_or_else(|| host_name.to_string());
 
-        match self.tree_trace_level {
+        match self.trace_level {
             TreeTraceLevel::Silent => {
                 let box_tree = DocumentTree::build(parsed_object.dom_root)?
                     .to_render_tree(style_sheets)?
@@ -110,15 +84,15 @@ impl Renderer {
             TreeTraceLevel::Normal | TreeTraceLevel::Debug => {
                 println!("Title: {}\n", title);
                 let box_tree = DocumentTree::build(parsed_object.dom_root)?
-                    .print_in_chain(self.tree_trace_level)
+                    .print_in_chain(self.trace_level)
                     .to_render_tree(style_sheets)?
-                    .print_in_chain(self.tree_trace_level)
+                    .print_in_chain(self.trace_level)
                     .to_box_tree(&self.draw_ctx)?
-                    .print_in_chain(self.tree_trace_level)
+                    .print_in_chain(self.trace_level)
                     .cleanup()?
-                    .print_in_chain(self.tree_trace_level)
+                    .print_in_chain(self.trace_level)
                     .layout(viewport_width, viewport_height)?
-                    .print_in_chain(self.tree_trace_level);
+                    .print_in_chain(self.trace_level);
                 let (max_width, max_height) = box_tree.get_max_size();
                 Ok(RenderObjectsInfo {
                     objects: box_tree.to_render_objects(viewport_width, viewport_height),
@@ -137,14 +111,14 @@ impl Renderer {
             .chain(parsed_object.style_sheets)
             .collect::<Vec<_>>();
 
-        match self.tree_trace_level {
+        match self.trace_level {
             TreeTraceLevel::Silent => {
                 DocumentTree::build(parsed_object.dom_root)?
                     .to_render_tree(style_sheets)?
                     .to_box_tree(&self.draw_ctx)?
                     .cleanup()?
                     .layout(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)?
-                    .print(self.tree_trace_level);
+                    .print(self.trace_level);
             }
             TreeTraceLevel::Normal | TreeTraceLevel::Debug => {
                 println!(
@@ -154,15 +128,15 @@ impl Renderer {
                         .unwrap_or_else(|| "file://".to_string() + file_path)
                 );
                 DocumentTree::build(parsed_object.dom_root)?
-                    .print_in_chain(self.tree_trace_level)
+                    .print_in_chain(self.trace_level)
                     .to_render_tree(style_sheets)?
-                    .print_in_chain(self.tree_trace_level)
+                    .print_in_chain(self.trace_level)
                     .to_box_tree(&self.draw_ctx)?
-                    .print_in_chain(self.tree_trace_level)
+                    .print_in_chain(self.trace_level)
                     .cleanup()?
-                    .print_in_chain(self.tree_trace_level)
+                    .print_in_chain(self.trace_level)
                     .layout(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)?
-                    .print(self.tree_trace_level);
+                    .print(self.trace_level);
             }
         }
 

@@ -19,7 +19,7 @@ mod imp {
 
     use crate::history::History;
     use crate::renderer::{RenderObjectsInfo, Renderer};
-    use crate::ui::painter::paint;
+    use crate::ui::painter::Painter;
 
     // "/pentas" is just a prefix. See resouces.gresource.xml
     #[derive(Debug, CompositeTemplate, Default)]
@@ -33,6 +33,7 @@ mod imp {
         pub canvas: TemplateChild<gtk4::DrawingArea>,
 
         pub renderer: RefCell<Renderer>,
+        pub painter: RefCell<Painter>,
         pub history: RefCell<History>,
     }
 
@@ -54,6 +55,10 @@ mod imp {
     impl ObjectImpl for ContentArea {
         fn constructed(&self) {
             self.parent_constructed();
+
+            self.painter
+                .borrow_mut()
+                .set_ctx(&self.canvas.get().create_pango_context());
 
             let obj = self.obj();
             self.canvas.get().set_draw_func(glib::clone!(
@@ -89,8 +94,8 @@ mod imp {
                         obj.imp().canvas.set_height_request(new_page_height);
                     }
 
-                    paint(
-                        &obj.imp().canvas.get(),
+                    obj.imp().painter.borrow().paint(
+                        ctx,
                         &obj.imp()
                             .history
                             .borrow()
@@ -98,7 +103,6 @@ mod imp {
                             .unwrap()
                             .objs_info
                             .objects,
-                        ctx,
                     )
                 }
             ));
@@ -158,7 +162,7 @@ impl ContentArea {
         self.imp()
             .renderer
             .borrow_mut()
-            .set_tree_trace_level(tree_trace_level);
+            .set_trace_level(tree_trace_level);
     }
 
     pub fn on_toolbar_entry_activate(&self, query: &str) {

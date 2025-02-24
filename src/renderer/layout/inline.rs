@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use crate::renderer::layout::text::Text;
 use crate::renderer::layout::{BoxNode, BoxPosition, BoxSize, LayoutBox, LayoutInfo};
+use crate::renderer::object::RenderObject;
 use crate::renderer::style::RenderNode;
 use crate::renderer::style::property::{CssValue, DisplayInside, DisplayOutside};
 
@@ -88,6 +89,20 @@ impl LayoutBox for InlineBox {
         self.layout_info.size.width = inline_width;
 
         self.layout_info.size.height = inline_max_height;
+    }
+
+    fn to_render_objects(&self, viewport_width: i32, viewport_height: i32) -> Vec<RenderObject> {
+        let mut objects = Vec::new();
+
+        for child in self.children.iter() {
+            objects.extend(
+                child
+                    .borrow()
+                    .to_render_objects(viewport_width, viewport_height),
+            );
+        }
+
+        objects
     }
 }
 

@@ -33,7 +33,7 @@ impl Runner {
             (Some(p), None) => {
                 gtk4::init()?;
                 let mut renderer = Renderer::new();
-                renderer.set_tree_trace_level(self.config.tree_trace_level);
+                renderer.set_trace_level(self.config.tree_trace_level);
                 renderer.print_box_tree(&std::fs::read_to_string(p)?, p)?;
             }
             (None, Some(p)) => {

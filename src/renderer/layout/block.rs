@@ -1,9 +1,11 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::renderer::html::dom::{Element, NodeType};
 use crate::renderer::layout::inline::InlineBox;
 use crate::renderer::layout::text::Text;
 use crate::renderer::layout::{BoxNode, LayoutBox, LayoutInfo};
+use crate::renderer::object::{RenderObject, RenderRect};
 use crate::renderer::style::property::{
     AbsoluteLengthUnit, CssValue, DisplayInside, DisplayOutside, LengthUnit,
 };
@@ -146,6 +148,63 @@ impl LayoutBox for BlockBox {
                 + self.layout_info.used_values.padding.bottom
                 + self.layout_info.used_values.border.bottom;
         }
+    }
+
+    fn to_render_objects(&self, viewport_width: i32, viewport_height: i32) -> Vec<RenderObject> {
+        let mut objects = Vec::new();
+
+        let (r, g, b, a) = self
+            .style_node
+            .borrow()
+            .style
+            .background_color
+            .to_rgba()
+            .unwrap();
+        let border_radius = self
+            .style_node
+            .borrow()
+            .style
+            .border_radius
+            .to_px()
+            .unwrap();
+
+        // The style of the body element is applied to the whole viewport.
+        let is_body = if let NodeType::Element(Element { tag_name: n, .. }) =
+            &self.style_node.borrow().dom_node.borrow().node_type
+        {
+            n == "body"
+        } else {
+            false
+        };
+
+        // Draw the rectangle only if the background color is not transparent.
+        if a != 0.0 {
+            objects.push(RenderObject::Rect(RenderRect {
+                x: self.layout_info.pos.x as f64,
+                y: self.layout_info.pos.y as f64,
+                width: if is_body {
+                    viewport_width as f64
+                } else {
+                    self.layout_info.size.width as f64
+                },
+                height: if is_body {
+                    viewport_height as f64
+                } else {
+                    self.layout_info.size.height as f64
+                },
+                color: (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0),
+                border_radius,
+            }));
+        }
+        for child in self.children.iter() {
+            objects.extend(
+                child
+                    .borrow()
+                    .to_render_objects(viewport_width, viewport_height),
+            );
+        }
+
+        objects
     }
 }
 
@@ -362,6 +421,20 @@ impl LayoutBox for AnonymousBox {
         // If parent is a block-level box and children are inline-level boxes, the parent's width
         // is defined by the parent itself (so the width is not determined here by the children).
         self.layout_info.size.height = inline_max_height;
+    }
+
+    fn to_render_objects(&self, viewport_width: i32, viewport_height: i32) -> Vec<RenderObject> {
+        let mut objects = Vec::new();
+
+        for child in self.children.iter() {
+            objects.extend(
+                child
+                    .borrow()
+                    .to_render_objects(viewport_width, viewport_height),
+            );
+        }
+
+        objects
     }
 }
 

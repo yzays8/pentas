@@ -9,8 +9,8 @@ use std::rc::Rc;
 use anyhow::{Context, Ok, Result, ensure};
 use gtk4::pango;
 
-use crate::renderer::RenderObject;
-use crate::renderer::html::dom::{Element, NodeType};
+use crate::renderer::html::dom::NodeType;
+use crate::renderer::object::RenderObject;
 use crate::renderer::style::property::DisplayOutside;
 use crate::renderer::style::{RenderNode, RenderTree};
 use crate::utils::PrintableTree;
@@ -337,8 +337,8 @@ pub trait LayoutBox {
         parent_info: Option<LayoutInfo>,
         prev_sibling_info: Option<LayoutInfo>,
     );
-
     fn layout_children(&mut self, containing_block_info: &LayoutInfo);
+    fn to_render_objects(&self, viewport_width: i32, viewport_height: i32) -> Vec<RenderObject>;
 }
 
 #[derive(Debug)]
@@ -517,136 +517,19 @@ impl BoxNode {
         viewport_height: i32,
     ) -> Vec<RenderObject> {
         let mut objects = Vec::new();
+
         match self {
             BoxNode::Text(t) => {
-                let color = t.style_node.borrow().style.color.to_rgba().unwrap();
-                let decoration_color = t
-                    .style_node
-                    .borrow()
-                    .style
-                    .text_decoration
-                    .color
-                    .to_rgba()
-                    .unwrap();
-                let decoration_line = t
-                    .style_node
-                    .borrow()
-                    .style
-                    .text_decoration
-                    .line
-                    .iter()
-                    .map(|v| v.to_name().unwrap())
-                    .collect::<Vec<String>>();
-                let decoration_style = t
-                    .style_node
-                    .borrow()
-                    .style
-                    .text_decoration
-                    .style
-                    .to_name()
-                    .unwrap();
-                objects.push(RenderObject::Text {
-                    text: t
-                        .style_node
-                        .borrow()
-                        .dom_node
-                        .borrow()
-                        .get_inside_text()
-                        .unwrap(),
-                    x: t.layout_info.pos.x as f64,
-                    y: t.layout_info.pos.y as f64,
-                    font_family: t
-                        .style_node
-                        .borrow()
-                        .style
-                        .font_family
-                        .to_name_list()
-                        .unwrap(),
-                    font_size: t.style_node.borrow().style.font_size.to_px().unwrap() as f64,
-                    font_weight: t.style_node.borrow().style.font_weight.to_name().unwrap(),
-                    color: (
-                        color.0 as f64 / 255.0,
-                        color.1 as f64 / 255.0,
-                        color.2 as f64 / 255.0,
-                    ),
-                    decoration_color: (
-                        decoration_color.0 as f64 / 255.0,
-                        decoration_color.1 as f64 / 255.0,
-                        decoration_color.2 as f64 / 255.0,
-                    ),
-                    decoration_line,
-                    decoration_style,
-                });
+                objects.extend(t.to_render_objects(viewport_width, viewport_height));
             }
             BoxNode::BlockBox(block) => {
-                let (r, g, b, a) = block
-                    .style_node
-                    .borrow()
-                    .style
-                    .background_color
-                    .to_rgba()
-                    .unwrap();
-                let border_radius = block
-                    .style_node
-                    .borrow()
-                    .style
-                    .border_radius
-                    .to_px()
-                    .unwrap();
-
-                // The style of the body element is applied to the whole viewport.
-                let is_body = if let NodeType::Element(Element { tag_name: n, .. }) =
-                    &block.style_node.borrow().dom_node.borrow().node_type
-                {
-                    n == "body"
-                } else {
-                    false
-                };
-
-                // Draw the rectangle only if the background color is not transparent.
-                if a != 0.0 {
-                    objects.push(RenderObject::Rect {
-                        x: block.layout_info.pos.x as f64,
-                        y: block.layout_info.pos.y as f64,
-                        width: if is_body {
-                            viewport_width as f64
-                        } else {
-                            block.layout_info.size.width as f64
-                        },
-                        height: if is_body {
-                            viewport_height as f64
-                        } else {
-                            block.layout_info.size.height as f64
-                        },
-                        color: (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0),
-                        border_radius,
-                    });
-                }
-                for child in block.children.iter() {
-                    objects.extend(
-                        child
-                            .borrow()
-                            .to_render_objects(viewport_width, viewport_height),
-                    );
-                }
+                objects.extend(block.to_render_objects(viewport_width, viewport_height));
             }
             BoxNode::InlineBox(inline) => {
-                for child in inline.children.iter() {
-                    objects.extend(
-                        child
-                            .borrow()
-                            .to_render_objects(viewport_width, viewport_height),
-                    );
-                }
+                objects.extend(inline.to_render_objects(viewport_width, viewport_height));
             }
             BoxNode::AnonymousBox(anonymous) => {
-                for child in anonymous.children.iter() {
-                    objects.extend(
-                        child
-                            .borrow()
-                            .to_render_objects(viewport_width, viewport_height),
-                    );
-                }
+                objects.extend(anonymous.to_render_objects(viewport_width, viewport_height));
             }
         }
 

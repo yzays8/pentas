@@ -7,6 +7,7 @@ use gtk4::pango;
 use regex::Regex;
 
 use crate::renderer::layout::{LayoutBox, LayoutInfo};
+use crate::renderer::object::{RenderObject, RenderText};
 use crate::renderer::style::RenderNode;
 use crate::renderer::style::property::{CssValue, DisplayOutside};
 
@@ -30,6 +31,76 @@ impl LayoutBox for Text {
     }
 
     fn layout_children(&mut self, _: &LayoutInfo) {}
+
+    fn to_render_objects(&self, _: i32, _: i32) -> Vec<RenderObject> {
+        let mut objects = Vec::new();
+        let color = self.style_node.borrow().style.color.to_rgba().unwrap();
+        let decoration_color = self
+            .style_node
+            .borrow()
+            .style
+            .text_decoration
+            .color
+            .to_rgba()
+            .unwrap();
+        let decoration_line = self
+            .style_node
+            .borrow()
+            .style
+            .text_decoration
+            .line
+            .iter()
+            .map(|v| v.to_name().unwrap())
+            .collect::<Vec<String>>();
+        let decoration_style = self
+            .style_node
+            .borrow()
+            .style
+            .text_decoration
+            .style
+            .to_name()
+            .unwrap();
+        objects.push(RenderObject::Text(RenderText {
+            text: self
+                .style_node
+                .borrow()
+                .dom_node
+                .borrow()
+                .get_inside_text()
+                .unwrap(),
+            x: self.layout_info.pos.x as f64,
+            y: self.layout_info.pos.y as f64,
+            font_family: self
+                .style_node
+                .borrow()
+                .style
+                .font_family
+                .to_name_list()
+                .unwrap(),
+            font_size: self.style_node.borrow().style.font_size.to_px().unwrap() as f64,
+            font_weight: self
+                .style_node
+                .borrow()
+                .style
+                .font_weight
+                .to_name()
+                .unwrap(),
+            color: (
+                color.0 as f64 / 255.0,
+                color.1 as f64 / 255.0,
+                color.2 as f64 / 255.0,
+            ),
+            decoration_color: (
+                decoration_color.0 as f64 / 255.0,
+                decoration_color.1 as f64 / 255.0,
+                decoration_color.2 as f64 / 255.0,
+            ),
+            decoration_line,
+            decoration_style,
+        }));
+
+        objects
+    }
 }
 
 impl Text {
