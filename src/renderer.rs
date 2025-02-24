@@ -6,7 +6,7 @@ mod style;
 use anyhow::Result;
 use gtk4::pango;
 
-use crate::app::VerbosityLevel;
+use crate::app::TreeTraceLevel;
 use crate::ui::{DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH};
 use crate::utils::PrintableTree as _;
 use css::get_ua_style_sheet;
@@ -58,7 +58,7 @@ pub fn get_render_objects(
     viewport_width: i32,
     viewport_height: i32,
     draw_ctx: &pango::Context,
-    verbosity: VerbosityLevel,
+    tree_trace_level: TreeTraceLevel,
 ) -> Result<(RenderObjects, String)> {
     let parsed_object = HtmlParser::new(HtmlTokenizer::new(html)).parse()?;
     let style_sheets = std::iter::once(get_ua_style_sheet()?)
@@ -66,8 +66,8 @@ pub fn get_render_objects(
         .collect::<Vec<_>>();
     let title = parsed_object.title.unwrap_or_else(|| host_name.to_string());
 
-    match verbosity {
-        VerbosityLevel::Quiet => Ok((
+    match tree_trace_level {
+        TreeTraceLevel::Silent => Ok((
             DocumentTree::build(parsed_object.dom_root)?
                 .to_render_tree(style_sheets)?
                 .to_box_tree(draw_ctx)?
@@ -76,19 +76,19 @@ pub fn get_render_objects(
                 .to_render_objects(viewport_width, viewport_height),
             title,
         )),
-        VerbosityLevel::Normal | VerbosityLevel::Verbose => {
+        TreeTraceLevel::Normal | TreeTraceLevel::Debug => {
             println!("Title: {}\n", title);
             Ok((
                 DocumentTree::build(parsed_object.dom_root)?
-                    .print_in_chain(verbosity)
+                    .print_in_chain(tree_trace_level)
                     .to_render_tree(style_sheets)?
-                    .print_in_chain(verbosity)
+                    .print_in_chain(tree_trace_level)
                     .to_box_tree(draw_ctx)?
-                    .print_in_chain(verbosity)
+                    .print_in_chain(tree_trace_level)
                     .clean_up()?
-                    .print_in_chain(verbosity)
+                    .print_in_chain(tree_trace_level)
                     .layout(viewport_width, viewport_height)?
-                    .print_in_chain(verbosity)
+                    .print_in_chain(tree_trace_level)
                     .to_render_objects(viewport_width, viewport_height),
                 title,
             ))
@@ -101,23 +101,23 @@ pub fn print_box_tree(
     html: &str,
     file_path: &str,
     draw_ctx: &pango::Context,
-    verbosity: VerbosityLevel,
+    tree_trace_level: TreeTraceLevel,
 ) -> Result<()> {
     let parsed_object = HtmlParser::new(HtmlTokenizer::new(html)).parse()?;
     let style_sheets = std::iter::once(get_ua_style_sheet()?)
         .chain(parsed_object.style_sheets)
         .collect::<Vec<_>>();
 
-    match verbosity {
-        VerbosityLevel::Quiet => {
+    match tree_trace_level {
+        TreeTraceLevel::Silent => {
             DocumentTree::build(parsed_object.dom_root)?
                 .to_render_tree(style_sheets)?
                 .to_box_tree(draw_ctx)?
                 .clean_up()?
                 .layout(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)?
-                .print(verbosity);
+                .print(tree_trace_level);
         }
-        VerbosityLevel::Normal | VerbosityLevel::Verbose => {
+        TreeTraceLevel::Normal | TreeTraceLevel::Debug => {
             println!(
                 "Title: {}\n",
                 parsed_object
@@ -125,15 +125,15 @@ pub fn print_box_tree(
                     .unwrap_or_else(|| "file://".to_string() + file_path)
             );
             DocumentTree::build(parsed_object.dom_root)?
-                .print_in_chain(verbosity)
+                .print_in_chain(tree_trace_level)
                 .to_render_tree(style_sheets)?
-                .print_in_chain(verbosity)
+                .print_in_chain(tree_trace_level)
                 .to_box_tree(draw_ctx)?
-                .print_in_chain(verbosity)
+                .print_in_chain(tree_trace_level)
                 .clean_up()?
-                .print_in_chain(verbosity)
+                .print_in_chain(tree_trace_level)
                 .layout(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)?
-                .print(verbosity);
+                .print(tree_trace_level);
         }
     }
 

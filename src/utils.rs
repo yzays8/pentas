@@ -3,16 +3,16 @@ use std::fmt;
 
 use terminal_size::{Width, terminal_size};
 
-use crate::app::VerbosityLevel;
+use crate::app::TreeTraceLevel;
 
 /// A trait for printing trees with different verbosity levels.
 pub trait PrintableTree
 where
     Self: fmt::Display,
 {
-    fn print(&self, verbosity: VerbosityLevel) {
+    fn print(&self, verbosity: TreeTraceLevel) {
         match verbosity {
-            VerbosityLevel::Normal | VerbosityLevel::Quiet => {
+            TreeTraceLevel::Normal | TreeTraceLevel::Silent => {
                 if let Some((Width(w), _)) = terminal_size() {
                     let view = self.to_string();
                     for line in view.lines() {
@@ -26,11 +26,11 @@ where
                     println!("{}", self);
                 }
             }
-            VerbosityLevel::Verbose => println!("{}", self),
+            TreeTraceLevel::Debug => println!("{}", self),
         }
     }
 
-    fn print_in_chain(&mut self, verbosity: VerbosityLevel) -> &mut Self
+    fn print_in_chain(&mut self, verbosity: TreeTraceLevel) -> &mut Self
     where
         Self: Sized,
     {

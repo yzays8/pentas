@@ -9,15 +9,15 @@ use crate::ui::show_ui;
 pub struct Config {
     pub no_window_html: Option<String>,
     pub no_window_css: Option<String>,
-    pub verbosity: VerbosityLevel,
+    pub tree_trace_level: TreeTraceLevel,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-pub enum VerbosityLevel {
+pub enum TreeTraceLevel {
     #[default]
-    Quiet,
+    Silent,
     Normal,
-    Verbose,
+    Debug,
 }
 
 #[derive(Debug)]
@@ -38,14 +38,14 @@ impl Runner {
                     &std::fs::read_to_string(p)?,
                     p,
                     &DrawingArea::new().pango_context(),
-                    self.config.verbosity,
+                    self.config.tree_trace_level,
                 )?;
             }
             (None, Some(p)) => {
                 print_style_sheet(&std::fs::read_to_string(p)?)?;
             }
             (None, None) => {
-                show_ui(self.config.verbosity);
+                show_ui(self.config.tree_trace_level);
             }
             _ => unreachable!(),
         }

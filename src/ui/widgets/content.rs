@@ -4,7 +4,7 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::subclass::prelude::ObjectSubclassIsExt;
 
-use crate::app::VerbosityLevel;
+use crate::app::TreeTraceLevel;
 use crate::net::http::HttpClient;
 use crate::renderer::get_render_objects;
 
@@ -18,7 +18,7 @@ mod imp {
     use gtk4::subclass::prelude::*;
     use gtk4::{CompositeTemplate, glib};
 
-    use crate::app::VerbosityLevel;
+    use crate::app::TreeTraceLevel;
     use crate::history::History;
     use crate::renderer::RenderObjects;
     use crate::ui::painter::paint;
@@ -35,7 +35,7 @@ mod imp {
         pub canvas: TemplateChild<gtk4::DrawingArea>,
 
         pub history: RefCell<History>,
-        pub verbosity: RefCell<VerbosityLevel>,
+        pub tree_trace_level: RefCell<TreeTraceLevel>,
     }
 
     #[glib::object_subclass]
@@ -152,8 +152,8 @@ glib::wrapper! {
 }
 
 impl ContentArea {
-    pub fn set_verbosity(&self, verbosity: VerbosityLevel) {
-        self.imp().verbosity.replace(verbosity);
+    pub fn set_tree_trace_level(&self, tree_trace_level: TreeTraceLevel) {
+        self.imp().tree_trace_level.replace(tree_trace_level);
     }
 
     pub fn on_toolbar_entry_activate(&self, query: &str) {
@@ -214,7 +214,7 @@ impl ContentArea {
             self.imp().canvas.width(),
             self.imp().canvas.height(),
             &self.imp().canvas.create_pango_context(),
-            *self.imp().verbosity.borrow(),
+            *self.imp().tree_trace_level.borrow(),
         )
         .unwrap();
 

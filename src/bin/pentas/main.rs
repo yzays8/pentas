@@ -11,7 +11,7 @@ fn main() {
     let config = Config {
         no_window_html: args.no_window_html,
         no_window_css: args.no_window_css,
-        verbosity: args.verbose.into(),
+        tree_trace_level: args.tree_trace.into(),
     };
 
     if let Err(e) = Runner::new(config).run() {

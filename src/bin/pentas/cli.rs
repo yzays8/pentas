@@ -19,36 +19,37 @@ pub struct Args {
     #[arg(
         long,
         short,
-        default_value_t = VerbosityLevel::Quiet,
+        default_value_t = TreeTraceLevel::Silent,
         value_name = "LEVEL",
-        help = "Set the verbosity level"
+        help = "The verbosity level of the tree trace"
     )]
-    pub verbose: VerbosityLevel,
+    pub tree_trace: TreeTraceLevel,
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
-pub enum VerbosityLevel {
-    Quiet,
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+pub enum TreeTraceLevel {
+    #[default]
+    Silent,
     Normal,
-    Verbose,
+    Debug,
 }
 
-impl fmt::Display for VerbosityLevel {
+impl fmt::Display for TreeTraceLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> fmt::Result {
         match self {
-            VerbosityLevel::Quiet => write!(f, "quiet"),
-            VerbosityLevel::Normal => write!(f, "normal"),
-            VerbosityLevel::Verbose => write!(f, "verbose"),
+            TreeTraceLevel::Silent => write!(f, "silent"),
+            TreeTraceLevel::Normal => write!(f, "normal"),
+            TreeTraceLevel::Debug => write!(f, "debug"),
         }
     }
 }
 
-impl From<VerbosityLevel> for pentas::VerbosityLevel {
-    fn from(level: VerbosityLevel) -> Self {
+impl From<TreeTraceLevel> for pentas::TreeTraceLevel {
+    fn from(level: TreeTraceLevel) -> Self {
         match level {
-            VerbosityLevel::Quiet => pentas::VerbosityLevel::Quiet,
-            VerbosityLevel::Normal => pentas::VerbosityLevel::Normal,
-            VerbosityLevel::Verbose => pentas::VerbosityLevel::Verbose,
+            TreeTraceLevel::Silent => pentas::TreeTraceLevel::Silent,
+            TreeTraceLevel::Normal => pentas::TreeTraceLevel::Normal,
+            TreeTraceLevel::Debug => pentas::TreeTraceLevel::Debug,
         }
     }
 }

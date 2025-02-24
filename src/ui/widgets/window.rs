@@ -2,7 +2,7 @@ use gtk4::glib::{self, Object};
 use gtk4::subclass::prelude::ObjectSubclassIsExt;
 use gtk4::{Application, gio};
 
-use crate::app::VerbosityLevel;
+use crate::app::TreeTraceLevel;
 
 mod imp {
     use glib::subclass::InitializingObject;
@@ -133,7 +133,9 @@ impl Window {
         Object::builder().property("application", app).build()
     }
 
-    pub fn set_verbosity(&self, verbosity: VerbosityLevel) {
-        self.imp().content_area.set_verbosity(verbosity);
+    pub fn set_tree_trace_level(&self, tree_trace_level: TreeTraceLevel) {
+        self.imp()
+            .content_area
+            .set_tree_trace_level(tree_trace_level);
     }
 }
