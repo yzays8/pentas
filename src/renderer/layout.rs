@@ -9,10 +9,10 @@ use std::rc::Rc;
 use anyhow::{Context, Ok, Result, ensure};
 use gtk4::pango;
 
+use crate::renderer::RenderObject;
 use crate::renderer::html::dom::{Element, NodeType};
 use crate::renderer::style::property::DisplayOutside;
 use crate::renderer::style::{RenderNode, RenderTree};
-use crate::renderer::{RenderObject, RenderObjects};
 use crate::utils::PrintableTree;
 use block::{AnonymousBox, BlockBox};
 use inline::InlineBox;
@@ -52,7 +52,7 @@ impl BoxTree {
         })
     }
 
-    pub fn layout(&mut self, viewport_width: i32, viewport_height: i32) -> Result<&mut Self> {
+    pub fn layout(self, viewport_width: i32, viewport_height: i32) -> Result<Self> {
         self.root.borrow_mut().layout(
             // The containing block of the root element is initial containing block,
             // which has the dimensions of the viewport and is positioned at the origin of the canvas.
@@ -74,11 +74,11 @@ impl BoxTree {
 
     /// Removes unnecessary whitespace from all text nodes in the tree.
     /// https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model/Whitespace
-    pub fn clean_up(&mut self) -> Result<&mut Self> {
+    pub fn cleanup(self) -> Result<Self> {
         Ok(self.trim_text()?.remove_empty_anonymous_boxes())
     }
 
-    fn trim_text(&mut self) -> Result<&mut Self> {
+    fn trim_text(mut self) -> Result<Self> {
         fn helper(node: &mut Rc<RefCell<BoxNode>>) -> Result<()> {
             if let BoxNode::Text(_) = *node.borrow() {
                 return Ok(());
@@ -132,7 +132,7 @@ impl BoxTree {
         Ok(self)
     }
 
-    fn remove_empty_anonymous_boxes(&mut self) -> &mut Self {
+    fn remove_empty_anonymous_boxes(mut self) -> Self {
         fn helper(node: &mut Rc<RefCell<BoxNode>>) {
             if let BoxNode::Text(_) = *node.borrow() {
                 return;
@@ -177,24 +177,23 @@ impl BoxTree {
         self
     }
 
-    pub fn to_render_objects(&self, viewport_width: i32, viewport_height: i32) -> RenderObjects {
-        let mut objects = Vec::new();
+    pub fn to_render_objects(
+        &self,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) -> Vec<RenderObject> {
         self.root
             .borrow()
-            .to_render_objects(&mut objects, viewport_width, viewport_height);
+            .to_render_objects(viewport_width, viewport_height)
+    }
 
-        // The width and height of the root element (<html>) are the maximum width and height of the box tree.
-        let (max_width, max_height) =
-            if let BoxNode::BlockBox(BlockBox { layout_info, .. }) = &*self.root.borrow() {
-                (layout_info.size.width, layout_info.size.height)
-            } else {
-                unreachable!()
-            };
-
-        RenderObjects {
-            list: objects,
-            max_width,
-            max_height,
+    /// Returns the maximum (width, height) of the box tree.
+    pub fn get_max_size(&self) -> (f32, f32) {
+        // Assume that the root element is the <html> element, which contains the entire document.
+        if let BoxNode::BlockBox(BlockBox { layout_info, .. }) = &*self.root.borrow() {
+            (layout_info.size.width, layout_info.size.height)
+        } else {
+            unreachable!()
         }
     }
 }
@@ -514,10 +513,10 @@ impl BoxNode {
 
     pub fn to_render_objects(
         &self,
-        objects: &mut Vec<RenderObject>,
         viewport_width: i32,
         viewport_height: i32,
-    ) {
+    ) -> Vec<RenderObject> {
+        let mut objects = Vec::new();
         match self {
             BoxNode::Text(t) => {
                 let color = t.style_node.borrow().style.color.to_rgba().unwrap();
@@ -624,26 +623,34 @@ impl BoxNode {
                     });
                 }
                 for child in block.children.iter() {
-                    child
-                        .borrow()
-                        .to_render_objects(objects, viewport_width, viewport_height);
+                    objects.extend(
+                        child
+                            .borrow()
+                            .to_render_objects(viewport_width, viewport_height),
+                    );
                 }
             }
             BoxNode::InlineBox(inline) => {
                 for child in inline.children.iter() {
-                    child
-                        .borrow()
-                        .to_render_objects(objects, viewport_width, viewport_height);
+                    objects.extend(
+                        child
+                            .borrow()
+                            .to_render_objects(viewport_width, viewport_height),
+                    );
                 }
             }
             BoxNode::AnonymousBox(anonymous) => {
                 for child in anonymous.children.iter() {
-                    child
-                        .borrow()
-                        .to_render_objects(objects, viewport_width, viewport_height);
+                    objects.extend(
+                        child
+                            .borrow()
+                            .to_render_objects(viewport_width, viewport_height),
+                    );
                 }
             }
         }
+
+        objects
     }
 }
 

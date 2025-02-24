@@ -6,7 +6,6 @@ use gtk4::subclass::prelude::ObjectSubclassIsExt;
 
 use crate::app::TreeTraceLevel;
 use crate::net::http::HttpClient;
-use crate::renderer::get_render_objects;
 
 mod imp {
     use std::cell::RefCell;
@@ -18,9 +17,8 @@ mod imp {
     use gtk4::subclass::prelude::*;
     use gtk4::{CompositeTemplate, glib};
 
-    use crate::app::TreeTraceLevel;
     use crate::history::History;
-    use crate::renderer::RenderObjects;
+    use crate::renderer::{RenderObjectsInfo, Renderer};
     use crate::ui::painter::paint;
 
     // "/pentas" is just a prefix. See resouces.gresource.xml
@@ -34,8 +32,8 @@ mod imp {
         #[template_child]
         pub canvas: TemplateChild<gtk4::DrawingArea>,
 
+        pub renderer: RefCell<Renderer>,
         pub history: RefCell<History>,
-        pub tree_trace_level: RefCell<TreeTraceLevel>,
     }
 
     #[glib::object_subclass]
@@ -68,7 +66,7 @@ mod imp {
                         .borrow()
                         .get_current()
                         .unwrap()
-                        .objects
+                        .objs_info
                         .max_width
                         .round() as i32;
                     let new_page_height = obj
@@ -77,7 +75,7 @@ mod imp {
                         .borrow()
                         .get_current()
                         .unwrap()
-                        .objects
+                        .objs_info
                         .max_height
                         .round() as i32
                         + 5;
@@ -98,19 +96,23 @@ mod imp {
                             .borrow()
                             .get_current()
                             .unwrap()
-                            .objects
-                            .list,
+                            .objs_info
+                            .objects,
                         ctx,
                     )
                 }
             ));
 
+            self.renderer
+                .borrow_mut()
+                .set_draw_ctx(&self.canvas.get().create_pango_context());
+
             // The initial history is a blank page.
             self.history.borrow_mut().add(
                 "",
-                "",
-                &RenderObjects {
-                    list: vec![],
+                &RenderObjectsInfo {
+                    objects: vec![],
+                    title: "".to_string(),
                     max_width: self.canvas.width() as f32,
                     max_height: self.canvas.height() as f32,
                 },
@@ -153,7 +155,10 @@ glib::wrapper! {
 
 impl ContentArea {
     pub fn set_tree_trace_level(&self, tree_trace_level: TreeTraceLevel) {
-        self.imp().tree_trace_level.replace(tree_trace_level);
+        self.imp()
+            .renderer
+            .borrow_mut()
+            .set_tree_trace_level(tree_trace_level);
     }
 
     pub fn on_toolbar_entry_activate(&self, query: &str) {
@@ -208,22 +213,27 @@ impl ContentArea {
             host.to_string()
         };
 
-        let (objects, title) = get_render_objects(
-            &html,
-            &host,
-            self.imp().canvas.width(),
-            self.imp().canvas.height(),
-            &self.imp().canvas.create_pango_context(),
-            *self.imp().tree_trace_level.borrow(),
-        )
-        .unwrap();
+        let render_objs_info = self
+            .imp()
+            .renderer
+            .borrow()
+            .get_render_objects_info(
+                &html,
+                &host,
+                self.imp().canvas.width(),
+                self.imp().canvas.height(),
+            )
+            .unwrap();
 
-        self.imp().history.borrow_mut().add(query, &title, &objects);
+        self.imp()
+            .history
+            .borrow_mut()
+            .add(query, &render_objs_info);
         self.emit_by_name::<()>(
             "history-updated",
             &[
                 &query.to_string(),
-                &title.to_string(),
+                &render_objs_info.title,
                 &self.imp().history.borrow().is_rewindable(),
                 &self.imp().history.borrow().is_forwardable(),
             ],
@@ -239,7 +249,7 @@ impl ContentArea {
                 "history-updated",
                 &[
                     &history.query,
-                    &history.title,
+                    &history.objs_info.title,
                     &self.imp().history.borrow().is_rewindable(),
                     &self.imp().history.borrow().is_forwardable(),
                 ],
@@ -255,7 +265,7 @@ impl ContentArea {
                 "history-updated",
                 &[
                     &history.query,
-                    &history.title,
+                    &history.objs_info.title,
                     &self.imp().history.borrow().is_rewindable(),
                     &self.imp().history.borrow().is_forwardable(),
                 ],

@@ -30,7 +30,7 @@ where
         }
     }
 
-    fn print_in_chain(&mut self, verbosity: TreeTraceLevel) -> &mut Self
+    fn print_in_chain(self, verbosity: TreeTraceLevel) -> Self
     where
         Self: Sized,
     {

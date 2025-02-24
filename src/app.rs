@@ -1,8 +1,6 @@
 use anyhow::{Ok, Result};
-use gtk4::prelude::WidgetExt;
-use gtk4::{self, DrawingArea};
 
-use crate::renderer::{print_box_tree, print_style_sheet};
+use crate::renderer::Renderer;
 use crate::ui::show_ui;
 
 #[derive(Debug)]
@@ -34,15 +32,13 @@ impl Runner {
         match (&self.config.no_window_html, &self.config.no_window_css) {
             (Some(p), None) => {
                 gtk4::init()?;
-                print_box_tree(
-                    &std::fs::read_to_string(p)?,
-                    p,
-                    &DrawingArea::new().pango_context(),
-                    self.config.tree_trace_level,
-                )?;
+                let mut renderer = Renderer::new();
+                renderer.set_tree_trace_level(self.config.tree_trace_level);
+                renderer.print_box_tree(&std::fs::read_to_string(p)?, p)?;
             }
             (None, Some(p)) => {
-                print_style_sheet(&std::fs::read_to_string(p)?)?;
+                let renderer = Renderer::new();
+                renderer.print_style_sheet(&std::fs::read_to_string(p)?)?;
             }
             (None, None) => {
                 show_ui(self.config.tree_trace_level);
