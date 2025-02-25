@@ -1,8 +1,7 @@
 mod rect;
 mod text;
 
-pub use rect::RenderRect;
-pub use text::RenderText;
+pub use self::{rect::RenderRect, text::RenderText};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RenderObject {

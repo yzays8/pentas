@@ -1,12 +1,17 @@
-use std::fmt;
-use std::iter::Peekable;
+use std::{fmt, iter::Peekable};
 
 use anyhow::{Ok, Result, anyhow, bail, ensure};
 
-use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::token::{CssToken, NumericType};
-use crate::renderer::style::SpecifiedStyle;
-use crate::renderer::style::property::{CssProperty, CssValue};
+use crate::renderer::{
+    css::{
+        cssom::ComponentValue,
+        token::{CssToken, NumericType},
+    },
+    style::{
+        SpecifiedStyle,
+        property::{CssProperty, CssValue},
+    },
+};
 
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/color
 #[derive(Clone, Debug, PartialEq)]

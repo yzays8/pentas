@@ -1,15 +1,17 @@
-use std::cell::RefCell;
-use std::cmp::max_by;
-use std::rc::Rc;
+use std::{cell::RefCell, cmp::max_by, rc::Rc};
 
 use anyhow::Result;
 use gtk4::pango;
 use regex::Regex;
 
-use crate::renderer::layout::{LayoutBox, LayoutInfo};
-use crate::renderer::object::{RenderObject, RenderText};
-use crate::renderer::style::RenderNode;
-use crate::renderer::style::property::{CssValue, DisplayOutside};
+use crate::renderer::{
+    layout::{LayoutBox, LayoutInfo},
+    object::{RenderObject, RenderText},
+    style::{
+        RenderNode,
+        property::{CssValue, DisplayOutside},
+    },
+};
 
 #[derive(Debug)]
 pub struct Text {

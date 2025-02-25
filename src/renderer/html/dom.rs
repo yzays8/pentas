@@ -1,12 +1,15 @@
-use std::cell::RefCell;
-use std::fmt;
-use std::rc::{Rc, Weak};
+use std::{
+    cell::RefCell,
+    fmt,
+    rc::{Rc, Weak},
+};
 
 use anyhow::{Result, ensure};
 
-use crate::renderer::css::cssom::StyleSheet;
-use crate::renderer::style::RenderTree;
-use crate::utils::PrintableTree;
+use crate::{
+    renderer::{css::cssom::StyleSheet, style::RenderTree},
+    utils::PrintableTree,
+};
 
 /// https://dom.spec.whatwg.org/#node
 #[derive(Debug)]

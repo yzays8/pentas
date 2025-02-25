@@ -1,25 +1,20 @@
 use std::vec;
 
-use gtk4::glib;
-use gtk4::prelude::*;
-use gtk4::subclass::prelude::ObjectSubclassIsExt;
+use gtk4::{glib, prelude::*, subclass::prelude::ObjectSubclassIsExt};
 
-use crate::app::TreeTraceLevel;
-use crate::net::http::HttpClient;
+use crate::{app::TreeTraceLevel, net::http::HttpClient};
 
 mod imp {
-    use std::cell::RefCell;
-    use std::sync::OnceLock;
+    use std::{cell::RefCell, sync::OnceLock};
 
     use glib::subclass::InitializingObject;
-    use gtk4::glib::subclass::Signal;
-    use gtk4::prelude::*;
-    use gtk4::subclass::prelude::*;
-    use gtk4::{CompositeTemplate, glib};
+    use gtk4::{CompositeTemplate, glib, glib::subclass::Signal, prelude::*, subclass::prelude::*};
 
-    use crate::history::History;
-    use crate::renderer::{RenderObjectsInfo, Renderer};
-    use crate::ui::painter::Painter;
+    use crate::{
+        history::History,
+        renderer::{RenderObjectsInfo, Renderer},
+        ui::painter::Painter,
+    };
 
     // "/pentas" is just a prefix. See resouces.gresource.xml
     #[derive(Debug, CompositeTemplate, Default)]

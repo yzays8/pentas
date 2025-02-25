@@ -1,5 +1,4 @@
-use std::collections::VecDeque;
-use std::fmt;
+use std::{collections::VecDeque, fmt};
 
 use terminal_size::{Width, terminal_size};
 

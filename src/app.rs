@@ -1,7 +1,6 @@
 use anyhow::{Ok, Result};
 
-use crate::renderer::Renderer;
-use crate::ui::show_ui;
+use crate::{renderer::Renderer, ui::show_ui};
 
 #[derive(Debug)]
 pub struct Config {

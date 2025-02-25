@@ -1,14 +1,15 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use anyhow::{Ok, Result, bail, ensure};
 use thiserror::Error;
 
-use crate::renderer::css::cssom::StyleSheet;
-use crate::renderer::css::parser::CssParser;
-use crate::renderer::css::token::CssTokenizer;
-use crate::renderer::html::dom::{DocumentTree, DomNode, Element, NodeType};
-use crate::renderer::html::token::{HtmlToken, HtmlTokenizer, TokenizationState};
+use crate::renderer::{
+    css::{CssParser, CssTokenizer, cssom::StyleSheet},
+    html::{
+        dom::{DocumentTree, DomNode, Element, NodeType},
+        token::{HtmlToken, HtmlTokenizer, TokenizationState},
+    },
+};
 
 #[derive(Error, Debug)]
 #[error(

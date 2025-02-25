@@ -1,5 +1,7 @@
-use std::io::{Read, Write};
-use std::net::{TcpStream, ToSocketAddrs};
+use std::{
+    io::{Read, Write},
+    net::{TcpStream, ToSocketAddrs},
+};
 
 use anyhow::{Context, Result, anyhow};
 

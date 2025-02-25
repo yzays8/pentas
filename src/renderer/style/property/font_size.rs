@@ -1,14 +1,16 @@
-use std::fmt;
-use std::iter::Peekable;
+use std::{fmt, iter::Peekable};
 
 use anyhow::{Ok, Result, bail};
 
-use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::token::CssToken;
-use crate::renderer::style::SpecifiedStyle;
-use crate::renderer::style::property::{
-    AbsoluteLengthUnit, AbsoluteSize, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
-    RelativeSize, parse_length_percentage_type,
+use crate::renderer::{
+    css::{cssom::ComponentValue, token::CssToken},
+    style::{
+        SpecifiedStyle,
+        property::{
+            AbsoluteLengthUnit, AbsoluteSize, CssProperty, CssValue, LengthUnit,
+            RelativeLengthUnit, RelativeSize, parse_length_percentage_type,
+        },
+    },
 };
 
 pub const SMALL: f32 = 13.0;

@@ -2,12 +2,14 @@ use std::collections::VecDeque;
 
 use anyhow::{Result, ensure};
 
-use crate::renderer::css::cssom::{
-    AtRule, ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet,
+use crate::{
+    renderer::css::{
+        cssom::{AtRule, ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet},
+        selector::SelectorParser,
+        token::CssToken,
+    },
+    utils::TokenIterator,
 };
-use crate::renderer::css::selector::SelectorParser;
-use crate::renderer::css::token::CssToken;
-use crate::utils::TokenIterator;
 
 #[derive(Debug)]
 pub struct CssParser {
@@ -341,9 +343,11 @@ impl CssParser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::renderer::css::cssom::{ComponentValue, Declaration, QualifiedRule, Rule};
-    use crate::renderer::css::selector::{Combinator, Selector, SimpleSelector};
-    use crate::renderer::css::token::{CssToken, CssTokenizer, NumericType};
+    use crate::renderer::css::{
+        cssom::{ComponentValue, Declaration, QualifiedRule, Rule},
+        selector::{Combinator, Selector, SimpleSelector},
+        token::{CssToken, CssTokenizer, NumericType},
+    };
 
     #[test]
     fn parse_simple_style() {

@@ -1,11 +1,9 @@
 mod painter;
 mod widgets;
 
-use gtk4::prelude::*;
-use gtk4::{Application, gio, glib};
+use gtk4::{Application, gio, glib, prelude::*};
 
-use crate::app::TreeTraceLevel;
-use widgets::window::Window;
+use crate::{app::TreeTraceLevel, ui::widgets::window::Window};
 
 const GTK_APP_ID: &str = "app.pentas";
 pub const DEFAULT_WINDOW_WIDTH: i32 = 1200;

@@ -1,14 +1,11 @@
-use std::cell::RefCell;
-use std::iter::Peekable;
-use std::ops::Deref;
-use std::rc::Rc;
-use std::vec::IntoIter;
+use std::{cell::RefCell, iter::Peekable, ops::Deref, rc::Rc, vec::IntoIter};
 
 use anyhow::{Ok, Result, bail, ensure};
 
-use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::token::CssToken;
-use crate::renderer::html::dom::{DomNode, NodeType};
+use crate::renderer::{
+    css::{cssom::ComponentValue, token::CssToken},
+    html::dom::{DomNode, NodeType},
+};
 
 /// - https://www.w3.org/TR/selectors-3/#simple-selectors
 /// - https://www.w3.org/TR/selectors-3/#grammar

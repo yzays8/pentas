@@ -1,12 +1,14 @@
-use std::fmt;
-use std::iter::Peekable;
+use std::{fmt, iter::Peekable};
 
 use anyhow::{Result, bail};
 
-use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::token::CssToken;
-use crate::renderer::style::SpecifiedStyle;
-use crate::renderer::style::property::{CssProperty, CssValue};
+use crate::renderer::{
+    css::{cssom::ComponentValue, token::CssToken},
+    style::{
+        SpecifiedStyle,
+        property::{CssProperty, CssValue},
+    },
+};
 
 #[derive(Clone, Debug, Copy, PartialEq)]
 pub enum DisplayInside {

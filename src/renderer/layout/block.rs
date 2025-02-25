@@ -1,15 +1,14 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
-use crate::renderer::html::dom::{Element, NodeType};
-use crate::renderer::layout::inline::InlineBox;
-use crate::renderer::layout::text::Text;
-use crate::renderer::layout::{BoxNode, LayoutBox, LayoutInfo};
-use crate::renderer::object::{RenderObject, RenderRect};
-use crate::renderer::style::property::{
-    AbsoluteLengthUnit, CssValue, DisplayInside, DisplayOutside, LengthUnit,
+use crate::renderer::{
+    html::dom::{Element, NodeType},
+    layout::{BoxNode, LayoutBox, LayoutInfo, inline::InlineBox, text::Text},
+    object::{RenderObject, RenderRect},
+    style::{
+        ComputedStyle, RenderNode,
+        property::{AbsoluteLengthUnit, CssValue, DisplayInside, DisplayOutside, LengthUnit},
+    },
 };
-use crate::renderer::style::{ComputedStyle, RenderNode};
 
 #[derive(Debug)]
 pub struct BlockBox {

@@ -1,15 +1,13 @@
-use gtk4::prelude::*;
-use gtk4::subclass::prelude::*;
-use gtk4::{glib, template_callbacks};
+use gtk4::{glib, prelude::*, subclass::prelude::*, template_callbacks};
 
 mod imp {
     use std::sync::OnceLock;
 
     use glib::subclass::InitializingObject;
-    use gtk4::glib::subclass::Signal;
-    use gtk4::prelude::*;
-    use gtk4::subclass::prelude::*;
-    use gtk4::{Button, CompositeTemplate, Entry, glib};
+    use gtk4::{
+        Button, CompositeTemplate, Entry, glib, glib::subclass::Signal, prelude::*,
+        subclass::prelude::*,
+    };
 
     // "/pentas" is just a prefix. See resouces.gresource.xml
     #[derive(Debug, CompositeTemplate, Default)]

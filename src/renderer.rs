@@ -7,16 +7,16 @@ mod style;
 use anyhow::Result;
 use gtk4::pango;
 
-use crate::app::TreeTraceLevel;
-use crate::ui::{DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH};
-use crate::utils::PrintableTree as _;
-use css::get_ua_style_sheet;
-use css::parser::CssParser;
-use css::token::CssTokenizer;
-use html::dom::DocumentTree;
-use html::parser::HtmlParser;
-use html::token::HtmlTokenizer;
-use object::RenderObject;
+use self::{
+    css::{CssParser, CssTokenizer, get_ua_style_sheet},
+    html::{dom::DocumentTree, parser::HtmlParser, token::HtmlTokenizer},
+    object::RenderObject,
+};
+use crate::{
+    app::TreeTraceLevel,
+    ui::{DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH},
+    utils::PrintableTree as _,
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct RenderObjectsInfo {

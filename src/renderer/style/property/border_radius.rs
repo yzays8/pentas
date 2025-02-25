@@ -2,13 +2,16 @@ use std::fmt;
 
 use anyhow::{Ok, Result, bail};
 
-use crate::renderer::css::cssom::ComponentValue;
-use crate::renderer::css::token::CssToken;
-use crate::renderer::style::SpecifiedStyle;
-use crate::renderer::style::property::font_size::{self, FontSizeProp};
-use crate::renderer::style::property::{
-    AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
-    parse_length_percentage_type,
+use crate::renderer::{
+    css::{cssom::ComponentValue, token::CssToken},
+    style::{
+        SpecifiedStyle,
+        property::{
+            AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
+            font_size::{self, FontSizeProp},
+            parse_length_percentage_type,
+        },
+    },
 };
 
 /// https://developer.mozilla.org/en-US/docs/Web/CSS/border-radius

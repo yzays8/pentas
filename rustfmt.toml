@@ -1,0 +1,4 @@
+# https://rust-lang.github.io/rustfmt/?version=v1.8.0&search=edition
+# Enable the following lines on nightly rustfmt.
+# unstable_features = true
+# imports_granularity = "Crate"

@@ -2,21 +2,24 @@ mod block;
 mod inline;
 mod text;
 
-use std::cell::RefCell;
-use std::fmt;
-use std::rc::Rc;
+use std::{cell::RefCell, fmt, rc::Rc};
 
 use anyhow::{Context, Ok, Result, ensure};
 use gtk4::pango;
 
-use crate::renderer::html::dom::NodeType;
-use crate::renderer::object::RenderObject;
-use crate::renderer::style::property::DisplayOutside;
-use crate::renderer::style::{RenderNode, RenderTree};
-use crate::utils::PrintableTree;
-use block::{AnonymousBox, BlockBox};
-use inline::InlineBox;
-use text::Text;
+use self::{
+    block::{AnonymousBox, BlockBox},
+    inline::InlineBox,
+    text::Text,
+};
+use crate::{
+    renderer::{
+        html::dom::NodeType,
+        object::RenderObject,
+        style::{RenderNode, RenderTree, property::DisplayOutside},
+    },
+    utils::PrintableTree,
+};
 
 /// https://www.w3.org/TR/css-display-3/#box-tree
 #[derive(Debug)]

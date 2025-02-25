@@ -1,13 +1,13 @@
 pub mod cssom;
-pub mod parser;
+mod parser;
 pub mod selector;
 pub mod token;
 
+pub use self::{parser::CssParser, token::CssTokenizer};
+
 use anyhow::Result;
 
-use cssom::StyleSheet;
-use parser::CssParser;
-use token::CssTokenizer;
+use self::cssom::StyleSheet;
 
 const UA_CSS_PATH: &str = "src/renderer/style/ua.css";
 

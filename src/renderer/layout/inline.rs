@@ -1,11 +1,13 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
-use crate::renderer::layout::text::Text;
-use crate::renderer::layout::{BoxNode, BoxPosition, BoxSize, LayoutBox, LayoutInfo};
-use crate::renderer::object::RenderObject;
-use crate::renderer::style::RenderNode;
-use crate::renderer::style::property::{CssValue, DisplayInside, DisplayOutside};
+use crate::renderer::{
+    layout::{BoxNode, BoxPosition, BoxSize, LayoutBox, LayoutInfo, text::Text},
+    object::RenderObject,
+    style::{
+        RenderNode,
+        property::{CssValue, DisplayInside, DisplayOutside},
+    },
+};
 
 #[derive(Debug)]
 pub struct InlineBox {

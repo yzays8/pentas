@@ -1,18 +1,19 @@
-use gtk4::glib::{self, Object};
-use gtk4::subclass::prelude::ObjectSubclassIsExt;
-use gtk4::{Application, gio};
+use gtk4::{
+    Application, gio,
+    glib::{self, Object},
+    subclass::prelude::ObjectSubclassIsExt,
+};
 
 use crate::app::TreeTraceLevel;
 
 mod imp {
     use glib::subclass::InitializingObject;
-    use gtk4::glib::closure_local;
-    use gtk4::prelude::*;
-    use gtk4::subclass::prelude::*;
-    use gtk4::{CompositeTemplate, glib, style_context_add_provider_for_display};
+    use gtk4::{
+        CompositeTemplate, glib, glib::closure_local, prelude::*,
+        style_context_add_provider_for_display, subclass::prelude::*,
+    };
 
-    use crate::ui::widgets::content::ContentArea;
-    use crate::ui::widgets::toolbar::Toolbar;
+    use crate::ui::widgets::{content::ContentArea, toolbar::Toolbar};
 
     // "/pentas" is just a prefix. See resouces.gresource.xml
     #[derive(Debug, CompositeTemplate, Default)]

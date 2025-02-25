@@ -1,24 +1,27 @@
 pub mod property;
 
-use std::cell::RefCell;
-use std::default::Default;
-use std::fmt;
-use std::rc::Rc;
+use std::{cell::RefCell, default::Default, fmt, rc::Rc};
 
 use anyhow::{Context, Result, anyhow};
 use gtk4::pango;
 use indexmap::IndexMap;
 
-use crate::renderer::css::cssom::{ComponentValue, Declaration, Rule, StyleSheet};
-use crate::renderer::css::selector::Selector;
-use crate::renderer::html::dom::{DocumentTree, DomNode, NodeType};
-use crate::renderer::layout::BoxTree;
-use crate::renderer::style::property::{
+use self::property::{
     BackGroundColorProp, BorderProp, BorderRadiusProp, ColorProp, CssProperty, DisplayBox,
     DisplayOutside, DisplayProp, FontFamilyProp, FontSizeProp, FontWeightProp, HeightProp,
     MarginBlockProp, MarginProp, PaddingProp, TextDecorationProp, WidthProp,
 };
-use crate::utils::PrintableTree;
+use crate::{
+    renderer::{
+        css::{
+            cssom::{ComponentValue, Declaration, Rule, StyleSheet},
+            selector::Selector,
+        },
+        html::dom::{DocumentTree, DomNode, NodeType},
+        layout::BoxTree,
+    },
+    utils::PrintableTree,
+};
 
 #[derive(Debug)]
 pub struct RenderTree {
