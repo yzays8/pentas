@@ -1,8 +1,10 @@
 mod css;
 mod html;
 mod layout;
-pub mod object;
+mod object;
 mod style;
+
+pub use self::object::{RenderObject, RenderObjectsInfo};
 
 use anyhow::Result;
 use gtk4::pango;
@@ -10,21 +12,12 @@ use gtk4::pango;
 use self::{
     css::{CssParser, CssTokenizer, get_ua_style_sheet},
     html::{dom::DocumentTree, parser::HtmlParser, token::HtmlTokenizer},
-    object::RenderObject,
 };
 use crate::{
     app::TreeTraceLevel,
     ui::{DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH},
     utils::PrintableTree as _,
 };
-
-#[derive(Debug, Clone, Default)]
-pub struct RenderObjectsInfo {
-    pub objects: Vec<RenderObject>,
-    pub title: String,
-    pub max_width: f32,
-    pub max_height: f32,
-}
 
 #[derive(Debug, Clone, Default)]
 pub struct Renderer {

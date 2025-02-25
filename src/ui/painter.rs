@@ -1,6 +1,6 @@
 use gtk4::{cairo, pango};
 
-use crate::renderer::object::RenderObject;
+use crate::renderer::RenderObject;
 
 #[derive(Debug, Default)]
 pub struct Painter {
