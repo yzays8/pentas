@@ -16,7 +16,7 @@ mod imp {
         ui::painter::Painter,
     };
 
-    // "/pentas" is just a prefix. See resouces.gresource.xml
+    // "/pentas" is just a prefix. See resources.gresource.xml
     #[derive(Debug, CompositeTemplate, Default)]
     #[template(resource = "/pentas/ui/content.ui")]
     pub struct ContentArea {

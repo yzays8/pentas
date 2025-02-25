@@ -9,7 +9,7 @@ mod imp {
         subclass::prelude::*,
     };
 
-    // "/pentas" is just a prefix. See resouces.gresource.xml
+    // "/pentas" is just a prefix. See resources.gresource.xml
     #[derive(Debug, CompositeTemplate, Default)]
     #[template(resource = "/pentas/ui/toolbar.ui")]
     pub struct Toolbar {

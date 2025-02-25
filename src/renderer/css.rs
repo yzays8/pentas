@@ -9,7 +9,7 @@ use anyhow::Result;
 
 use self::cssom::StyleSheet;
 
-const UA_CSS_PATH: &str = "src/renderer/style/ua.css";
+const UA_CSS_PATH: &str = "assets/style/ua.css";
 
 /// Returns the user agent style sheet.
 pub fn get_ua_style_sheet() -> Result<StyleSheet> {

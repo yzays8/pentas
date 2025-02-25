@@ -15,7 +15,7 @@ mod imp {
 
     use crate::ui::widgets::{content::ContentArea, toolbar::Toolbar};
 
-    // "/pentas" is just a prefix. See resouces.gresource.xml
+    // "/pentas" is just a prefix. See resources.gresource.xml
     #[derive(Debug, CompositeTemplate, Default)]
     #[template(resource = "/pentas/ui/window.ui")]
     pub struct Window {
