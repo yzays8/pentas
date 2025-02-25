@@ -45,7 +45,7 @@ impl Renderer {
         self.trace_level = tree_trace_level;
     }
 
-    /// Returns a list of render objects and the title of the HTML document.
+    /// Returns a list of objects to be rendered.
     pub fn get_render_objects_info(
         &self,
         html: &str,
