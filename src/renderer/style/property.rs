@@ -11,18 +11,20 @@ mod padding;
 mod text_decoration;
 mod width;
 
-pub use border::BorderProp;
-pub use border_radius::BorderRadiusProp;
-pub use color::{BackGroundColorProp, ColorProp};
-pub use display::{DisplayBox, DisplayInside, DisplayOutside, DisplayProp};
-pub use font_family::FontFamilyProp;
-pub use font_size::FontSizeProp;
-pub use font_weight::FontWeightProp;
-pub use height::HeightProp;
-pub use margin::{MarginBlockProp, MarginProp};
-pub use padding::PaddingProp;
-pub use text_decoration::TextDecorationProp;
-pub use width::WidthProp;
+pub use self::{
+    border::BorderProp,
+    border_radius::BorderRadiusProp,
+    color::{BackGroundColorProp, ColorProp},
+    display::{DisplayBox, DisplayInside, DisplayOutside, DisplayProp},
+    font_family::FontFamilyProp,
+    font_size::FontSizeProp,
+    font_weight::FontWeightProp,
+    height::HeightProp,
+    margin::{MarginBlockProp, MarginProp},
+    padding::PaddingProp,
+    text_decoration::TextDecorationProp,
+    width::WidthProp,
+};
 
 use std::{fmt, iter::Peekable};
 
