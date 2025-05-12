@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow};
+use native_tls::TlsConnector;
 
 /// HTTP/1.1 Request
 #[allow(dead_code)]
@@ -100,6 +101,7 @@ impl HttpClient {
         path: &str,
         headers: &[(&str, &str)],
         body: Option<&str>,
+        use_https: bool,
     ) -> Result<HttpResponse> {
         let addr = format!("{}:{}", self.host, self.port)
             // This is where the DNS resolution takes place.
@@ -107,7 +109,7 @@ impl HttpClient {
             .to_socket_addrs()?
             .next()
             .context(anyhow!("Failed to resolve address"))?;
-        let mut stream = TcpStream::connect((addr.ip(), addr.port()))?;
+
         let request = HttpRequest {
             method: method.to_string(),
             path: path.to_string(),
@@ -118,11 +120,21 @@ impl HttpClient {
                 .collect(),
             body: body.map(|s| s.to_string()),
         };
-        stream.write_all(request.to_http_format().as_bytes())?;
-        stream.flush()?;
-
-        let mut response_text = String::new();
-        stream.read_to_string(&mut response_text)?;
+        let mut stream = TcpStream::connect((addr.ip(), addr.port()))?;
+        let response_text = if use_https {
+            let mut tls_stream = TlsConnector::new()?.connect(&self.host, stream)?;
+            tls_stream.write_all(request.to_http_format().as_bytes())?;
+            tls_stream.flush()?;
+            let mut response_text = String::new();
+            tls_stream.read_to_string(&mut response_text)?;
+            response_text
+        } else {
+            stream.write_all(request.to_http_format().as_bytes())?;
+            stream.flush()?;
+            let mut response_text = String::new();
+            stream.read_to_string(&mut response_text)?;
+            response_text
+        };
 
         HttpResponse::from_str(&response_text)
     }

@@ -8,6 +8,7 @@ anyhow = "1.0.82"
 clap = { version = "4.5.4", features = ["derive"] }
 gtk4 = "0.9.4"
 indexmap = "2.7.0"
+native-tls = "0.2.14"
 pangocairo = "0.20.4"
 regex = "1.10.6"
 terminal_size = "0.4.1"

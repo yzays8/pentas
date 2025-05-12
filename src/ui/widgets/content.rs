@@ -192,19 +192,27 @@ impl ContentArea {
         };
         let path = "/".to_string() + url.path.join("/").as_str();
 
-        let client = HttpClient::new(&host, port);
-        let headers = vec![
-            // HTTP/1.1 client must contain Host header.
-            // https://datatracker.ietf.org/doc/html/rfc9112#section-3.2
-            ("Host", host.as_str()),
-            // ("User-Agent", "pentas"),
-            // todo: Remove this header and handle Content-Length in the client.
-            ("Connection", "close"),
-        ];
-        let html = match client.send_request("GET", &path, &headers, None) {
-            Ok(response) => response.body,
-            Err(e) => {
-                eprintln!("{}", e);
+        let html = match url.scheme.as_str() {
+            "http" | "https" => {
+                let client = HttpClient::new(&host, port);
+                let headers = vec![
+                    // HTTP/1.1 client must contain Host header.
+                    // https://datatracker.ietf.org/doc/html/rfc9112#section-3.2
+                    ("Host", host.as_str()),
+                    // ("User-Agent", "pentas"),
+                    // todo: Remove this header and handle Content-Length in the client.
+                    ("Connection", "close"),
+                ];
+                match client.send_request("GET", &path, &headers, None, url.scheme == "https") {
+                    Ok(response) => response.body,
+                    Err(e) => {
+                        eprintln!("{}", e);
+                        return;
+                    }
+                }
+            }
+            _ => {
+                eprintln!("Unsupported scheme: {}", url.scheme);
                 return;
             }
         };
