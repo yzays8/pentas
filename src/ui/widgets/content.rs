@@ -2,7 +2,10 @@ use std::vec;
 
 use gtk4::{glib, prelude::*, subclass::prelude::ObjectSubclassIsExt};
 
-use crate::{app::TreeTraceLevel, net::http::HttpClient};
+use crate::{
+    app::TreeTraceLevel,
+    net::{Url, http::HttpClient},
+};
 
 mod imp {
     use std::{cell::RefCell, sync::OnceLock};
@@ -161,39 +164,39 @@ impl ContentArea {
     }
 
     pub fn on_toolbar_entry_activate(&self, query: &str) {
-        // todo: Add a proper URL parser.
-        let url = query
-            .trim_start_matches("http://")
-            .trim_start_matches("https://");
-        let mut url = url.split('/');
-        let mut has_port = false;
-        let (host, port) = if let Some(hp) = url.by_ref().next() {
-            let hp = hp.split(':').collect::<Vec<&str>>();
-            let host = hp.first().unwrap();
-            if let Some(port) = hp.get(1) {
-                has_port = true;
-                if let Ok(port) = port.parse::<u16>() {
-                    (*host, port)
-                } else {
+        let url = match Url::from_str(query) {
+            Ok(url) => url,
+            Err(e) => {
+                eprintln!("Invalid URL: {}", e);
+                return;
+            }
+        };
+        let host = match url.host {
+            Some(host) => host,
+            None => {
+                eprintln!("Host is not specified");
+                return;
+            }
+        };
+        let port = match url.port {
+            Some(port) => port,
+            None => match url.scheme.as_str() {
+                "ftp" => 21,
+                "http" | "ws" => 80,
+                "https" | "wss" => 443,
+                _ => {
+                    eprintln!("Port is not specified");
                     return;
                 }
-            } else {
-                (*host, 80)
-            }
-        } else {
-            return;
+            },
         };
-        let path = if let Some(path) = url.by_ref().next() {
-            format!("/{}", path)
-        } else {
-            "/".to_string()
-        };
+        let path = "/".to_string() + url.path.join("/").as_str();
 
-        let client = HttpClient::new(host, port);
+        let client = HttpClient::new(&host, port);
         let headers = vec![
             // HTTP/1.1 client must contain Host header.
             // https://datatracker.ietf.org/doc/html/rfc9112#section-3.2
-            ("Host", host),
+            ("Host", host.as_str()),
             // ("User-Agent", "pentas"),
             // todo: Remove this header and handle Content-Length in the client.
             ("Connection", "close"),
@@ -206,7 +209,7 @@ impl ContentArea {
             }
         };
 
-        let host = if has_port {
+        let host_name = if url.port.is_some() {
             format!("{}:{}", host, port)
         } else {
             host.to_string()
@@ -218,7 +221,7 @@ impl ContentArea {
             .borrow()
             .get_render_objects_info(
                 &html,
-                &host,
+                &host_name,
                 self.imp().canvas.width(),
                 self.imp().canvas.height(),
             )
