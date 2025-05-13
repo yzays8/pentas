@@ -11,7 +11,7 @@ use gtk4::pango;
 
 use self::{
     css::{CssParser, CssTokenizer, get_ua_style_sheet},
-    html::{dom::DocumentTree, parser::HtmlParser, token::HtmlTokenizer},
+    html::{dom::DocumentTree, parser::HtmlParser},
 };
 use crate::{
     app::TreeTraceLevel,
@@ -53,7 +53,7 @@ impl Renderer {
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<RenderObjectsInfo> {
-        let parsed_object = HtmlParser::new(HtmlTokenizer::new(html)).parse()?;
+        let parsed_object = HtmlParser::new(html).parse()?;
         let style_sheets = std::iter::once(get_ua_style_sheet()?)
             .chain(parsed_object.style_sheets)
             .collect::<Vec<_>>();
@@ -99,7 +99,7 @@ impl Renderer {
 
     /// Prints an HTML document as a box tree.
     pub fn print_box_tree(&self, html: &str, file_path: &str) -> Result<()> {
-        let parsed_object = HtmlParser::new(HtmlTokenizer::new(html)).parse()?;
+        let parsed_object = HtmlParser::new(html).parse()?;
         let style_sheets = std::iter::once(get_ua_style_sheet()?)
             .chain(parsed_object.style_sheets)
             .collect::<Vec<_>>();

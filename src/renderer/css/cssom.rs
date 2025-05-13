@@ -6,7 +6,7 @@ use crate::renderer::{
 };
 
 /// https://www.w3.org/TR/cssom-1/#cssstylesheet
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StyleSheet {
     pub rules: Vec<Rule>,
 }
@@ -24,7 +24,7 @@ impl StyleSheet {
 /// A CSS document is a series of style rules and at-rules.
 /// - https://www.w3.org/TR/css-syntax-3/#syntax-description
 /// - https://www.w3.org/TR/cssom-1/#cssrule
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Rule {
     QualifiedRule(QualifiedRule),
     AtRule(AtRule),
@@ -44,7 +44,7 @@ pub type QualifiedRule = StyleRule;
 
 /// - https://www.w3.org/TR/css-syntax-3/#style-rules
 /// - https://www.w3.org/TR/cssom-1/#the-cssstylerule-interface
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StyleRule {
     pub selectors: Vec<Selector>,
     pub declarations: Vec<Declaration>,
@@ -91,7 +91,7 @@ pub enum ComponentValue {
 }
 
 /// https://www.w3.org/TR/css-syntax-3/#at-rules
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AtRule {
     pub name: String,
     pub prelude: Vec<ComponentValue>,
