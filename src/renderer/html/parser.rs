@@ -80,7 +80,7 @@ impl HtmlParser {
 
         let mut end_of_parsing = false;
         while !end_of_parsing {
-            let token = self.tokenizer.consume_token();
+            let token = self.tokenizer.consume();
 
             loop {
                 // https://html.spec.whatwg.org/multipage/parsing.html#tree-construction
