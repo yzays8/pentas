@@ -276,16 +276,13 @@ impl CssParser {
         }
 
         if (declaration.value.len() >= 2)
-            && declaration.value.get(declaration.value.len() - 2)
-                == Some(&ComponentValue::PreservedToken(CssToken::Delim('!')))
-        {
-            if let Some(&ComponentValue::PreservedToken(CssToken::Ident(s))) =
+            && (declaration.value.get(declaration.value.len() - 2)
+                == Some(&ComponentValue::PreservedToken(CssToken::Delim('!'))))
+            && let Some(&ComponentValue::PreservedToken(CssToken::Ident(s))) =
                 declaration.value.last().as_ref()
-            {
-                if s.eq_ignore_ascii_case("important") {
-                    unimplemented!();
-                }
-            }
+            && s.eq_ignore_ascii_case("important")
+        {
+            unimplemented!();
         }
         while declaration.value.last()
             == Some(&ComponentValue::PreservedToken(CssToken::Whitespace))

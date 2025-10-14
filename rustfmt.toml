@@ -1,4 +1,3 @@
 # https://rust-lang.github.io/rustfmt/?version=v1.8.0&search=imports#imports_granularity
-# Enable the following lines on nightly rustfmt.
-# unstable_features = true
-# imports_granularity = "Crate"
+unstable_features = true
+imports_granularity = "Crate"

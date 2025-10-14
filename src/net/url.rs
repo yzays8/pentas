@@ -316,11 +316,11 @@ impl UrlParser {
     /// https://url.spec.whatwg.org/#port-state
     fn parse_port(&mut self) -> Result<()> {
         let c = self.input.peek();
-        if let Some(c) = c {
-            if c.is_ascii_digit() {
-                self.buf.push(*c);
-                return Ok(());
-            }
+        if let Some(c) = c
+            && c.is_ascii_digit()
+        {
+            self.buf.push(*c);
+            return Ok(());
         }
         if matches!(c, None | Some('/' | '?' | '#'))
             || (self.output.has_special_scheme() && c == Some(&'\\'))

@@ -128,8 +128,8 @@ impl RenderNode {
                     .apply_computing(viewport_width, viewport_height)
             }
             NodeType::Text(_) => {
-                if parent_style.is_some() {
-                    let mut style = parent_style.as_ref().unwrap().clone();
+                if let Some(style) = &parent_style {
+                    let mut style = style.clone();
                     style.display.outside = DisplayOutside::Inline;
                     style
                 } else {
@@ -206,12 +206,11 @@ fn apply_filtering(node: Rc<RefCell<DomNode>>, style_sheets: &[StyleSheet]) -> D
     // linked by the originating document are treated as if they were concatenated in linking order, as determined by the host document language.
     style_sheets.iter().for_each(|style_sheet| {
         style_sheet.rules.iter().for_each(|rule| {
-            let selectors = rule.get_matched_selectors(Rc::clone(&node));
-            if selectors.is_some() {
+            if let Some(selectors) = rule.get_matched_selectors(Rc::clone(&node)) {
                 let Rule::QualifiedRule(qualified_rule) = rule else {
                     unreachable!();
                 };
-                for selector in selectors.unwrap() {
+                for selector in selectors {
                     declared_values.add(selector, &qualified_rule.declarations);
                 }
             }

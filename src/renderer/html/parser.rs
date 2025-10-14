@@ -401,16 +401,15 @@ impl HtmlParser {
                 }
                 "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => {
                     let mut need_to_pop = false;
-                    if let Some(n) = &self.stack.last() {
-                        if let NodeType::Element(elm) = &n.borrow().node_type {
-                            if matches!(
-                                elm.tag_name.as_str(),
-                                "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
-                            ) {
-                                eprintln!("parse error");
-                                need_to_pop = true;
-                            }
-                        }
+                    if let Some(n) = &self.stack.last()
+                        && let NodeType::Element(elm) = &n.borrow().node_type
+                        && matches!(
+                            elm.tag_name.as_str(),
+                            "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+                        )
+                    {
+                        eprintln!("parse error");
+                        need_to_pop = true;
                     }
                     if need_to_pop {
                         self.stack.pop();
@@ -428,10 +427,10 @@ impl HtmlParser {
                             }
                             loop {
                                 if let Some(n) = &self.stack.pop() {
-                                    if let NodeType::Element(elm) = &n.borrow().node_type {
-                                        if elm.tag_name == "li" {
-                                            break;
-                                        }
+                                    if let NodeType::Element(elm) = &n.borrow().node_type
+                                        && elm.tag_name == "li"
+                                    {
+                                        break;
                                     }
                                 } else {
                                     bail!(ParseError {
@@ -495,10 +494,10 @@ impl HtmlParser {
                     }
                     loop {
                         if let Some(n) = &self.stack.pop() {
-                            if let NodeType::Element(elm) = &n.borrow().node_type {
-                                if elm.tag_name == "a" {
-                                    break;
-                                }
+                            if let NodeType::Element(elm) = &n.borrow().node_type
+                                && elm.tag_name == "a"
+                            {
+                                break;
                             }
                         } else {
                             bail!(ParseError {
@@ -521,10 +520,10 @@ impl HtmlParser {
                         eprintln!("parse error");
                     }
                     while let Some(n) = self.stack.pop() {
-                        if let NodeType::Element(elm) = &n.borrow().node_type {
-                            if elm.tag_name == *tag_name {
-                                break;
-                            }
+                        if let NodeType::Element(elm) = &n.borrow().node_type
+                            && elm.tag_name == *tag_name
+                        {
+                            break;
                         }
                     }
                 }
@@ -535,10 +534,10 @@ impl HtmlParser {
                     }
                     loop {
                         if let Some(n) = &self.stack.pop() {
-                            if let NodeType::Element(elm) = &n.borrow().node_type {
-                                if elm.tag_name == "p" {
-                                    break;
-                                }
+                            if let NodeType::Element(elm) = &n.borrow().node_type
+                                && elm.tag_name == "p"
+                            {
+                                break;
                             }
                         } else {
                             bail!(ParseError {
@@ -559,10 +558,10 @@ impl HtmlParser {
                     }
                     loop {
                         if let Some(n) = &self.stack.pop() {
-                            if let NodeType::Element(elm) = &n.borrow().node_type {
-                                if elm.tag_name == "li" {
-                                    break;
-                                }
+                            if let NodeType::Element(elm) = &n.borrow().node_type
+                                && elm.tag_name == "li"
+                            {
+                                break;
                             }
                         } else {
                             bail!(ParseError {
@@ -583,13 +582,13 @@ impl HtmlParser {
                     }
                     loop {
                         if let Some(n) = &self.stack.pop() {
-                            if let NodeType::Element(elm) = &n.borrow().node_type {
-                                if matches!(
+                            if let NodeType::Element(elm) = &n.borrow().node_type
+                                && matches!(
                                     elm.tag_name.as_str(),
                                     "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
-                                ) {
-                                    break;
-                                }
+                                )
+                            {
+                                break;
                             }
                         } else {
                             bail!(ParseError {

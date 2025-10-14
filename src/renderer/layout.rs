@@ -153,10 +153,10 @@ impl BoxTree {
             let mut remove_list: Vec<usize> = vec![];
 
             for (i, child) in children_enum {
-                if let BoxNode::AnonymousBox(AnonymousBox { children, .. }) = &*child.borrow() {
-                    if children.is_empty() {
-                        remove_list.push(i);
-                    }
+                if let BoxNode::AnonymousBox(AnonymousBox { children, .. }) = &*child.borrow()
+                    && children.is_empty()
+                {
+                    remove_list.push(i);
                 }
 
                 // If the child is not removed as an empty anonymous box, recursively check its children.
