@@ -205,10 +205,10 @@ impl CssParser {
                     let mut tmp_token_list = vec![ComponentValue::PreservedToken(
                         self.input.get_last_consumed().unwrap().clone(),
                     )];
-                    while !matches!(
-                        self.input.peek(),
-                        Some(CssToken::Semicolon) | Some(CssToken::Eof)
-                    ) {
+                    while (self.input.peek() != Some(&ending_token))
+                        && (self.input.peek() != Some(&CssToken::Semicolon))
+                        && (self.input.peek() != Some(&CssToken::Eof))
+                    {
                         tmp_token_list.push(self.consume_component_value());
                     }
                     if let Some(declaration) = Self::consume_declaration(tmp_token_list) {
@@ -495,6 +495,50 @@ mod tests {
                         ))],
                     },
                 ],
+            }),
+        ];
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn parse_missing_semicolon_before_closing_brace() {
+        let css = r#"
+            h1 {
+                color: red
+            }
+            h2 {
+                color: blue
+            }
+        "#;
+        let style_sheet = CssParser::new(&CssTokenizer::new(css).tokenize().unwrap())
+            .parse()
+            .unwrap();
+        let actual = style_sheet.rules;
+        let expected = vec![
+            Rule::QualifiedRule(QualifiedRule {
+                selectors: vec![Selector::Simple(vec![SimpleSelector::Type {
+                    namespace_prefix: None,
+                    name: "h1".to_string(),
+                }])],
+                declarations: vec![Declaration {
+                    name: "color".to_string(),
+                    value: vec![ComponentValue::PreservedToken(CssToken::Ident(
+                        "red".to_string(),
+                    ))],
+                }],
+            }),
+            Rule::QualifiedRule(QualifiedRule {
+                selectors: vec![Selector::Simple(vec![SimpleSelector::Type {
+                    namespace_prefix: None,
+                    name: "h2".to_string(),
+                }])],
+                declarations: vec![Declaration {
+                    name: "color".to_string(),
+                    value: vec![ComponentValue::PreservedToken(CssToken::Ident(
+                        "blue".to_string(),
+                    ))],
+                }],
             }),
         ];
 
