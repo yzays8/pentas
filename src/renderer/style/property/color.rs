@@ -47,7 +47,7 @@ impl CssProperty for ColorProp {
         })
     }
 
-    fn compute(&mut self, current_color: Option<&SpecifiedStyle>) -> Result<&Self> {
+    fn compute(&mut self, current_color: Option<&SpecifiedStyle>, _: i32, _: i32) -> Result<&Self> {
         let current_color = current_color.and_then(|v| v.color.as_ref());
         match &self.value {
             CssValue::Ident(name) => match name.to_ascii_lowercase().as_str() {
@@ -130,7 +130,7 @@ impl CssProperty for BackGroundColorProp {
         })
     }
 
-    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self> {
+    fn compute(&mut self, current_style: Option<&SpecifiedStyle>, _: i32, _: i32) -> Result<&Self> {
         match &self.value {
             CssValue::Ident(name) => match name.to_ascii_lowercase().as_str() {
                 "currentcolor" => {

@@ -154,8 +154,13 @@ impl DocumentTree {
         Ok(Self { root })
     }
 
-    pub fn to_render_tree(&self, style_sheets: Vec<StyleSheet>) -> Result<RenderTree> {
-        RenderTree::build(self, style_sheets)
+    pub fn to_render_tree(
+        &self,
+        style_sheets: Vec<StyleSheet>,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) -> Result<RenderTree> {
+        RenderTree::build(self, style_sheets, viewport_width, viewport_height)
     }
 
     #[cfg(test)]

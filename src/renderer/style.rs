@@ -29,11 +29,22 @@ pub struct RenderTree {
 }
 
 impl RenderTree {
-    pub fn build(document_tree: &DocumentTree, style_sheets: Vec<StyleSheet>) -> Result<Self> {
+    pub fn build(
+        document_tree: &DocumentTree,
+        style_sheets: Vec<StyleSheet>,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) -> Result<Self> {
         Ok(Self {
             root: Rc::new(RefCell::new(
-                RenderNode::build(Rc::clone(&document_tree.root), &style_sheets, None)?
-                    .context("Failed to build the render tree.")?,
+                RenderNode::build(
+                    Rc::clone(&document_tree.root),
+                    &style_sheets,
+                    None,
+                    viewport_width,
+                    viewport_height,
+                )?
+                .context("Failed to build the render tree.")?,
             )),
         })
     }
@@ -97,6 +108,8 @@ impl RenderNode {
         node: Rc<RefCell<DomNode>>,
         style_sheets: &Vec<StyleSheet>,
         parent_style: Option<ComputedStyle>,
+        viewport_width: i32,
+        viewport_height: i32,
     ) -> Result<Option<Self>> {
         // Omit nodes that are not rendered.
         match &node.borrow().node_type {
@@ -112,7 +125,7 @@ impl RenderNode {
                 apply_filtering(Rc::clone(&node), style_sheets)
                     .apply_cascading()
                     .apply_defaulting(&parent_style)?
-                    .apply_computing()
+                    .apply_computing(viewport_width, viewport_height)
             }
             NodeType::Text(_) => {
                 if parent_style.is_some() {
@@ -137,7 +150,15 @@ impl RenderNode {
             .borrow()
             .children
             .iter()
-            .map(|child| Self::build(Rc::clone(child), style_sheets, Some(computed_style.clone())))
+            .map(|child| {
+                Self::build(
+                    Rc::clone(child),
+                    style_sheets,
+                    Some(computed_style.clone()),
+                    viewport_width,
+                    viewport_height,
+                )
+            })
             .collect::<Result<Vec<_>>>()?
             .into_iter()
             // Skip the children that are not rendered.
@@ -438,12 +459,12 @@ impl SpecifiedStyle {
 
     /// Converts the relative values to absolute values.
     /// https://www.w3.org/TR/css-cascade-3/#computed
-    pub fn apply_computing(&self) -> ComputedStyle {
+    pub fn apply_computing(&self, viewport_width: i32, viewport_height: i32) -> ComputedStyle {
         let mut v = self.clone();
 
-        Self::compute_earlier(&mut v, self);
+        Self::compute_earlier(&mut v, self, viewport_width, viewport_height);
         let earlier_style = v.clone();
-        Self::compute_later(&mut v, &earlier_style);
+        Self::compute_later(&mut v, &earlier_style, viewport_width, viewport_height);
 
         ComputedStyle {
             background_color: v.background_color.unwrap(),
@@ -464,33 +485,113 @@ impl SpecifiedStyle {
     }
 
     /// Computes the properties whose values are used to compute other properties.
-    fn compute_earlier(v: &mut Self, initialized_style: &Self) {
-        Self::compute_property(&mut v.color, Some(initialized_style));
-        Self::compute_property(&mut v.font_size, Some(initialized_style));
-        Self::compute_property(&mut v.display, None);
+    fn compute_earlier(
+        v: &mut Self,
+        initialized_style: &Self,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) {
+        Self::compute_property(
+            &mut v.color,
+            Some(initialized_style),
+            viewport_width,
+            viewport_height,
+        );
+        Self::compute_property(
+            &mut v.font_size,
+            Some(initialized_style),
+            viewport_width,
+            viewport_height,
+        );
+        Self::compute_property(&mut v.display, None, viewport_width, viewport_height);
     }
 
     /// Computes the properties that require some computed values.
-    fn compute_later(v: &mut Self, earlier_style: &Self) {
-        Self::compute_property(&mut v.background_color, Some(earlier_style));
-        Self::compute_property(&mut v.font_family, Some(earlier_style));
-        Self::compute_property(&mut v.font_weight, Some(earlier_style));
-        Self::compute_property(&mut v.text_decoration, Some(earlier_style));
-        Self::compute_property(&mut v.margin, Some(earlier_style));
-        Self::compute_property(&mut v.margin_block, Some(earlier_style));
-        Self::compute_property(&mut v.border, Some(earlier_style));
-        Self::compute_property(&mut v.padding, Some(earlier_style));
-        Self::compute_property(&mut v.width, Some(earlier_style));
-        Self::compute_property(&mut v.height, Some(earlier_style));
-        Self::compute_property(&mut v.border_radius, Some(earlier_style));
+    fn compute_later(
+        v: &mut Self,
+        earlier_style: &Self,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) {
+        Self::compute_property(
+            &mut v.background_color,
+            Some(earlier_style),
+            viewport_width,
+            viewport_height,
+        );
+        Self::compute_property(
+            &mut v.font_family,
+            Some(earlier_style),
+            viewport_width,
+            viewport_height,
+        );
+        Self::compute_property(
+            &mut v.font_weight,
+            Some(earlier_style),
+            viewport_width,
+            viewport_height,
+        );
+        Self::compute_property(
+            &mut v.text_decoration,
+            Some(earlier_style),
+            viewport_width,
+            viewport_height,
+        );
+        Self::compute_property(
+            &mut v.margin,
+            Some(earlier_style),
+            viewport_width,
+            viewport_height,
+        );
+        Self::compute_property(
+            &mut v.margin_block,
+            Some(earlier_style),
+            viewport_width,
+            viewport_height,
+        );
+        Self::compute_property(
+            &mut v.border,
+            Some(earlier_style),
+            viewport_width,
+            viewport_height,
+        );
+        Self::compute_property(
+            &mut v.padding,
+            Some(earlier_style),
+            viewport_width,
+            viewport_height,
+        );
+        Self::compute_property(
+            &mut v.width,
+            Some(earlier_style),
+            viewport_width,
+            viewport_height,
+        );
+        Self::compute_property(
+            &mut v.height,
+            Some(earlier_style),
+            viewport_width,
+            viewport_height,
+        );
+        Self::compute_property(
+            &mut v.border_radius,
+            Some(earlier_style),
+            viewport_width,
+            viewport_height,
+        );
     }
 
-    fn compute_property(prop: &mut Option<impl CssProperty>, current_style: Option<&Self>) {
+    fn compute_property(
+        prop: &mut Option<impl CssProperty>,
+        current_style: Option<&Self>,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) {
         if let Err(e) = prop
             .as_mut()
             .context(anyhow!("Uninitialized property detected while computing."))
             .unwrap()
-            .compute(current_style)
+            .compute(current_style, viewport_width, viewport_height)
         {
             eprintln!("{e}");
         }

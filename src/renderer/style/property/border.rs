@@ -72,8 +72,14 @@ impl CssProperty for BorderProp {
 
     // todo: proper implementation
     #[allow(unused_variables)]
-    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self> {
-        self.border_color.compute(current_style)?;
+    fn compute(
+        &mut self,
+        current_style: Option<&SpecifiedStyle>,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) -> Result<&Self> {
+        self.border_color
+            .compute(current_style, viewport_width, viewport_height)?;
         self.border_width = BorderWidthProp {
             top: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
             right: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),

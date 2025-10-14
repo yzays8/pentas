@@ -62,7 +62,7 @@ impl Renderer {
         match self.trace_level {
             TreeTraceLevel::Silent => {
                 let box_tree = DocumentTree::build(parsed_object.dom_root)?
-                    .to_render_tree(style_sheets)?
+                    .to_render_tree(style_sheets, viewport_width, viewport_height)?
                     .to_box_tree(&self.draw_ctx)?
                     .cleanup()?
                     .layout(viewport_width, viewport_height)?;
@@ -78,7 +78,7 @@ impl Renderer {
                 println!("Title: {}\n", title);
                 let box_tree = DocumentTree::build(parsed_object.dom_root)?
                     .print_in_chain(self.trace_level)
-                    .to_render_tree(style_sheets)?
+                    .to_render_tree(style_sheets, viewport_width, viewport_height)?
                     .print_in_chain(self.trace_level)
                     .to_box_tree(&self.draw_ctx)?
                     .print_in_chain(self.trace_level)
@@ -107,7 +107,7 @@ impl Renderer {
         match self.trace_level {
             TreeTraceLevel::Silent => {
                 DocumentTree::build(parsed_object.dom_root)?
-                    .to_render_tree(style_sheets)?
+                    .to_render_tree(style_sheets, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)?
                     .to_box_tree(&self.draw_ctx)?
                     .cleanup()?
                     .layout(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)?
@@ -122,7 +122,7 @@ impl Renderer {
                 );
                 DocumentTree::build(parsed_object.dom_root)?
                     .print_in_chain(self.trace_level)
-                    .to_render_tree(style_sheets)?
+                    .to_render_tree(style_sheets, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)?
                     .print_in_chain(self.trace_level)
                     .to_box_tree(&self.draw_ctx)?
                     .print_in_chain(self.trace_level)

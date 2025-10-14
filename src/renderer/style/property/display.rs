@@ -124,7 +124,7 @@ impl CssProperty for DisplayProp {
         Ok(ret)
     }
 
-    fn compute(&mut self, _: Option<&SpecifiedStyle>) -> Result<&Self> {
+    fn compute(&mut self, _: Option<&SpecifiedStyle>, _: i32, _: i32) -> Result<&Self> {
         Ok(self)
     }
 }

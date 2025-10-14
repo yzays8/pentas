@@ -116,8 +116,14 @@ impl CssProperty for TextDecorationProp {
         Ok(ret)
     }
 
-    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self> {
-        self.color.compute(current_style)?;
+    fn compute(
+        &mut self,
+        current_style: Option<&SpecifiedStyle>,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) -> Result<&Self> {
+        self.color
+            .compute(current_style, viewport_width, viewport_height)?;
         Ok(self)
     }
 }

@@ -110,17 +110,47 @@ impl CssProperty for BorderRadiusProp {
         }
     }
 
-    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self> {
-        self.top_left = Self::compute_top(&self.top_left, current_style)?;
-        self.top_right = Self::compute_top(&self.top_right, current_style)?;
-        self.bottom_right = Self::compute_top(&self.bottom_right, current_style)?;
-        self.bottom_left = Self::compute_top(&self.bottom_left, current_style)?;
+    fn compute(
+        &mut self,
+        current_style: Option<&SpecifiedStyle>,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) -> Result<&Self> {
+        self.top_left = Self::compute_top(
+            &self.top_left,
+            current_style,
+            viewport_width,
+            viewport_height,
+        )?;
+        self.top_right = Self::compute_top(
+            &self.top_right,
+            current_style,
+            viewport_width,
+            viewport_height,
+        )?;
+        self.bottom_right = Self::compute_top(
+            &self.bottom_right,
+            current_style,
+            viewport_width,
+            viewport_height,
+        )?;
+        self.bottom_left = Self::compute_top(
+            &self.bottom_left,
+            current_style,
+            viewport_width,
+            viewport_height,
+        )?;
         Ok(self)
     }
 }
 
 impl BorderRadiusProp {
-    fn compute_top(value: &CssValue, current_style: Option<&SpecifiedStyle>) -> Result<CssValue> {
+    fn compute_top(
+        value: &CssValue,
+        current_style: Option<&SpecifiedStyle>,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) -> Result<CssValue> {
         let current_font_size = current_style.and_then(|s| s.font_size.as_ref());
         let current_font_size = match current_font_size {
             Some(FontSizeProp {
@@ -134,6 +164,14 @@ impl BorderRadiusProp {
                 LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px) => Ok(value.clone()),
                 LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Em) => Ok(CssValue::Length(
                     size * current_font_size,
+                    LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                )),
+                LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Vw) => Ok(CssValue::Length(
+                    size * (viewport_width as f32) / 100.0,
+                    LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                )),
+                LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Vh) => Ok(CssValue::Length(
+                    size * (viewport_height as f32) / 100.0,
                     LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
                 )),
                 _ => unimplemented!(),

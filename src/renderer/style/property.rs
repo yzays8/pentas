@@ -42,7 +42,12 @@ pub trait CssProperty {
     fn parse(values: &[ComponentValue]) -> Result<Self>
     where
         Self: Sized;
-    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self>
+    fn compute(
+        &mut self,
+        current_style: Option<&SpecifiedStyle>,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) -> Result<&Self>
     where
         Self: Sized;
 }

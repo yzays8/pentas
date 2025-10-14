@@ -98,17 +98,29 @@ impl CssProperty for MarginProp {
         }
     }
 
-    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self> {
-        self.top = Self::compute_top(&self.top, current_style)?;
-        self.right = Self::compute_top(&self.right, current_style)?;
-        self.bottom = Self::compute_top(&self.bottom, current_style)?;
-        self.left = Self::compute_top(&self.left, current_style)?;
+    fn compute(
+        &mut self,
+        current_style: Option<&SpecifiedStyle>,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) -> Result<&Self> {
+        self.top = Self::compute_top(&self.top, current_style, viewport_width, viewport_height)?;
+        self.right =
+            Self::compute_top(&self.right, current_style, viewport_width, viewport_height)?;
+        self.bottom =
+            Self::compute_top(&self.bottom, current_style, viewport_width, viewport_height)?;
+        self.left = Self::compute_top(&self.left, current_style, viewport_width, viewport_height)?;
         Ok(self)
     }
 }
 
 impl MarginProp {
-    fn compute_top(value: &CssValue, current_style: Option<&SpecifiedStyle>) -> Result<CssValue> {
+    fn compute_top(
+        value: &CssValue,
+        current_style: Option<&SpecifiedStyle>,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) -> Result<CssValue> {
         let current_font_size = current_style.and_then(|s| s.font_size.as_ref());
         let current_font_size = match current_font_size {
             Some(FontSizeProp {
@@ -130,7 +142,15 @@ impl MarginProp {
                     size * current_font_size,
                     LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
                 )),
-                _ => unimplemented!(),
+                LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Vw) => Ok(CssValue::Length(
+                    size * (viewport_width as f32) / 100.0,
+                    LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                )),
+                LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Vh) => Ok(CssValue::Length(
+                    size * (viewport_height as f32) / 100.0,
+                    LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                )),
+                _ => unimplemented!("{:?} unit is not supported yet", unit),
             },
             CssValue::Percentage(_) => unimplemented!(),
             _ => bail!("Invalid margin value: {:?}", &value),
@@ -191,15 +211,26 @@ impl CssProperty for MarginBlockProp {
         }
     }
 
-    fn compute(&mut self, current_style: Option<&SpecifiedStyle>) -> Result<&Self> {
-        self.start = Self::compute_top(&self.start, current_style)?;
-        self.end = Self::compute_top(&self.end, current_style)?;
+    fn compute(
+        &mut self,
+        current_style: Option<&SpecifiedStyle>,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) -> Result<&Self> {
+        self.start =
+            Self::compute_top(&self.start, current_style, viewport_width, viewport_height)?;
+        self.end = Self::compute_top(&self.end, current_style, viewport_width, viewport_height)?;
         Ok(self)
     }
 }
 
 impl MarginBlockProp {
-    fn compute_top(value: &CssValue, current_style: Option<&SpecifiedStyle>) -> Result<CssValue> {
+    fn compute_top(
+        value: &CssValue,
+        current_style: Option<&SpecifiedStyle>,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) -> Result<CssValue> {
         let current_font_size = current_style.and_then(|s| s.font_size.as_ref());
         let current_font_size = match current_font_size {
             Some(FontSizeProp {
@@ -213,6 +244,14 @@ impl MarginBlockProp {
                 LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px) => Ok(value.clone()),
                 LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Em) => Ok(CssValue::Length(
                     size * current_font_size,
+                    LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                )),
+                LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Vw) => Ok(CssValue::Length(
+                    size * (viewport_width as f32) / 100.0,
+                    LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                )),
+                LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Vh) => Ok(CssValue::Length(
+                    size * (viewport_height as f32) / 100.0,
                     LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
                 )),
                 _ => unimplemented!(),

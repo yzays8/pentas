@@ -67,7 +67,12 @@ impl CssProperty for FontSizeProp {
         }
     }
 
-    fn compute(&mut self, parent_style: Option<&SpecifiedStyle>) -> Result<&Self> {
+    fn compute(
+        &mut self,
+        parent_style: Option<&SpecifiedStyle>,
+        viewport_width: i32,
+        viewport_height: i32,
+    ) -> Result<&Self> {
         let parent_px = match parent_style.and_then(|s| s.font_size.as_ref()) {
             Some(FontSizeProp {
                 size: CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
@@ -108,6 +113,18 @@ impl CssProperty for FontSizeProp {
                 LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Em) => {
                     self.size = CssValue::Length(
                         size * parent_px,
+                        LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                    );
+                }
+                LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Vw) => {
+                    self.size = CssValue::Length(
+                        size * (viewport_width as f32) / 100.0,
+                        LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
+                    );
+                }
+                LengthUnit::RelativeLengthUnit(RelativeLengthUnit::Vh) => {
+                    self.size = CssValue::Length(
+                        size * (viewport_height as f32) / 100.0,
                         LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
                     );
                 }
