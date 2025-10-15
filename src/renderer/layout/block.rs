@@ -167,34 +167,38 @@ impl LayoutBox for BlockBox {
             .to_px()
             .unwrap();
 
-        // The style of the body element is applied to the whole viewport.
-        let is_body = if let NodeType::Element(Element { tag_name: n, .. }) =
-            &self.style_node.borrow().dom_node.borrow().node_type
-        {
-            n == "body"
-        } else {
-            false
-        };
-
         // Draw the rectangle only if the background color is not transparent.
         if a != 0.0 {
-            objects.push(RenderObject::Rect(RenderRect {
-                x: self.layout_info.pos.x as f64,
-                y: self.layout_info.pos.y as f64,
-                width: if is_body {
-                    viewport_width as f64
-                } else {
-                    self.layout_info.size.width as f64
-                },
-                height: if is_body {
-                    viewport_height as f64
-                } else {
-                    self.layout_info.size.height as f64
-                },
-                color: (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0),
-                border_radius,
-            }));
+            // The style of the body element is applied to the whole viewport.
+            let is_body = if let NodeType::Element(Element { tag_name: n, .. }) =
+                &self.style_node.borrow().dom_node.borrow().node_type
+            {
+                n == "body"
+            } else {
+                false
+            };
+
+            if is_body {
+                objects.push(RenderObject::Rect(RenderRect {
+                    x: 0.0,
+                    y: 0.0,
+                    width: viewport_width as f64,
+                    height: viewport_height as f64,
+                    color: (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0),
+                    border_radius,
+                }));
+            } else {
+                objects.push(RenderObject::Rect(RenderRect {
+                    x: self.layout_info.pos.x as f64,
+                    y: self.layout_info.pos.y as f64,
+                    width: self.layout_info.size.width as f64,
+                    height: self.layout_info.size.height as f64,
+                    color: (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0),
+                    border_radius,
+                }));
+            }
         }
+
         for child in self.children.iter() {
             objects.extend(
                 child
