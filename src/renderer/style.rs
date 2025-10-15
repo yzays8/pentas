@@ -7,9 +7,9 @@ use gtk4::pango;
 use indexmap::IndexMap;
 
 use self::property::{
-    BackGroundColorProp, BorderProp, BorderRadiusProp, ColorProp, CssProperty, DisplayBox,
-    DisplayOutside, DisplayProp, FontFamilyProp, FontSizeProp, FontWeightProp, HeightProp,
-    MarginBlockProp, MarginProp, PaddingProp, TextDecorationProp, WidthProp,
+    BackGroundColorProp, BackGroundProp, BorderProp, BorderRadiusProp, ColorProp, CssProperty,
+    DisplayBox, DisplayOutside, DisplayProp, FontFamilyProp, FontSizeProp, FontWeightProp,
+    HeightProp, MarginBlockProp, MarginProp, PaddingProp, TextDecorationProp, WidthProp,
 };
 use crate::{
     renderer::{
@@ -309,6 +309,7 @@ impl CascadedStyle {
 /// https://www.w3.org/TR/css-cascade-3/#specified
 #[derive(Clone, Debug, Default)]
 pub struct SpecifiedStyle {
+    pub background: Option<BackGroundProp>,
     pub background_color: Option<BackGroundColorProp>,
     pub color: Option<ColorProp>,
     pub display: Option<DisplayProp>,
@@ -333,6 +334,7 @@ impl SpecifiedStyle {
     /// Sets the initial values for the properties.
     pub fn initialize(&mut self) {
         // todo: Add more properties.
+        self.background = Some(BackGroundProp::default());
         self.background_color = Some(BackGroundColorProp::default());
         self.color = Some(ColorProp::default());
         self.display = Some(DisplayProp::default());
@@ -367,10 +369,19 @@ impl SpecifiedStyle {
         cascaded_values.reverse();
         for (name, values) in &cascaded_values {
             match name.as_str() {
+                "background" => {
+                    if let Ok(v) = BackGroundProp::parse(values) {
+                        self.background = Some(v);
+                    }
+                    *self.background_color.as_mut().unwrap() =
+                        self.background.as_ref().unwrap().color.clone();
+                }
                 "background-color" => {
                     if let Ok(v) = BackGroundColorProp::parse(values) {
                         self.background_color = Some(v);
                     }
+                    self.background.as_mut().unwrap().color =
+                        self.background_color.as_ref().unwrap().clone();
                 }
                 "color" => {
                     if let Ok(v) = ColorProp::parse(values) {
@@ -466,6 +477,7 @@ impl SpecifiedStyle {
         Self::compute_later(&mut v, &earlier_style, viewport_width, viewport_height);
 
         ComputedStyle {
+            background: v.background.unwrap(),
             background_color: v.background_color.unwrap(),
             color: v.color.unwrap(),
             display: v.display.unwrap(),
@@ -512,6 +524,12 @@ impl SpecifiedStyle {
         viewport_width: i32,
         viewport_height: i32,
     ) {
+        Self::compute_property(
+            &mut v.background,
+            Some(earlier_style),
+            viewport_width,
+            viewport_height,
+        );
         Self::compute_property(
             &mut v.background_color,
             Some(earlier_style),
@@ -600,6 +618,7 @@ impl SpecifiedStyle {
 /// https://www.w3.org/TR/css-cascade-3/#computed
 #[derive(Clone, Debug, Default)]
 pub struct ComputedStyle {
+    pub background: BackGroundProp,
     pub background_color: BackGroundColorProp,
     pub color: ColorProp,
     pub display: DisplayProp,
@@ -619,6 +638,7 @@ pub struct ComputedStyle {
 impl fmt::Display for ComputedStyle {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut style_str = String::new();
+        style_str.push_str(&format!("background: {}; ", self.background));
         style_str.push_str(&format!("background-color: {}; ", self.background_color));
         style_str.push_str(&format!("color: {}; ", self.color));
         style_str.push_str(&format!("display: {}; ", self.display));

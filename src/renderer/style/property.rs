@@ -1,3 +1,4 @@
+mod background;
 mod border;
 mod border_radius;
 mod color;
@@ -12,6 +13,7 @@ mod text_decoration;
 mod width;
 
 pub use self::{
+    background::BackGroundProp,
     border::BorderProp,
     border_radius::BorderRadiusProp,
     color::{BackGroundColorProp, ColorProp},
