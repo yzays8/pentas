@@ -6,7 +6,7 @@ use crate::{
         css::{cssom::ComponentValue, token::CssToken},
         layout::Edge,
         style::{
-            SpecifiedStyle,
+            ComputedStyle,
             property::{
                 AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
                 font_size::{self, FontSizeProp},
@@ -105,7 +105,7 @@ impl CssProperty for PaddingProp {
 
     fn compute(
         &mut self,
-        current_style: Option<&SpecifiedStyle>,
+        current_style: Option<&ComputedStyle>,
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<&Self> {
@@ -122,7 +122,7 @@ impl CssProperty for PaddingProp {
 impl PaddingProp {
     fn compute_top(
         value: &CssValue,
-        current_style: Option<&SpecifiedStyle>,
+        current_style: Option<&ComputedStyle>,
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<CssValue> {

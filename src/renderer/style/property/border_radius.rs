@@ -5,7 +5,7 @@ use crate::{
     renderer::{
         css::{cssom::ComponentValue, token::CssToken},
         style::{
-            SpecifiedStyle,
+            ComputedStyle,
             property::{
                 AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
                 font_size::{self, FontSizeProp},
@@ -36,7 +36,7 @@ impl fmt::Display for BorderRadiusProp {
 
 impl Default for BorderRadiusProp {
     fn default() -> Self {
-        BorderRadiusProp {
+        Self {
             top_left: CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
             top_right: CssValue::Length(
                 0.0,
@@ -116,7 +116,7 @@ impl CssProperty for BorderRadiusProp {
 
     fn compute(
         &mut self,
-        current_style: Option<&SpecifiedStyle>,
+        current_style: Option<&ComputedStyle>,
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<&Self> {
@@ -151,7 +151,7 @@ impl CssProperty for BorderRadiusProp {
 impl BorderRadiusProp {
     fn compute_top(
         value: &CssValue,
-        current_style: Option<&SpecifiedStyle>,
+        current_style: Option<&ComputedStyle>,
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<CssValue> {

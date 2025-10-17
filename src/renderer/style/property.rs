@@ -37,7 +37,7 @@ use crate::{
             cssom::ComponentValue,
             token::{CssToken, NumericType},
         },
-        style::{SpecifiedStyle, property::color::rgb_to_name},
+        style::{ComputedStyle, property::color::rgb_to_name},
     },
 };
 
@@ -47,7 +47,7 @@ pub trait CssProperty {
         Self: Sized;
     fn compute(
         &mut self,
-        current_style: Option<&SpecifiedStyle>,
+        current_style: Option<&ComputedStyle>,
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<&Self>

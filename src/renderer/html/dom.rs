@@ -40,18 +40,18 @@ impl DomNode {
         }
     }
 
-    pub fn append_child(node_ref: &Rc<RefCell<Self>>, child: Self) -> Rc<RefCell<Self>> {
+    pub fn append_child(node: &Rc<RefCell<Self>>, child: Self) -> Rc<RefCell<Self>> {
         let child = Rc::new(RefCell::new(child));
-        child.borrow_mut().parent = Some(Rc::downgrade(node_ref));
-        if node_ref.borrow().children.is_empty() {
+        child.borrow_mut().parent = Some(Rc::downgrade(node));
+        if node.borrow().children.is_empty() {
             child.borrow_mut().prev_sibling = None;
             child.borrow_mut().next_sibling = None;
         } else {
-            let last_child = Rc::clone(node_ref.borrow().children.last().unwrap());
+            let last_child = Rc::clone(node.borrow().children.last().unwrap());
             child.borrow_mut().prev_sibling = Some(Rc::downgrade(&last_child));
             last_child.borrow_mut().next_sibling = Some(Rc::clone(&child));
         }
-        node_ref.borrow_mut().children.push(Rc::clone(&child));
+        node.borrow_mut().children.push(Rc::clone(&child));
         child
     }
 
@@ -178,7 +178,7 @@ impl fmt::Display for DocumentTree {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fn construct_node_view(
             node_tree: &mut String,
-            node: &Rc<RefCell<DomNode>>,
+            node: &DomNode,
             current_depth: usize,
             is_last_child: bool,
             mut exclude_branches: Vec<usize>,
@@ -195,12 +195,12 @@ impl fmt::Display for DocumentTree {
                 }
             }
             indent_and_branches.push_str(if is_last_child { "└─" } else { "├─" });
-            node_tree.push_str(&format!("{}{}\n", indent_and_branches, node.borrow()));
-            let children_num = node.borrow().children.len();
-            for (i, child) in node.borrow().children.iter().enumerate() {
+            node_tree.push_str(&format!("{}{}\n", indent_and_branches, node));
+            let children_num = node.children.len();
+            for (i, child) in node.children.iter().enumerate() {
                 construct_node_view(
                     node_tree,
-                    child,
+                    &child.borrow(),
                     current_depth + 1,
                     i == children_num - 1,
                     exclude_branches.clone(),
@@ -208,7 +208,7 @@ impl fmt::Display for DocumentTree {
             }
         }
         let mut node_tree = String::new();
-        construct_node_view(&mut node_tree, &self.root, 0, true, vec![]);
+        construct_node_view(&mut node_tree, &self.root.borrow(), 0, true, vec![]);
         node_tree.pop(); // Remove the last newline character
         write!(f, "{}", node_tree)
     }

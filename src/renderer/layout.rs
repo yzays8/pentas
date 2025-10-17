@@ -83,27 +83,24 @@ impl BoxTree {
         Ok(self.trim_text()?.remove_empty_anonymous_boxes())
     }
 
-    fn trim_text(mut self) -> Result<Self> {
-        fn helper(node: &mut Rc<RefCell<BoxNode>>) -> Result<()> {
-            if let BoxNode::Text(_) = *node.borrow() {
+    fn trim_text(self) -> Result<Self> {
+        fn helper(node: &mut BoxNode) -> Result<()> {
+            if let BoxNode::Text(_) = *node {
                 return Ok(());
             }
 
             let mut remove_list: Vec<usize> = vec![];
-            let mut n = node.borrow_mut();
-            let children_enum = match &mut *n {
+            let children = match node {
                 BoxNode::BlockBox(BlockBox { children, .. })
                 | BoxNode::InlineBox(InlineBox { children, .. })
-                | BoxNode::AnonymousBox(AnonymousBox { children, .. }) => {
-                    children.iter_mut().enumerate()
-                }
+                | BoxNode::AnonymousBox(AnonymousBox { children, .. }) => children,
                 BoxNode::Text(_) => unreachable!(),
             };
-            let children_num = children_enum.len();
 
-            for (i, child) in children_enum {
+            let num = children.len();
+            for (i, child) in children.iter_mut().enumerate() {
                 if let BoxNode::Text(t) = &mut *child.borrow_mut() {
-                    t.trim_text(i == 0, i == children_num - 1)?;
+                    t.trim_text(i == 0, i == num - 1)?;
                     if t.style_node
                         .borrow()
                         .dom_node
@@ -116,11 +113,11 @@ impl BoxTree {
                     }
                 }
                 if !remove_list.contains(&i) {
-                    helper(child)?;
+                    helper(&mut child.borrow_mut())?;
                 }
             }
             for i in remove_list.iter().rev() {
-                match &mut *n {
+                match node {
                     BoxNode::BlockBox(BlockBox { children, .. })
                     | BoxNode::InlineBox(InlineBox { children, .. })
                     | BoxNode::AnonymousBox(AnonymousBox { children, .. }) => {
@@ -133,28 +130,25 @@ impl BoxTree {
             Ok(())
         }
 
-        helper(&mut self.root)?;
+        helper(&mut self.root.borrow_mut())?;
         Ok(self)
     }
 
-    fn remove_empty_anonymous_boxes(mut self) -> Self {
-        fn helper(node: &mut Rc<RefCell<BoxNode>>) {
-            if let BoxNode::Text(_) = *node.borrow() {
+    fn remove_empty_anonymous_boxes(self) -> Self {
+        fn helper(node: &mut BoxNode) {
+            if let BoxNode::Text(_) = node {
                 return;
             }
 
-            let mut n = node.borrow_mut();
-            let children_enum = match &mut *n {
+            let children = match node {
                 BoxNode::BlockBox(BlockBox { children, .. })
                 | BoxNode::InlineBox(InlineBox { children, .. })
-                | BoxNode::AnonymousBox(AnonymousBox { children, .. }) => {
-                    children.iter_mut().enumerate()
-                }
+                | BoxNode::AnonymousBox(AnonymousBox { children, .. }) => children,
                 BoxNode::Text(_) => unreachable!(),
             };
             let mut remove_list: Vec<usize> = vec![];
 
-            for (i, child) in children_enum {
+            for (i, child) in children.iter_mut().enumerate() {
                 if let BoxNode::AnonymousBox(AnonymousBox { children, .. }) = &*child.borrow()
                     && children.is_empty()
                 {
@@ -163,11 +157,11 @@ impl BoxTree {
 
                 // If the child is not removed as an empty anonymous box, recursively check its children.
                 if !remove_list.contains(&i) {
-                    helper(child);
+                    helper(&mut child.borrow_mut());
                 }
             }
             for i in remove_list.iter().rev() {
-                match &mut *n {
+                match node {
                     BoxNode::BlockBox(BlockBox { children, .. })
                     | BoxNode::InlineBox(InlineBox { children, .. })
                     | BoxNode::AnonymousBox(AnonymousBox { children, .. }) => {
@@ -178,7 +172,7 @@ impl BoxTree {
             }
         }
 
-        helper(&mut self.root);
+        helper(&mut self.root.borrow_mut());
         self
     }
 
@@ -207,7 +201,7 @@ impl fmt::Display for BoxTree {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fn construct_node_view(
             node_tree: &mut String,
-            node: &Rc<RefCell<BoxNode>>,
+            node: &BoxNode,
             current_depth: usize,
             is_last_child: bool,
             mut exclude_branches: Vec<usize>,
@@ -224,35 +218,32 @@ impl fmt::Display for BoxTree {
                 }
             }
             indent_and_branches.push_str(if is_last_child { "└─" } else { "├─" });
-            node_tree.push_str(&format!("{}{}\n", indent_and_branches, node.borrow()));
+            node_tree.push_str(&format!("{}{}\n", indent_and_branches, node));
 
             // No children.
-            if let BoxNode::Text(_) = *node.borrow() {
+            if let BoxNode::Text(_) = node {
                 return;
             }
 
-            let mut n = node.borrow_mut();
-            let children_enum = match &mut *n {
+            let children = match node {
                 BoxNode::BlockBox(BlockBox { children, .. })
                 | BoxNode::InlineBox(InlineBox { children, .. })
-                | BoxNode::AnonymousBox(AnonymousBox { children, .. }) => {
-                    children.iter_mut().enumerate()
-                }
+                | BoxNode::AnonymousBox(AnonymousBox { children, .. }) => children,
                 BoxNode::Text(_) => unreachable!(),
             };
-            let children_num = children_enum.len();
-            for (i, child) in children_enum {
+            let num = children.len();
+            for (i, child) in children.iter().enumerate() {
                 construct_node_view(
                     node_tree,
-                    child,
+                    &child.borrow(),
                     current_depth + 1,
-                    i == children_num - 1,
+                    i == num - 1,
                     exclude_branches.clone(),
                 );
             }
         }
         let mut node_tree = String::new();
-        construct_node_view(&mut node_tree, &self.root, 0, true, vec![]);
+        construct_node_view(&mut node_tree, &self.root.borrow(), 0, true, vec![]);
         node_tree.pop(); // Remove the last newline character
         write!(f, "{}", node_tree)
     }

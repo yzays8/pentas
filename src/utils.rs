@@ -41,18 +41,12 @@ where
 
 /// Peekable and bidirectional iterator for tokenizer/parser.
 #[derive(Debug)]
-pub struct TokenIterator<I>
-where
-    I: Clone,
-{
+pub struct TokenIterator<I: Clone> {
     buf: VecDeque<I>,
     pos: usize,
 }
 
-impl<I> TokenIterator<I>
-where
-    I: Clone,
-{
+impl<I: Clone> TokenIterator<I> {
     pub fn new(arr: &[I]) -> Self {
         Self {
             buf: arr.iter().cloned().collect(),

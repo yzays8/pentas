@@ -5,7 +5,7 @@ use crate::{
     renderer::{
         css::cssom::ComponentValue,
         style::{
-            SpecifiedStyle,
+            ComputedStyle,
             property::{BackGroundColorProp, CssProperty},
         },
     },
@@ -34,7 +34,7 @@ impl CssProperty for BackGroundProp {
 
     fn compute(
         &mut self,
-        current_style: Option<&SpecifiedStyle>,
+        current_style: Option<&ComputedStyle>,
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<&Self> {

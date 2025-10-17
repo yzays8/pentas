@@ -8,7 +8,7 @@ use crate::{
             token::{CssToken, NumericType},
         },
         style::{
-            SpecifiedStyle,
+            ComputedStyle,
             property::{CssProperty, CssValue},
         },
     },
@@ -61,7 +61,7 @@ impl CssProperty for FontWeightProp {
         }
     }
 
-    fn compute(&mut self, parent_style: Option<&SpecifiedStyle>, _: i32, _: i32) -> Result<&Self> {
+    fn compute(&mut self, parent_style: Option<&ComputedStyle>, _: i32, _: i32) -> Result<&Self> {
         let parent_weight = parent_style.map(|s| &s.font_weight);
         let parent_weight = match parent_weight {
             Some(FontWeightProp {

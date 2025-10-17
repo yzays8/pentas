@@ -3,7 +3,7 @@ mod widgets;
 
 use gtk4::{Application, gio, glib, prelude::*};
 
-use crate::{app::TreeTraceLevel, ui::widgets::window::Window};
+use crate::{app::TreeTraceLevel, ui::widgets::Window};
 
 const GTK_APP_ID: &str = "app.pentas";
 pub const DEFAULT_WINDOW_WIDTH: i32 = 1200;

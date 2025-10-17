@@ -13,7 +13,7 @@ mod imp {
         style_context_add_provider_for_display, subclass::prelude::*,
     };
 
-    use crate::ui::widgets::{content::ContentArea, toolbar::Toolbar};
+    use crate::ui::widgets::{ContentArea, Toolbar};
 
     // "/pentas" is just a prefix. See resources.gresource.xml
     #[derive(Debug, CompositeTemplate, Default)]

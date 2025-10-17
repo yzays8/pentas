@@ -5,7 +5,7 @@ use crate::{
     renderer::{
         css::{cssom::ComponentValue, token::CssToken},
         style::{
-            SpecifiedStyle,
+            ComputedStyle,
             property::{
                 CssProperty, CssValue,
                 color::{ColorProp, parse_color_type},
@@ -41,7 +41,7 @@ impl fmt::Display for TextDecorationProp {
 
 impl Default for TextDecorationProp {
     fn default() -> Self {
-        TextDecorationProp {
+        Self {
             color: ColorProp {
                 value: CssValue::Ident("currentColor".to_string()),
             },
@@ -127,7 +127,7 @@ impl CssProperty for TextDecorationProp {
 
     fn compute(
         &mut self,
-        current_style: Option<&SpecifiedStyle>,
+        current_style: Option<&ComputedStyle>,
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<&Self> {

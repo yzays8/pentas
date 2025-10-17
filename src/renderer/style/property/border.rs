@@ -6,7 +6,7 @@ use crate::{
         css::cssom::ComponentValue,
         layout::Edge,
         style::{
-            SpecifiedStyle,
+            ComputedStyle,
             property::{AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, color::ColorProp},
         },
     },
@@ -75,7 +75,7 @@ impl CssProperty for BorderProp {
     #[allow(unused_variables)]
     fn compute(
         &mut self,
-        current_style: Option<&SpecifiedStyle>,
+        current_style: Option<&ComputedStyle>,
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<&Self> {

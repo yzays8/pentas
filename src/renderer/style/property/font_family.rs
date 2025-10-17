@@ -5,7 +5,7 @@ use crate::{
     renderer::{
         css::{cssom::ComponentValue, token::CssToken},
         style::{
-            SpecifiedStyle,
+            ComputedStyle,
             property::{CssProperty, CssValue},
         },
     },
@@ -77,7 +77,7 @@ impl CssProperty for FontFamilyProp {
         Ok(Self { family })
     }
 
-    fn compute(&mut self, _: Option<&SpecifiedStyle>, _: i32, _: i32) -> Result<&Self> {
+    fn compute(&mut self, _: Option<&ComputedStyle>, _: i32, _: i32) -> Result<&Self> {
         Ok(self)
     }
 }

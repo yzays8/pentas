@@ -3,7 +3,6 @@ pub mod property;
 use std::{cell::RefCell, default::Default, fmt, rc::Rc};
 
 use gtk4::pango;
-use indexmap::IndexMap;
 
 use self::property::{
     BackGroundColorProp, BackGroundProp, BorderProp, BorderRadiusProp, ColorProp, CssProperty,
@@ -58,7 +57,7 @@ impl fmt::Display for RenderTree {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fn construct_node_view(
             node_tree: &mut String,
-            node: &Rc<RefCell<RenderNode>>,
+            node: &RenderNode,
             current_depth: usize,
             is_last_child: bool,
             mut exclude_branches: Vec<usize>,
@@ -75,12 +74,12 @@ impl fmt::Display for RenderTree {
                 }
             }
             indent_and_branches.push_str(if is_last_child { "└─" } else { "├─" });
-            node_tree.push_str(&format!("{}{}\n", indent_and_branches, node.borrow()));
-            let children_num = node.borrow().children.len();
-            for (i, child) in node.borrow().children.iter().enumerate() {
+            node_tree.push_str(&format!("{}{}\n", indent_and_branches, node));
+            let children_num = node.children.len();
+            for (i, child) in node.children.iter().enumerate() {
                 construct_node_view(
                     node_tree,
-                    child,
+                    &child.borrow(),
                     current_depth + 1,
                     i == children_num - 1,
                     exclude_branches.clone(),
@@ -88,7 +87,7 @@ impl fmt::Display for RenderTree {
             }
         }
         let mut node_tree = String::new();
-        construct_node_view(&mut node_tree, &self.root, 0, true, vec![]);
+        construct_node_view(&mut node_tree, &self.root.borrow(), 0, true, vec![]);
         node_tree.pop(); // Remove the last newline character
         write!(f, "{}", node_tree)
     }
@@ -124,8 +123,8 @@ impl RenderNode {
                 // https://www.w3.org/TR/css-cascade-3/#value-stages
                 apply_filtering(Rc::clone(&node), style_sheets)
                     .apply_cascading()
-                    .apply_defaulting(&parent_style)?
-                    .apply_computing(viewport_width, viewport_height)
+                    .apply_defaulting(&parent_style)
+                    .apply_computing(viewport_width, viewport_height)?
             }
             NodeType::Text(_) => {
                 if let Some(style) = &parent_style {
@@ -238,7 +237,7 @@ impl DeclaredStyle {
     /// Returns the cascaded values, which are the declared values that "win" the cascade.
     /// There is at most one cascaded value per property per element.
     /// https://www.w3.org/TR/css-cascade-3/#cascading
-    pub fn apply_cascading(&self) -> CascadedStyle {
+    pub fn apply_cascading(self) -> CascadedStyle {
         // Vec<(index, declaration, specificity)>
         let mut sorted_list = self
             .values
@@ -255,44 +254,37 @@ impl DeclaredStyle {
         sorted_list.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| b.0.cmp(&a.0)));
 
         // Determine the winning (highest-priority) declarations.
-        let mut cascaded_values = CascadedStyle::new();
+        let mut cascaded_style = CascadedStyle::new();
         for declarations in sorted_list.iter().map(|(_, declarations, _)| declarations) {
             for declaration in declarations {
-                // The higher-priority declarations are placed first in the table,
-                // and declarations placed later in the table that have lower-priority
-                // with the same name are ignored.
-                cascaded_values.add(&declaration.name, &declaration.value);
+                // The higher-priority declarations are placed first in the table.
+                cascaded_style.add(&declaration.name, &declaration.value);
             }
         }
 
-        cascaded_values
+        cascaded_style
     }
 }
 
 /// https://www.w3.org/TR/css-cascade-3/#cascaded
 #[derive(Debug)]
 pub struct CascadedStyle {
-    pub values: IndexMap<String, Vec<ComponentValue>>,
+    pub values: Vec<(String, Vec<ComponentValue>)>,
 }
 
 impl CascadedStyle {
     pub fn new() -> Self {
-        Self {
-            values: IndexMap::new(),
-        }
+        Self { values: Vec::new() }
     }
 
-    /// Keeps the order of addition.
     pub fn add(&mut self, name: &str, values: &[ComponentValue]) {
-        self.values
-            .entry(name.to_string())
-            .or_insert_with(|| values.to_vec());
+        self.values.push((name.to_string(), values.to_vec()));
     }
 
     /// Returns the specified values. All properties are set to their initial values or inherited values.
     /// https://www.w3.org/TR/css-cascade-3/#defaulting
-    pub fn apply_defaulting(&self, parent_style: &Option<ComputedStyle>) -> Result<SpecifiedStyle> {
-        let mut specified_values = SpecifiedStyle::new();
+    pub fn apply_defaulting(self, parent_style: &Option<ComputedStyle>) -> ComputedStyle {
+        let mut specified_values = ComputedStyle::new();
 
         if parent_style.is_some() {
             specified_values.inherit(parent_style.as_ref().unwrap());
@@ -300,13 +292,13 @@ impl CascadedStyle {
 
         specified_values.set_from(self);
 
-        Ok(specified_values)
+        specified_values
     }
 }
 
 /// https://www.w3.org/TR/css-cascade-3/#specified
 #[derive(Clone, Debug, Default)]
-pub struct SpecifiedStyle {
+pub struct ComputedStyle {
     pub background: BackGroundProp,
     pub background_color: BackGroundColorProp,
     pub color: ColorProp,
@@ -324,14 +316,14 @@ pub struct SpecifiedStyle {
     pub border_radius: BorderRadiusProp,
 }
 
-impl SpecifiedStyle {
+impl ComputedStyle {
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Sets the inherited values for all "inherited properties".
     /// The values inherited from the parent element must be the computed values.
-    pub fn inherit(&mut self, parent_values: &ComputedStyle) {
+    pub fn inherit(&mut self, parent_values: &Self) {
         self.color = parent_values.color.clone();
         self.font_family = parent_values.font_family.clone();
         self.font_size = parent_values.font_size.clone();
@@ -339,13 +331,10 @@ impl SpecifiedStyle {
     }
 
     // Assumes that the computed values have been initialized and inherited.
-    pub fn set_from(&mut self, cascaded_values: &CascadedStyle) {
-        let mut cascaded_values = cascaded_values.values.clone();
+    pub fn set_from(&mut self, cascaded_style: CascadedStyle) {
         // The higher priority styles are placed first in the values, so
         // it must be reversed to process according to the priority.
-        // O(n) time
-        cascaded_values.reverse();
-        for (name, values) in &cascaded_values {
+        for (name, values) in cascaded_style.values.iter().rev() {
             match name.as_str() {
                 "background" => {
                     if let Ok(v) = BackGroundProp::parse(values) {
@@ -441,165 +430,45 @@ impl SpecifiedStyle {
 
     /// Converts the relative values to absolute values.
     /// https://www.w3.org/TR/css-cascade-3/#computed
-    pub fn apply_computing(&self, viewport_width: i32, viewport_height: i32) -> ComputedStyle {
-        let mut v = self.clone();
+    pub fn apply_computing(mut self, viewport_width: i32, viewport_height: i32) -> Result<Self> {
+        // Compute the properties whose values are used to compute other properties.
+        let s = self.clone();
+        self.color
+            .compute(Some(&s), viewport_width, viewport_height)?;
+        self.font_size
+            .compute(Some(&s), viewport_width, viewport_height)?;
+        self.display
+            .compute(None, viewport_width, viewport_height)?;
 
-        Self::compute_earlier(&mut v, self, viewport_width, viewport_height);
-        let earlier_style = v.clone();
-        Self::compute_later(&mut v, &earlier_style, viewport_width, viewport_height);
+        // Compute the properties that require some computed values.
+        let s = self.clone();
+        self.background
+            .compute(Some(&s), viewport_width, viewport_height)?;
+        self.background_color
+            .compute(Some(&s), viewport_width, viewport_height)?;
+        self.font_family
+            .compute(Some(&s), viewport_width, viewport_height)?;
+        self.font_weight
+            .compute(Some(&s), viewport_width, viewport_height)?;
+        self.text_decoration
+            .compute(Some(&s), viewport_width, viewport_height)?;
+        self.margin
+            .compute(Some(&s), viewport_width, viewport_height)?;
+        self.margin_block
+            .compute(Some(&s), viewport_width, viewport_height)?;
+        self.border
+            .compute(Some(&s), viewport_width, viewport_height)?;
+        self.padding
+            .compute(Some(&s), viewport_width, viewport_height)?;
+        self.width
+            .compute(Some(&s), viewport_width, viewport_height)?;
+        self.height
+            .compute(Some(&s), viewport_width, viewport_height)?;
+        self.border_radius
+            .compute(Some(&s), viewport_width, viewport_height)?;
 
-        ComputedStyle {
-            background: v.background,
-            background_color: v.background_color,
-            color: v.color,
-            display: v.display,
-            font_family: v.font_family,
-            font_size: v.font_size,
-            font_weight: v.font_weight,
-            text_decoration: v.text_decoration,
-            margin: v.margin,
-            margin_block: v.margin_block,
-            border: v.border,
-            padding: v.padding,
-            width: v.width,
-            height: v.height,
-            border_radius: v.border_radius,
-        }
+        Ok(self)
     }
-
-    /// Computes the properties whose values are used to compute other properties.
-    fn compute_earlier(
-        v: &mut Self,
-        initialized_style: &Self,
-        viewport_width: i32,
-        viewport_height: i32,
-    ) {
-        Self::compute_property(
-            &mut v.color,
-            Some(initialized_style),
-            viewport_width,
-            viewport_height,
-        );
-        Self::compute_property(
-            &mut v.font_size,
-            Some(initialized_style),
-            viewport_width,
-            viewport_height,
-        );
-        Self::compute_property(&mut v.display, None, viewport_width, viewport_height);
-    }
-
-    /// Computes the properties that require some computed values.
-    fn compute_later(
-        v: &mut Self,
-        earlier_style: &Self,
-        viewport_width: i32,
-        viewport_height: i32,
-    ) {
-        Self::compute_property(
-            &mut v.background,
-            Some(earlier_style),
-            viewport_width,
-            viewport_height,
-        );
-        Self::compute_property(
-            &mut v.background_color,
-            Some(earlier_style),
-            viewport_width,
-            viewport_height,
-        );
-        Self::compute_property(
-            &mut v.font_family,
-            Some(earlier_style),
-            viewport_width,
-            viewport_height,
-        );
-        Self::compute_property(
-            &mut v.font_weight,
-            Some(earlier_style),
-            viewport_width,
-            viewport_height,
-        );
-        Self::compute_property(
-            &mut v.text_decoration,
-            Some(earlier_style),
-            viewport_width,
-            viewport_height,
-        );
-        Self::compute_property(
-            &mut v.margin,
-            Some(earlier_style),
-            viewport_width,
-            viewport_height,
-        );
-        Self::compute_property(
-            &mut v.margin_block,
-            Some(earlier_style),
-            viewport_width,
-            viewport_height,
-        );
-        Self::compute_property(
-            &mut v.border,
-            Some(earlier_style),
-            viewport_width,
-            viewport_height,
-        );
-        Self::compute_property(
-            &mut v.padding,
-            Some(earlier_style),
-            viewport_width,
-            viewport_height,
-        );
-        Self::compute_property(
-            &mut v.width,
-            Some(earlier_style),
-            viewport_width,
-            viewport_height,
-        );
-        Self::compute_property(
-            &mut v.height,
-            Some(earlier_style),
-            viewport_width,
-            viewport_height,
-        );
-        Self::compute_property(
-            &mut v.border_radius,
-            Some(earlier_style),
-            viewport_width,
-            viewport_height,
-        );
-    }
-
-    fn compute_property(
-        prop: &mut impl CssProperty,
-        current_style: Option<&Self>,
-        viewport_width: i32,
-        viewport_height: i32,
-    ) {
-        if let Err(e) = prop.compute(current_style, viewport_width, viewport_height) {
-            eprintln!("{e}");
-        }
-    }
-}
-
-/// https://www.w3.org/TR/css-cascade-3/#computed
-#[derive(Clone, Debug, Default)]
-pub struct ComputedStyle {
-    pub background: BackGroundProp,
-    pub background_color: BackGroundColorProp,
-    pub color: ColorProp,
-    pub display: DisplayProp,
-    pub font_family: FontFamilyProp,
-    pub font_size: FontSizeProp,
-    pub font_weight: FontWeightProp,
-    pub text_decoration: TextDecorationProp,
-    pub margin: MarginProp,
-    pub margin_block: MarginBlockProp,
-    pub border: BorderProp,
-    pub padding: PaddingProp,
-    pub width: WidthProp,
-    pub height: HeightProp,
-    pub border_radius: BorderRadiusProp,
 }
 
 impl fmt::Display for ComputedStyle {

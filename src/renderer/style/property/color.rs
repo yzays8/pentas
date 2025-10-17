@@ -8,7 +8,7 @@ use crate::{
             token::{CssToken, NumericType},
         },
         style::{
-            SpecifiedStyle,
+            ComputedStyle,
             property::{CssProperty, CssValue},
         },
     },
@@ -28,7 +28,7 @@ impl fmt::Display for ColorProp {
 
 impl Default for ColorProp {
     fn default() -> Self {
-        ColorProp {
+        Self {
             value: CssValue::Color {
                 r: 0,
                 g: 0,
@@ -48,7 +48,7 @@ impl CssProperty for ColorProp {
         })
     }
 
-    fn compute(&mut self, current_color: Option<&SpecifiedStyle>, _: i32, _: i32) -> Result<&Self> {
+    fn compute(&mut self, current_color: Option<&ComputedStyle>, _: i32, _: i32) -> Result<&Self> {
         let current_color = current_color.map(|v| &v.color);
         match &self.value {
             CssValue::Ident(name) => match name.to_ascii_lowercase().as_str() {
@@ -124,7 +124,7 @@ impl fmt::Display for BackGroundColorProp {
 
 impl Default for BackGroundColorProp {
     fn default() -> Self {
-        BackGroundColorProp {
+        Self {
             value: CssValue::Ident("transparent".to_string()),
         }
     }
@@ -139,7 +139,7 @@ impl CssProperty for BackGroundColorProp {
         })
     }
 
-    fn compute(&mut self, current_style: Option<&SpecifiedStyle>, _: i32, _: i32) -> Result<&Self> {
+    fn compute(&mut self, current_style: Option<&ComputedStyle>, _: i32, _: i32) -> Result<&Self> {
         match &self.value {
             CssValue::Ident(name) => match name.to_ascii_lowercase().as_str() {
                 "currentcolor" => {

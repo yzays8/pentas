@@ -5,7 +5,7 @@ use crate::{
     renderer::{
         css::{cssom::ComponentValue, token::CssToken},
         style::{
-            SpecifiedStyle,
+            ComputedStyle,
             property::{
                 AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
                 font_size::{self, FontSizeProp},
@@ -104,7 +104,7 @@ impl CssProperty for MarginProp {
 
     fn compute(
         &mut self,
-        current_style: Option<&SpecifiedStyle>,
+        current_style: Option<&ComputedStyle>,
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<&Self> {
@@ -121,7 +121,7 @@ impl CssProperty for MarginProp {
 impl MarginProp {
     fn compute_top(
         value: &CssValue,
-        current_style: Option<&SpecifiedStyle>,
+        current_style: Option<&ComputedStyle>,
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<CssValue> {
@@ -228,7 +228,7 @@ impl CssProperty for MarginBlockProp {
 
     fn compute(
         &mut self,
-        current_style: Option<&SpecifiedStyle>,
+        current_style: Option<&ComputedStyle>,
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<&Self> {
@@ -242,7 +242,7 @@ impl CssProperty for MarginBlockProp {
 impl MarginBlockProp {
     fn compute_top(
         value: &CssValue,
-        current_style: Option<&SpecifiedStyle>,
+        current_style: Option<&ComputedStyle>,
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<CssValue> {

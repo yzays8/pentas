@@ -5,7 +5,7 @@ use crate::{
     renderer::{
         css::{cssom::ComponentValue, token::CssToken},
         style::{
-            SpecifiedStyle,
+            ComputedStyle,
             property::{
                 AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
                 font_size::{self, FontSizeProp},
@@ -63,7 +63,7 @@ impl CssProperty for WidthProp {
 
     fn compute(
         &mut self,
-        current_style: Option<&SpecifiedStyle>,
+        current_style: Option<&ComputedStyle>,
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<&Self> {
