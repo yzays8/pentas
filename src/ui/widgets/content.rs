@@ -1,10 +1,8 @@
-use std::vec;
-
 use gtk4::{glib, prelude::*, subclass::prelude::ObjectSubclassIsExt};
 
 use crate::{
     app::TreeTraceLevel,
-    net::{Url, http::HttpClient},
+    net::{self, Url},
 };
 
 mod imp {
@@ -171,56 +169,20 @@ impl ContentArea {
                 return;
             }
         };
-        let host = match url.host {
-            Some(host) => host,
-            None => {
-                eprintln!("Host is not specified");
-                return;
-            }
-        };
-        let port = match url.port {
-            Some(port) => port,
-            None => match url.scheme.as_str() {
-                "ftp" => 21,
-                "http" | "ws" => 80,
-                "https" | "wss" => 443,
-                _ => {
-                    eprintln!("Port is not specified");
-                    return;
-                }
-            },
-        };
-        let path = "/".to_string() + url.path.join("/").as_str();
-
-        let html = match url.scheme.as_str() {
-            "http" | "https" => {
-                let client = HttpClient::new(&host, port);
-                let headers = vec![
-                    // HTTP/1.1 client must contain Host header.
-                    // https://datatracker.ietf.org/doc/html/rfc9112#section-3.2
-                    ("Host", host.as_str()),
-                    // ("User-Agent", "pentas"),
-                    // todo: Remove this header and handle Content-Length in the client.
-                    ("Connection", "close"),
-                ];
-                match client.send_request("GET", &path, &headers, None, url.scheme == "https") {
-                    Ok(response) => response.body,
-                    Err(e) => {
-                        eprintln!("{}", e);
-                        return;
-                    }
-                }
-            }
-            _ => {
-                eprintln!("Unsupported scheme: {}", url.scheme);
-                return;
+        let host_name = match (url.host, url.port) {
+            (Some(host), Some(port)) => format!("{}:{}", host, port),
+            (Some(host), None) => host.to_string(),
+            (None, _) => {
+                unreachable!();
             }
         };
 
-        let host_name = if url.port.is_some() {
-            format!("{}:{}", host, port)
-        } else {
-            host.to_string()
+        let html = match net::get(query) {
+            Ok(res) => res.text(),
+            Err(e) => {
+                eprintln!("{}", e);
+                return;
+            }
         };
 
         let render_objs_info = self

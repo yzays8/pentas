@@ -1,145 +1,373 @@
+#![allow(dead_code)]
+
 use std::{
-    io::{Read, Write},
-    net::{TcpStream, ToSocketAddrs},
+    collections::HashMap,
+    io::{BufRead, BufReader, Read, Write},
+    net::TcpStream,
 };
 
 use native_tls::TlsConnector;
 
-use crate::error::{Error, Result};
+use crate::{
+    error::{Error, Result},
+    net::url::Url,
+};
 
-/// HTTP/1.1 Request
-#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum HttpMethod {
+    Get,
+    Post,
+    Put,
+    Delete,
+    Head,
+    Other(String),
+}
+
+impl std::fmt::Display for HttpMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        // The request method is case-sensitive.
+        // https://datatracker.ietf.org/doc/html/rfc9112#section-3.1
+        match self {
+            HttpMethod::Get => write!(f, "GET"),
+            HttpMethod::Post => write!(f, "POST"),
+            HttpMethod::Put => write!(f, "PUT"),
+            HttpMethod::Delete => write!(f, "DELETE"),
+            HttpMethod::Head => write!(f, "HEAD"),
+            HttpMethod::Other(s) => write!(f, "{}", s),
+        }
+    }
+}
+
+impl From<&str> for HttpMethod {
+    fn from(s: &str) -> Self {
+        match s.to_uppercase().as_str() {
+            "GET" => HttpMethod::Get,
+            "POST" => HttpMethod::Post,
+            "PUT" => HttpMethod::Put,
+            "DELETE" => HttpMethod::Delete,
+            "HEAD" => HttpMethod::Head,
+            other => HttpMethod::Other(other.to_string()),
+        }
+    }
+}
+
+/// HTTP/1.1 request
 #[derive(Debug)]
 pub struct HttpRequest {
-    method: String,
-    path: String,
-    host: String,
-    headers: Vec<(String, String)>,
-    body: Option<String>,
+    pub method: HttpMethod,
+    pub path: String,
+    pub headers: Vec<(String, String)>,
+    pub body: Option<Vec<u8>>,
 }
+
+trait ReadWrite: Read + Write {}
+impl<T: Read + Write> ReadWrite for T {}
 
 impl HttpRequest {
-    #[allow(dead_code)]
-    pub fn add_header(&mut self, key: &str, value: &str) {
-        self.headers.push((key.to_string(), value.to_string()));
+    pub fn builder(method: impl Into<HttpMethod>, url: impl Into<String>) -> RequestBuilder {
+        RequestBuilder {
+            method: method.into(),
+            url: url.into(),
+            headers: Vec::new(),
+            body: None,
+        }
     }
 
-    // HTTP-message   = start-line CRLF
-    //                  *( field-line CRLF )
-    //                  CRLF
-    //                  [ message-body ]
+    pub fn send(&self, host: &str, port: u16, use_tls: bool) -> Result<HttpResponse> {
+        let mut stream: Box<dyn ReadWrite> = if use_tls {
+            let tcp = TcpStream::connect((host, port))?;
+            Box::new(TlsConnector::new()?.connect(host, tcp)?)
+        } else {
+            Box::new(TcpStream::connect((host, port))?)
+        };
+
+        stream.write_all(&self.to_bytes(host))?;
+        stream.flush()?;
+
+        HttpResponse::parse(&mut BufReader::new(stream))
+    }
+
     /// https://datatracker.ietf.org/doc/html/rfc9112#section-2.1
-    pub fn to_http_format(&self) -> String {
-        let mut request = format!("{} {} HTTP/1.1\r\n", self.method, self.path);
-        for (key, value) in &self.headers {
-            request.push_str(&format!("{}: {}\r\n", key, value));
+    fn to_bytes(&self, host: &str) -> Vec<u8> {
+        let mut buf = Vec::new();
+
+        // https://datatracker.ietf.org/doc/html/rfc9112#section-3
+        let start_line = format!("{} {} HTTP/1.1\r\n", self.method, self.path);
+        buf.extend_from_slice(start_line.as_bytes());
+
+        let mut seen = HashMap::<String, bool>::new();
+        for (k, _) in &self.headers {
+            seen.insert(k.to_lowercase(), true);
         }
-        request.push_str("\r\n");
+
+        // A client MUST send a Host header field in an HTTP/1.1 request.
+        // https://datatracker.ietf.org/doc/html/rfc9112#section-3.2.2-5
+        if !seen.contains_key("host") {
+            buf.extend_from_slice(format!("Host: {}\r\n", host).as_bytes());
+        }
+
+        for (k, v) in &self.headers {
+            buf.extend_from_slice(format!("{}: {}\r\n", k, v).as_bytes());
+        }
+
         if let Some(body) = &self.body {
-            request.push_str(body);
+            // When a message does not have a Transfer-Encoding header field, a Content-Length header
+            // field can provide the anticipated size.
+            // A sender MUST NOT send a Content-Length header field in any message that contains a
+            // Transfer-Encoding header field.
+            // https://datatracker.ietf.org/doc/html/rfc9112#section-6.2
+            if !seen.contains_key("content-length") && !seen.contains_key("transfer-encoding") {
+                buf.extend_from_slice(format!("Content-Length: {}\r\n", body.len()).as_bytes());
+            }
         }
-        request
+
+        buf.extend_from_slice(b"\r\n");
+
+        if let Some(body) = &self.body {
+            buf.extend_from_slice(body);
+        }
+
+        buf
     }
 }
 
-/// HTTP/1.1 Response
-#[allow(dead_code)]
+#[derive(Debug)]
+pub struct RequestBuilder {
+    method: HttpMethod,
+    url: String,
+    headers: Vec<(String, String)>,
+    body: Option<Vec<u8>>,
+}
+
+impl RequestBuilder {
+    pub fn header(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.headers.push((key.into(), value.into()));
+        self
+    }
+
+    pub fn body(mut self, bytes: impl Into<Vec<u8>>) -> Self {
+        self.body = Some(bytes.into());
+        self
+    }
+
+    pub fn send(self) -> Result<HttpResponse> {
+        let url = Url::from_str(&self.url)?;
+
+        // The specific connection protocols to be used for an HTTP interaction are
+        // determined by client configuration and the target URI.
+        // https://datatracker.ietf.org/doc/html/rfc9112#section-9-2
+        let port = url
+            .port
+            .unwrap_or_else(|| if url.scheme == "https" { 443 } else { 80 });
+
+        // If the target URI's path component is empty, the client MUST send "/" as the
+        // path within the origin-form of request-target.
+        // https://datatracker.ietf.org/doc/html/rfc9112#section-3.2.1-2
+        let path = format!("/{}", url.path.join("/"));
+
+        let req = HttpRequest {
+            method: self.method,
+            path,
+            headers: self.headers,
+            body: self.body,
+        };
+        req.send(&url.host.unwrap(), port, url.scheme == "https")
+    }
+}
+
+/// HTTP/1.1 response
 #[derive(Debug)]
 pub struct HttpResponse {
-    pub status_line: String,
-    pub headers: Vec<(String, String)>,
-    pub body: String,
+    pub status_code: u16,
+    pub headers: HashMap<String, String>,
+    pub body: Vec<u8>,
 }
 
 impl HttpResponse {
-    // HTTP-message   = start-line CRLF
-    //                  *( field-line CRLF )
-    //                  CRLF
-    //                  [ message-body ]
-    /// https://datatracker.ietf.org/doc/html/rfc9112#section-2.1
-    pub fn from_str(response_text: &str) -> Result<Self> {
-        let mut lines = response_text.split("\r\n");
-        let status_line = lines
-            .next()
-            .ok_or(Error::Network("No status line".into()))?
-            .to_string();
+    pub fn text(&self) -> String {
+        String::from_utf8_lossy(&self.body).into_owned()
+    }
 
-        let mut headers = Vec::new();
-        for line in lines.by_ref() {
+    pub fn header(&self, name: &str) -> Option<&str> {
+        let lname = name.to_lowercase();
+        for (k, v) in &self.headers {
+            if k.to_lowercase() == lname {
+                return Some(v.as_str());
+            }
+        }
+        None
+    }
+
+    /// https://datatracker.ietf.org/doc/html/rfc9112#section-2.2
+    pub fn parse(reader: &mut impl BufRead) -> Result<Self> {
+        // https://datatracker.ietf.org/doc/html/rfc9112#name-status-line
+        let mut status_line = String::new();
+        reader.read_line(&mut status_line)?;
+        if status_line.is_empty() {
+            return Err(Error::Network("empty status line".into()));
+        }
+
+        let status_code = status_line
+            .trim_end_matches(&['\r', '\n'][..])
+            .to_string()
+            .split_whitespace()
+            .nth(1)
+            .and_then(|s| s.parse::<u16>().ok())
+            .ok_or(Error::Network("invalid status line".into()))?;
+
+        let mut headers = HashMap::<String, String>::new();
+        loop {
+            let mut line = String::new();
+            reader.read_line(&mut line)?;
+            let line = line.trim_end_matches(&['\r', '\n'][..]);
             if line.is_empty() {
                 break;
             }
-            if let Some((key, value)) = line.split_once(": ") {
-                headers.push((key.to_string(), value.to_string()));
+            if let Some((k, v)) = line.split_once(':') {
+                // Header field names are case-insensitive.
+                // https://datatracker.ietf.org/doc/html/rfc9112#section-5
+                headers.insert(k.trim().to_string().to_lowercase(), v.trim().to_string());
             }
         }
 
-        let body = lines.collect::<Vec<&str>>().join("\r\n");
+        // If a message body has been indicated, then it is read as a stream until an amount of
+        // octets equal to the message body length is read or the connection is closed.
+        // https://datatracker.ietf.org/doc/html/rfc9112#section-2.2-1
+        let mut body: Vec<u8> = Vec::new();
+
+        // Responses with certain status codes do not include a message body.
+        // https://datatracker.ietf.org/doc/html/rfc9112#section-6.3-2.1
+        if matches!(status_code, 100..200 | 204 | 304) {
+            return Ok(Self {
+                status_code,
+                headers,
+                body,
+            });
+        }
+
+        // If a message is received with both a Transfer-Encoding and a Content-Length header field,
+        // the Transfer-Encoding overrides the Content-Length.
+        // https://datatracker.ietf.org/doc/html/rfc9112#section-6.3-2.3
+        if let Some(te) = headers.get("transfer-encoding") {
+            match te.to_lowercase().as_str() {
+                "chunked" => {
+                    let body = Self::read_chunked_body(reader)?;
+                    return Ok(Self {
+                        status_code,
+                        headers,
+                        body,
+                    });
+                }
+                _ => unimplemented!(),
+            }
+        }
+
+        if let Some(cl) = headers.get("content-length") {
+            // The user agent MUST close the connection to the server and discard the received response
+            // if a message is received without Transfer-Encoding and with an invalid Content-Length header field.
+            // https://datatracker.ietf.org/doc/html/rfc9112#section-6.3-2.5
+            let len: usize = cl.parse()?;
+            reader.take(len as u64).read_to_end(&mut body)?;
+            return Ok(Self {
+                status_code,
+                headers,
+                body,
+            });
+        }
+
+        // Read until connection close.
+        reader.read_to_end(&mut body)?;
 
         Ok(Self {
-            status_line,
+            status_code,
             headers,
             body,
         })
     }
+
+    /// https://datatracker.ietf.org/doc/html/rfc9112#section-7.1
+    fn read_chunked_body(reader: &mut impl BufRead) -> Result<Vec<u8>> {
+        // https://datatracker.ietf.org/doc/html/rfc9112#section-7.1.3
+        let mut out = Vec::new();
+        loop {
+            let mut size_line = String::new();
+            reader.read_line(&mut size_line)?;
+
+            let size = usize::from_str_radix(
+                size_line
+                    .trim_end_matches(&['\r', '\n'][..])
+                    .trim()
+                    .split(';')
+                    .next()
+                    .ok_or(Error::Network("invalid chunk size line".into()))?,
+                16,
+            )?;
+
+            // last-chunk and trailer-section
+            if size == 0 {
+                let mut line = String::new();
+                // Ignore the trailer section for now.
+                // https://datatracker.ietf.org/doc/html/rfc9112#section-7.1.2
+                loop {
+                    line.clear();
+                    reader.read_line(&mut line)?;
+                    let trimmed = line.trim_end_matches(&['\r', '\n'][..]);
+                    if trimmed.is_empty() {
+                        break;
+                    }
+                }
+                break;
+            }
+
+            let mut chunk = vec![0u8; size];
+            reader.read_exact(&mut chunk)?;
+            out.extend_from_slice(&chunk);
+
+            let mut crlf = [0u8; 2];
+            reader.read_exact(&mut crlf)?;
+        }
+
+        Ok(out)
+    }
 }
 
-/// HTTP/1.1 Client
 #[derive(Debug)]
-pub struct HttpClient {
-    host: String,
-    port: u16,
-}
+pub struct HttpClient;
 
 impl HttpClient {
-    pub fn new(host: &str, port: u16) -> Self {
-        Self {
-            host: host.to_string(),
-            port,
-        }
+    pub fn new() -> Self {
+        Self
     }
 
-    pub fn send_request(
-        &self,
-        method: &str,
-        path: &str,
-        headers: &[(&str, &str)],
-        body: Option<&str>,
-        use_https: bool,
-    ) -> Result<HttpResponse> {
-        let addr = format!("{}:{}", self.host, self.port)
-            // This is where the DNS resolution takes place.
-            // note: This is a blocking operation.
-            .to_socket_addrs()?
-            .next()
-            .ok_or(Error::Network("Failed to resolve address".into()))?;
+    pub fn get(&self, url: &str) -> RequestBuilder {
+        HttpRequest::builder(HttpMethod::Get, url)
+    }
 
-        let request = HttpRequest {
-            method: method.to_string(),
-            path: path.to_string(),
-            host: self.host.clone(),
-            headers: headers
-                .iter()
-                .map(|(k, v)| (k.to_string(), v.to_string()))
-                .collect(),
-            body: body.map(|s| s.to_string()),
-        };
-        let mut stream = TcpStream::connect((addr.ip(), addr.port()))?;
-        let response_text = if use_https {
-            let mut tls_stream = TlsConnector::new()?.connect(&self.host, stream)?;
-            tls_stream.write_all(request.to_http_format().as_bytes())?;
-            tls_stream.flush()?;
-            let mut response_text = String::new();
-            tls_stream.read_to_string(&mut response_text)?;
-            response_text
-        } else {
-            stream.write_all(request.to_http_format().as_bytes())?;
-            stream.flush()?;
-            let mut response_text = String::new();
-            stream.read_to_string(&mut response_text)?;
-            response_text
-        };
+    pub fn post(&self, url: &str) -> RequestBuilder {
+        HttpRequest::builder(HttpMethod::Post, url)
+    }
+}
 
-        HttpResponse::from_str(&response_text)
+pub fn get(url: &str) -> Result<HttpResponse> {
+    HttpClient::new().get(url).send()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn read_transfer_encoding_chunk() {
+        let chunked = b"23\r\n\
+{\"id\": 0, \"message\": \"Hello world\"}\r\n\
+23\r\n\
+{\"id\": 1, \"message\": \"Hello again\"}\r\n\
+0\r\n\
+\r\n";
+
+        let mut reader = BufReader::new(&chunked[..]);
+        let actual = HttpResponse::read_chunked_body(&mut reader).unwrap();
+        let expected = br#"{"id": 0, "message": "Hello world"}{"id": 1, "message": "Hello again"}"#;
+        assert_eq!(&actual, expected);
     }
 }
