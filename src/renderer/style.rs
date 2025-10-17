@@ -294,8 +294,6 @@ impl CascadedStyle {
     pub fn apply_defaulting(&self, parent_style: &Option<ComputedStyle>) -> Result<SpecifiedStyle> {
         let mut specified_values = SpecifiedStyle::new();
 
-        specified_values.initialize();
-
         if parent_style.is_some() {
             specified_values.inherit(parent_style.as_ref().unwrap());
         }
@@ -309,21 +307,21 @@ impl CascadedStyle {
 /// https://www.w3.org/TR/css-cascade-3/#specified
 #[derive(Clone, Debug, Default)]
 pub struct SpecifiedStyle {
-    pub background: Option<BackGroundProp>,
-    pub background_color: Option<BackGroundColorProp>,
-    pub color: Option<ColorProp>,
-    pub display: Option<DisplayProp>,
-    pub font_family: Option<FontFamilyProp>,
-    pub font_size: Option<FontSizeProp>,
-    pub font_weight: Option<FontWeightProp>,
-    pub text_decoration: Option<TextDecorationProp>,
-    pub margin: Option<MarginProp>,
-    pub margin_block: Option<MarginBlockProp>,
-    pub border: Option<BorderProp>,
-    pub padding: Option<PaddingProp>,
-    pub width: Option<WidthProp>,
-    pub height: Option<HeightProp>,
-    pub border_radius: Option<BorderRadiusProp>,
+    pub background: BackGroundProp,
+    pub background_color: BackGroundColorProp,
+    pub color: ColorProp,
+    pub display: DisplayProp,
+    pub font_family: FontFamilyProp,
+    pub font_size: FontSizeProp,
+    pub font_weight: FontWeightProp,
+    pub text_decoration: TextDecorationProp,
+    pub margin: MarginProp,
+    pub margin_block: MarginBlockProp,
+    pub border: BorderProp,
+    pub padding: PaddingProp,
+    pub width: WidthProp,
+    pub height: HeightProp,
+    pub border_radius: BorderRadiusProp,
 }
 
 impl SpecifiedStyle {
@@ -331,33 +329,13 @@ impl SpecifiedStyle {
         Self::default()
     }
 
-    /// Sets the initial values for the properties.
-    pub fn initialize(&mut self) {
-        // todo: Add more properties.
-        self.background = Some(BackGroundProp::default());
-        self.background_color = Some(BackGroundColorProp::default());
-        self.color = Some(ColorProp::default());
-        self.display = Some(DisplayProp::default());
-        self.font_family = Some(FontFamilyProp::default());
-        self.font_size = Some(FontSizeProp::default());
-        self.font_weight = Some(FontWeightProp::default());
-        self.text_decoration = Some(TextDecorationProp::default());
-        self.margin = Some(MarginProp::default());
-        self.margin_block = Some(MarginBlockProp::default());
-        self.border = Some(BorderProp::default());
-        self.padding = Some(PaddingProp::default());
-        self.width = Some(WidthProp::default());
-        self.height = Some(HeightProp::default());
-        self.border_radius = Some(BorderRadiusProp::default());
-    }
-
     /// Sets the inherited values for all "inherited properties".
     /// The values inherited from the parent element must be the computed values.
     pub fn inherit(&mut self, parent_values: &ComputedStyle) {
-        self.color = Some(parent_values.color.clone());
-        self.font_family = Some(parent_values.font_family.clone());
-        self.font_size = Some(parent_values.font_size.clone());
-        self.font_weight = Some(parent_values.font_weight.clone());
+        self.color = parent_values.color.clone();
+        self.font_family = parent_values.font_family.clone();
+        self.font_size = parent_values.font_size.clone();
+        self.font_weight = parent_values.font_weight.clone();
     }
 
     // Assumes that the computed values have been initialized and inherited.
@@ -371,95 +349,89 @@ impl SpecifiedStyle {
             match name.as_str() {
                 "background" => {
                     if let Ok(v) = BackGroundProp::parse(values) {
-                        self.background = Some(v);
+                        self.background = v;
+                        self.background_color = self.background.color.clone();
                     }
-                    *self.background_color.as_mut().unwrap() =
-                        self.background.as_ref().unwrap().color.clone();
                 }
                 "background-color" => {
                     if let Ok(v) = BackGroundColorProp::parse(values) {
-                        self.background_color = Some(v);
+                        self.background_color = v;
+                        self.background.color = self.background_color.clone();
                     }
-                    self.background.as_mut().unwrap().color =
-                        self.background_color.as_ref().unwrap().clone();
                 }
                 "color" => {
                     if let Ok(v) = ColorProp::parse(values) {
-                        self.color = Some(v);
+                        self.color = v;
                     }
                 }
                 "display" => {
                     if let Ok(v) = DisplayProp::parse(values) {
-                        self.display = Some(v);
+                        self.display = v;
                     }
                 }
                 "font-family" => {
                     if let Ok(v) = FontFamilyProp::parse(values) {
-                        self.font_family = Some(v);
+                        self.font_family = v;
                     }
                 }
                 "font-size" => {
                     if let Ok(v) = FontSizeProp::parse(values) {
-                        self.font_size = Some(v);
+                        self.font_size = v;
                     }
                 }
                 "font-weight" => {
                     if let Ok(v) = FontWeightProp::parse(values) {
-                        self.font_weight = Some(v);
+                        self.font_weight = v;
                     }
                 }
                 "text-decoration" => {
                     if let Ok(v) = TextDecorationProp::parse(values) {
-                        self.text_decoration = Some(v);
+                        self.text_decoration = v;
                     }
                 }
                 "margin" => {
                     if let Ok(v) = MarginProp::parse(values) {
-                        self.margin = Some(v);
+                        self.margin = v;
+                        // Assume that the margin-block-start and margin-block-end values
+                        // are the same as the margin-top and margin-bottom values.
+                        // todo: Handle the direction of the text.
+                        self.margin_block.start = self.margin.top.clone();
+                        self.margin_block.end = self.margin.bottom.clone();
                     }
-                    // Assume that the margin-block-start and margin-block-end values
-                    // are the same as the margin-top and margin-bottom values.
-                    // todo: Handle the direction of the text.
-                    self.margin_block.as_mut().unwrap().start =
-                        self.margin.as_ref().unwrap().top.clone();
-                    self.margin_block.as_mut().unwrap().end =
-                        self.margin.as_ref().unwrap().bottom.clone();
                 }
                 "margin-block" => {
                     if let Ok(v) = MarginBlockProp::parse(values) {
-                        self.margin_block = Some(v);
+                        self.margin_block = v;
+                        // Assume that the margin-block-start and margin-block-end values
+                        // are the same as the margin-top and margin-bottom values.
+                        // todo: Handle the direction of the text.
+                        self.margin.top = self.margin_block.start.clone();
+                        self.margin.bottom = self.margin_block.end.clone();
                     }
-                    // Assume that the margin-block-start and margin-block-end values
-                    // are the same as the margin-top and margin-bottom values.
-                    // todo: Handle the direction of the text.
-                    self.margin.as_mut().unwrap().top =
-                        self.margin_block.as_ref().unwrap().start.clone();
-                    self.margin.as_mut().unwrap().bottom =
-                        self.margin_block.as_ref().unwrap().end.clone();
                 }
                 "border" => {
                     if let Ok(v) = BorderProp::parse(values) {
-                        self.border = Some(v);
+                        self.border = v;
                     }
                 }
                 "padding" => {
                     if let Ok(v) = PaddingProp::parse(values) {
-                        self.padding = Some(v);
+                        self.padding = v;
                     }
                 }
                 "width" => {
                     if let Ok(v) = WidthProp::parse(values) {
-                        self.width = Some(v);
+                        self.width = v;
                     }
                 }
                 "height" => {
                     if let Ok(v) = HeightProp::parse(values) {
-                        self.height = Some(v);
+                        self.height = v;
                     }
                 }
                 "border-radius" => {
                     if let Ok(v) = BorderRadiusProp::parse(values) {
-                        self.border_radius = Some(v);
+                        self.border_radius = v;
                     }
                 }
                 _ => {}
@@ -477,21 +449,21 @@ impl SpecifiedStyle {
         Self::compute_later(&mut v, &earlier_style, viewport_width, viewport_height);
 
         ComputedStyle {
-            background: v.background.unwrap(),
-            background_color: v.background_color.unwrap(),
-            color: v.color.unwrap(),
-            display: v.display.unwrap(),
-            font_family: v.font_family.unwrap(),
-            font_size: v.font_size.unwrap(),
-            font_weight: v.font_weight.unwrap(),
-            text_decoration: v.text_decoration.unwrap(),
-            margin: v.margin.unwrap(),
-            margin_block: v.margin_block.unwrap(),
-            border: v.border.unwrap(),
-            padding: v.padding.unwrap(),
-            width: v.width.unwrap(),
-            height: v.height.unwrap(),
-            border_radius: v.border_radius.unwrap(),
+            background: v.background,
+            background_color: v.background_color,
+            color: v.color,
+            display: v.display,
+            font_family: v.font_family,
+            font_size: v.font_size,
+            font_weight: v.font_weight,
+            text_decoration: v.text_decoration,
+            margin: v.margin,
+            margin_block: v.margin_block,
+            border: v.border,
+            padding: v.padding,
+            width: v.width,
+            height: v.height,
+            border_radius: v.border_radius,
         }
     }
 
@@ -599,16 +571,12 @@ impl SpecifiedStyle {
     }
 
     fn compute_property(
-        prop: &mut Option<impl CssProperty>,
+        prop: &mut impl CssProperty,
         current_style: Option<&Self>,
         viewport_width: i32,
         viewport_height: i32,
     ) {
-        if let Err(e) =
-            prop.as_mut()
-                .unwrap()
-                .compute(current_style, viewport_width, viewport_height)
-        {
+        if let Err(e) = prop.compute(current_style, viewport_width, viewport_height) {
             eprintln!("{e}");
         }
     }

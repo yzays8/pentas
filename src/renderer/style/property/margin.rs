@@ -125,7 +125,7 @@ impl MarginProp {
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<CssValue> {
-        let current_font_size = current_style.and_then(|s| s.font_size.as_ref());
+        let current_font_size = current_style.map(|s| &s.font_size);
         let current_font_size = match current_font_size {
             Some(FontSizeProp {
                 size: CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
@@ -246,7 +246,7 @@ impl MarginBlockProp {
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<CssValue> {
-        let current_font_size = current_style.and_then(|s| s.font_size.as_ref());
+        let current_font_size = current_style.map(|s| &s.font_size);
         let current_font_size = match current_font_size {
             Some(FontSizeProp {
                 size: CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
