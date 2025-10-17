@@ -1,16 +1,17 @@
 use std::{fmt, iter::Peekable};
 
-use anyhow::{Ok, Result, bail};
-
-use crate::renderer::{
-    css::{cssom::ComponentValue, token::CssToken},
-    layout::Edge,
-    style::{
-        SpecifiedStyle,
-        property::{
-            AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
-            font_size::{self, FontSizeProp},
-            parse_length_percentage_type,
+use crate::{
+    error::{Error, Result},
+    renderer::{
+        css::{cssom::ComponentValue, token::CssToken},
+        layout::Edge,
+        style::{
+            SpecifiedStyle,
+            property::{
+                AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
+                font_size::{self, FontSizeProp},
+                parse_length_percentage_type,
+            },
         },
     },
 };
@@ -95,7 +96,10 @@ impl CssProperty for PaddingProp {
                 bottom: trbl.get(2).unwrap().clone(),
                 left: trbl.get(3).unwrap().clone(),
             }),
-            _ => bail!("Invalid margin declaration: {:?}", values),
+            _ => Err(Error::CssProperty(format!(
+                "Invalid margin declaration: {:?}",
+                values
+            ))),
         }
     }
 
@@ -128,7 +132,12 @@ impl PaddingProp {
                 size: CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
             }) => size,
             None => &font_size::MEDIUM,
-            _ => bail!("Invalid font-size value: {:?}", current_font_size),
+            _ => {
+                return Err(Error::CssProperty(format!(
+                    "Invalid font-size value: {:?}",
+                    current_font_size
+                )));
+            }
         };
         match &value {
             CssValue::Length(size, unit) => match unit {
@@ -148,7 +157,10 @@ impl PaddingProp {
                 _ => unimplemented!(),
             },
             CssValue::Percentage(_) => unimplemented!(),
-            _ => bail!("Invalid padding value: {:?}", &value),
+            _ => Err(Error::CssProperty(format!(
+                "Invalid padding value: {:?}",
+                &value
+            ))),
         }
     }
 

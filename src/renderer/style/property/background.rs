@@ -1,12 +1,13 @@
 use std::fmt;
 
-use anyhow::{Ok, Result};
-
-use crate::renderer::{
-    css::cssom::ComponentValue,
-    style::{
-        SpecifiedStyle,
-        property::{BackGroundColorProp, CssProperty},
+use crate::{
+    error::Result,
+    renderer::{
+        css::cssom::ComponentValue,
+        style::{
+            SpecifiedStyle,
+            property::{BackGroundColorProp, CssProperty},
+        },
     },
 };
 

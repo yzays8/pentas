@@ -1,8 +1,9 @@
 use std::vec;
 
-use anyhow::{Ok, Result, ensure};
-
-use crate::utils::TokenIterator;
+use crate::{
+    error::{Error, Result},
+    utils::TokenIterator,
+};
 
 /// https://www.w3.org/TR/css-syntax-3/#tokenization
 #[derive(Clone, Debug, PartialEq)]
@@ -290,10 +291,11 @@ impl CssTokenizer {
                 }
             }
         }
-        ensure!(
-            !end_with_eof,
-            "parse error: consuming comments ended with EOF"
-        );
+        if end_with_eof {
+            return Err(Error::CssTokenize(
+                "Consuming comments ended with EOF".to_string(),
+            ));
+        }
         Ok(())
     }
 

@@ -30,14 +30,15 @@ pub use self::{
 
 use std::{fmt, iter::Peekable};
 
-use anyhow::{Result, bail};
-
-use crate::renderer::{
-    css::{
-        cssom::ComponentValue,
-        token::{CssToken, NumericType},
+use crate::{
+    error::{Error, Result},
+    renderer::{
+        css::{
+            cssom::ComponentValue,
+            token::{CssToken, NumericType},
+        },
+        style::{SpecifiedStyle, property::color::rgb_to_name},
     },
-    style::{SpecifiedStyle, property::color::rgb_to_name},
 };
 
 pub trait CssProperty {
@@ -107,9 +108,15 @@ impl CssValue {
             if unit == &LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px) {
                 return Ok(*value);
             }
-            bail!("Expected px unit but found: {:?}", unit);
+            Err(Error::CssProperty(format!(
+                "Expected px unit but found: {:?}",
+                unit
+            )))
         } else {
-            bail!("Expected length value but found: {:?}", self);
+            Err(Error::CssProperty(format!(
+                "Expected length value but found: {:?}",
+                self
+            )))
         }
     }
 
@@ -118,7 +125,10 @@ impl CssValue {
         if let CssValue::Color { r, g, b, a } = self {
             Ok((*r, *g, *b, *a))
         } else {
-            bail!("Expected color value but found: {:?}", self);
+            Err(Error::CssProperty(format!(
+                "Expected color value but found: {:?}",
+                self
+            )))
         }
     }
 
@@ -127,7 +137,10 @@ impl CssValue {
         if let CssValue::Ident(s) | CssValue::String(s) = self {
             Ok(s.to_owned())
         } else {
-            bail!("Expected string value but found: {:?}", self);
+            Err(Error::CssProperty(format!(
+                "Expected string value but found: {:?}",
+                self
+            )))
         }
     }
 }
@@ -206,12 +219,14 @@ where
             ComponentValue::PreservedToken(CssToken::Percentage(..)) => {
                 parse_percentage_type(values)
             }
-            _ => bail!(
+            _ => Err(Error::CssProperty(format!(
                 "Expected length or percentage value but found: {:?}",
                 values.peek()
-            ),
+            ))),
         },
-        _ => bail!("Expected length or percentage value but found none"),
+        _ => Err(Error::CssProperty(
+            "Expected length or percentage value but found none".into(),
+        )),
     }
 }
 
@@ -293,9 +308,14 @@ where
             ComponentValue::PreservedToken(CssToken::Number(NumericType::Integer(0))) => Ok(
                 CssValue::Length(0.0, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
             ),
-            _ => bail!("Expected length value but found: {:?}", v),
+            _ => Err(Error::CssProperty(format!(
+                "Expected length value but found: {:?}",
+                v
+            ))),
         },
-        None => bail!("Expected length value but found none"),
+        None => Err(Error::CssProperty(
+            "Expected length value but found none".into(),
+        )),
     }
 }
 
@@ -308,8 +328,13 @@ where
             ComponentValue::PreservedToken(CssToken::Percentage(size)) => {
                 Ok(CssValue::Percentage(size))
             }
-            _ => bail!("Expected percentage value but found: {:?}", v),
+            _ => Err(Error::CssProperty(format!(
+                "Expected percentage value but found: {:?}",
+                v
+            ))),
         },
-        None => bail!("Expected percentage value but found none"),
+        None => Err(Error::CssProperty(
+            "Expected percentage value but found none".into(),
+        )),
     }
 }

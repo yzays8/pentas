@@ -2,7 +2,6 @@ pub mod property;
 
 use std::{cell::RefCell, default::Default, fmt, rc::Rc};
 
-use anyhow::{Context, Result, anyhow};
 use gtk4::pango;
 use indexmap::IndexMap;
 
@@ -12,6 +11,7 @@ use self::property::{
     HeightProp, MarginBlockProp, MarginProp, PaddingProp, TextDecorationProp, WidthProp,
 };
 use crate::{
+    error::{Error, Result},
     renderer::{
         css::{
             cssom::{ComponentValue, Declaration, Rule, StyleSheet},
@@ -44,7 +44,7 @@ impl RenderTree {
                     viewport_width,
                     viewport_height,
                 )?
-                .context("Failed to build the render tree.")?,
+                .ok_or(Error::Style("Failed to build the render tree".into()))?,
             )),
         })
     }
@@ -604,11 +604,10 @@ impl SpecifiedStyle {
         viewport_width: i32,
         viewport_height: i32,
     ) {
-        if let Err(e) = prop
-            .as_mut()
-            .context(anyhow!("Uninitialized property detected while computing."))
-            .unwrap()
-            .compute(current_style, viewport_width, viewport_height)
+        if let Err(e) =
+            prop.as_mut()
+                .unwrap()
+                .compute(current_style, viewport_width, viewport_height)
         {
             eprintln!("{e}");
         }

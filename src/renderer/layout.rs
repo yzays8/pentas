@@ -4,7 +4,6 @@ mod text;
 
 use std::{cell::RefCell, fmt, rc::Rc};
 
-use anyhow::{Context, Ok, Result, ensure};
 use gtk4::pango;
 
 use self::{
@@ -13,6 +12,7 @@ use self::{
     text::Text,
 };
 use crate::{
+    error::{Error, Result},
     renderer::{
         html::dom::NodeType,
         object::RenderObject,
@@ -29,10 +29,11 @@ pub struct BoxTree {
 
 impl BoxTree {
     pub fn build(render_tree: &RenderTree, draw_ctx: &pango::Context) -> Result<Self> {
-        ensure!(
-            render_tree.root.borrow().dom_node.borrow().node_type == NodeType::Document,
-            "The root node of the render tree must be a document node."
-        );
+        if render_tree.root.borrow().dom_node.borrow().node_type != NodeType::Document {
+            return Err(Error::Layout(
+                "The root node of the render tree must be a document node.".into(),
+            ));
+        }
 
         // https://www.w3.org/TR/css-display-3/#root-element
         let root = render_tree
@@ -42,15 +43,16 @@ impl BoxTree {
             .iter()
             .find(|child| child.borrow().get_tag_name() == Some("html".to_string()))
             .map(Rc::clone);
-        ensure!(
-            root.is_some(),
-            "The element at the root box of the box tree must be an HTML element node."
-        );
+        if root.is_none() {
+            return Err(Error::Layout(
+                "The element at the root box of the box tree must be an HTML element node.".into(),
+            ));
+        }
 
         Ok(Self {
             root: Rc::new(RefCell::new(
                 BoxNode::build(root.unwrap(), None, draw_ctx)
-                    .context("Failed to build box tree")?,
+                    .ok_or(Error::Layout("Failed to build box tree".into()))?,
             )),
         })
     }

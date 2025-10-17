@@ -6,7 +6,7 @@ use clap::Parser as _;
 
 use pentas::{self, Config, Runner};
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let args = cli::Args::parse();
     let config = Config {
         no_window_html: args.no_window_html,
@@ -14,8 +14,6 @@ fn main() {
         tree_trace_level: args.tree_trace.into(),
     };
 
-    if let Err(e) = Runner::new(config).run() {
-        eprintln!("Error: {}", e);
-        std::process::exit(1);
-    }
+    Runner::new(config).run()?;
+    Ok(())
 }

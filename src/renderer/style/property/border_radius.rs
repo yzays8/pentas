@@ -1,15 +1,16 @@
 use std::fmt;
 
-use anyhow::{Ok, Result, bail};
-
-use crate::renderer::{
-    css::{cssom::ComponentValue, token::CssToken},
-    style::{
-        SpecifiedStyle,
-        property::{
-            AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
-            font_size::{self, FontSizeProp},
-            parse_length_percentage_type,
+use crate::{
+    error::{Error, Result},
+    renderer::{
+        css::{cssom::ComponentValue, token::CssToken},
+        style::{
+            SpecifiedStyle,
+            property::{
+                AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
+                font_size::{self, FontSizeProp},
+                parse_length_percentage_type,
+            },
         },
     },
 };
@@ -106,7 +107,10 @@ impl CssProperty for BorderRadiusProp {
                 bottom_right: trbl.get(2).unwrap().clone(),
                 bottom_left: trbl.get(3).unwrap().clone(),
             }),
-            _ => bail!("Invalid border-radius value: {:?}", trbl),
+            _ => Err(Error::CssProperty(format!(
+                "Invalid border-radius value: {:?}",
+                trbl
+            ))),
         }
     }
 
@@ -157,7 +161,12 @@ impl BorderRadiusProp {
                 size: CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
             }) => size,
             None => &font_size::MEDIUM,
-            _ => bail!("Invalid font-size value: {:?}", current_font_size),
+            _ => {
+                return Err(Error::CssProperty(format!(
+                    "Invalid font-size value: {:?}",
+                    current_font_size
+                )));
+            }
         };
         match &value {
             CssValue::Length(size, unit) => match unit {
@@ -177,7 +186,10 @@ impl BorderRadiusProp {
                 _ => unimplemented!(),
             },
             CssValue::Percentage(_) => unimplemented!(),
-            _ => bail!("Invalid padding value: {:?}", &value),
+            _ => Err(Error::CssProperty(format!(
+                "Invalid border-radius value: {:?}",
+                &value
+            ))),
         }
     }
 

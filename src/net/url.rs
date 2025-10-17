@@ -1,6 +1,7 @@
-use anyhow::{Context, Ok, Result, bail};
-
-use crate::utils::TokenIterator;
+use crate::{
+    error::{Error, Result},
+    utils::TokenIterator,
+};
 
 /// https://url.spec.whatwg.org/#url-representation
 #[allow(dead_code)]
@@ -150,7 +151,9 @@ impl UrlParser {
                     if let [_, Some('/'), Some('/')] = self.input.peek_chunk(3).as_slice() {
                         self.state = UrlParsingState::File;
                     } else {
-                        bail!("special-scheme-missing-following-solidus validation error");
+                        return Err(Error::UrlParse(
+                            "special-scheme-missing-following-solidus validation error".into(),
+                        ));
                     }
                 } else if self.output.has_special_scheme() {
                     self.state = UrlParsingState::SpecialAuthoritySlashes;
@@ -173,7 +176,7 @@ impl UrlParser {
 
     /// https://url.spec.whatwg.org/#no-scheme-state
     fn parse_no_scheme(&mut self) -> Result<()> {
-        bail!("missing-scheme-non-relative-URL validation error")
+        unimplemented!()
     }
 
     /// https://url.spec.whatwg.org/#file-state
@@ -262,7 +265,9 @@ impl UrlParser {
             self.state = UrlParsingState::Authority;
             self.input.rewind(1);
         } else {
-            bail!("special-scheme-missing-following-solidus validation error");
+            return Err(Error::UrlParse(
+                "special-scheme-missing-following-solidus validation error".into(),
+            ));
         }
         Ok(())
     }
@@ -289,7 +294,7 @@ impl UrlParser {
         let c = self.input.peek();
         if let Some(':') = c {
             if self.buf.is_empty() {
-                bail!("host-missing validation error");
+                return Err(Error::UrlParse("host-missing validation error".into()));
             }
             // todo: Use the host parser. https://url.spec.whatwg.org/#host-parsing
             self.output.host = Some(self.buf.clone());
@@ -299,7 +304,7 @@ impl UrlParser {
             || (self.output.has_special_scheme() && c == Some(&'\\'))
         {
             if self.output.has_special_scheme() && self.buf.is_empty() {
-                bail!("host-missing validation error");
+                return Err(Error::UrlParse("host-missing validation error".into()));
             }
             self.output.host = Some(self.buf.clone());
             self.buf.clear();
@@ -326,10 +331,7 @@ impl UrlParser {
             || (self.output.has_special_scheme() && c == Some(&'\\'))
         {
             if !self.buf.is_empty() {
-                let port = self
-                    .buf
-                    .parse::<u16>()
-                    .context("port-out-of-range validation error")?;
+                let port = self.buf.parse::<u16>()?;
                 let is_default_port = match self.output.scheme.as_str() {
                     "ftp" => port == 21,
                     "http" | "ws" => port == 80,
@@ -346,7 +348,7 @@ impl UrlParser {
             self.state = UrlParsingState::PathStart;
             self.input.rewind(1);
         } else {
-            bail!("port-invalid validation error");
+            return Err(Error::UrlParse("port-invalid validation error".into()));
         }
         Ok(())
     }
@@ -384,7 +386,9 @@ impl UrlParser {
             || (self.output.has_special_scheme() && c == Some(&'\\'))
         {
             if self.output.has_special_scheme() && c == Some(&'\\') {
-                bail!("invalid-reverse-solidus validation error");
+                return Err(Error::UrlParse(
+                    "invalid-reverse-solidus validation error".into(),
+                ));
             }
             match self.buf.as_str() {
                 ".." => unimplemented!(),

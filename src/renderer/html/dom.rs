@@ -4,9 +4,8 @@ use std::{
     rc::{Rc, Weak},
 };
 
-use anyhow::{Result, ensure};
-
 use crate::{
+    error::{Error, Result},
     renderer::{css::cssom::StyleSheet, style::RenderTree},
     utils::PrintableTree,
 };
@@ -147,10 +146,11 @@ pub struct DocumentTree {
 
 impl DocumentTree {
     pub fn build(root: Rc<RefCell<DomNode>>) -> Result<Self> {
-        ensure!(
-            root.borrow().node_type == NodeType::Document,
-            "The root node of a document tree must be a document node."
-        );
+        if root.borrow().node_type != NodeType::Document {
+            return Err(Error::Other(
+                "The root node of a document tree must be a document node.".into(),
+            ));
+        }
         Ok(Self { root })
     }
 

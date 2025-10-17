@@ -1,13 +1,14 @@
 use std::fmt;
 
-use anyhow::{Ok, Result};
-
-use crate::renderer::{
-    css::cssom::ComponentValue,
-    layout::Edge,
-    style::{
-        SpecifiedStyle,
-        property::{AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, color::ColorProp},
+use crate::{
+    error::Result,
+    renderer::{
+        css::cssom::ComponentValue,
+        layout::Edge,
+        style::{
+            SpecifiedStyle,
+            property::{AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, color::ColorProp},
+        },
     },
 };
 

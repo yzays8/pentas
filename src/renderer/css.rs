@@ -5,9 +5,8 @@ pub mod token;
 
 pub use self::{parser::CssParser, token::CssTokenizer};
 
-use anyhow::Result;
-
 use self::cssom::StyleSheet;
+use crate::error::Result;
 
 const UA_CSS_PATH: &str = "assets/style/ua.css";
 

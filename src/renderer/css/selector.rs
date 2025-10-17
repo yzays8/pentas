@@ -1,10 +1,11 @@
 use std::{cell::RefCell, iter::Peekable, ops::Deref, rc::Rc, vec::IntoIter};
 
-use anyhow::{Ok, Result, bail, ensure};
-
-use crate::renderer::{
-    css::{cssom::ComponentValue, token::CssToken},
-    html::dom::{DomNode, NodeType},
+use crate::{
+    error::{Error, Result},
+    renderer::{
+        css::{cssom::ComponentValue, token::CssToken},
+        html::dom::{DomNode, NodeType},
+    },
 };
 
 /// - https://www.w3.org/TR/selectors-3/#simple-selectors
@@ -307,10 +308,10 @@ impl SelectorParser {
                     selectors.push(self.parse_selector()?);
                 }
                 Some(v) => {
-                    bail!(
+                    return Err(Error::CssSelectorParse(format!(
                         "Unexpected token when parsing CSS selectors in parse_selectors_group: {:?}",
                         v
-                    );
+                    )));
                 }
                 None => break,
             }
@@ -372,10 +373,10 @@ impl SelectorParser {
         } else if is_detected_space {
             Ok(Combinator::Whitespace)
         } else {
-            bail!(
+            Err(Error::CssSelectorParse(format!(
                 "Expected \"+\", \">\", \"~\", or whitespace but found {:?} when parsing CSS selectors in parse_combinator",
                 self.input.peek()
-            )
+            )))
         }
     }
 
@@ -443,11 +444,12 @@ impl SelectorParser {
                     ..
                 }) = self.input.peek()
                 {
-                    ensure!(
-                        t == &CssToken::OpenSquareBracket,
-                        "Expected \"[\" but found {:?} when parsing CSS selectors in parse_simple_selector_seq",
-                        self.input.peek()
-                    );
+                    if t != &CssToken::OpenSquareBracket {
+                        return Err(Error::CssSelectorParse(format!(
+                            "Expected \"[\" but found {:?} when parsing CSS selectors in parse_simple_selector_seq",
+                            self.input.peek()
+                        )));
+                    }
                     selector_seq.push(self.parse_attrib()?);
                 }
             }
@@ -460,11 +462,12 @@ impl SelectorParser {
             _ => {}
         }
 
-        ensure!(
-            !selector_seq.is_empty(),
-            "Expected type selector, universal selector, hash, class, attribute, pseudo, or negation but found {:?} when parsing CSS selectors in parse_simple_selector_seq",
-            self.input.peek()
-        );
+        if selector_seq.is_empty() {
+            return Err(Error::CssSelectorParse(format!(
+                "Expected type selector, universal selector, hash, class, attribute, pseudo, or negation but found {:?} when parsing CSS selectors in parse_simple_selector_seq",
+                self.input.peek()
+            )));
+        }
 
         Ok(selector_seq)
     }
@@ -489,10 +492,10 @@ impl SelectorParser {
                     name: self.parse_element_name()?,
                 })
             }
-            _ => bail!(
+            _ => Err(Error::CssSelectorParse(format!(
                 "Expected namespace prefix or element name but found {:?} when parsing CSS selectors in parse_type_selector",
                 self.input.peek()
-            ),
+            ))),
         }
     }
 
@@ -508,10 +511,10 @@ impl SelectorParser {
                 if v.as_ref() == Some(&ComponentValue::PreservedToken(CssToken::Delim('|'))) {
                     Ok(s.clone())
                 } else {
-                    bail!(
+                    Err(Error::CssSelectorParse(format!(
                         "Expected \"|\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
                         v
-                    );
+                    )))
                 }
             }
             Some(ComponentValue::PreservedToken(CssToken::Delim('*'))) => {
@@ -519,16 +522,16 @@ impl SelectorParser {
                 if v.as_ref() == Some(&ComponentValue::PreservedToken(CssToken::Delim('|'))) {
                     Ok("*".to_string())
                 } else {
-                    bail!(
+                    Err(Error::CssSelectorParse(format!(
                         "Expected \"|\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
                         v
-                    );
+                    )))
                 }
             }
-            _ => bail!(
+            _ => Err(Error::CssSelectorParse(format!(
                 "Expected \"|\", ident, or \"*\" but found {:?} when parsing CSS selectors in parse_namespace_prefix",
                 v
-            ),
+            ))),
         }
     }
 
@@ -540,10 +543,10 @@ impl SelectorParser {
         if let Some(ComponentValue::PreservedToken(CssToken::Ident(s))) = v {
             Ok(s)
         } else {
-            bail!(
+            Err(Error::CssSelectorParse(format!(
                 "Expected ident but found {:?} when parsing CSS selectors in parse_element_name",
                 v
-            );
+            )))
         }
     }
 
@@ -566,10 +569,10 @@ impl SelectorParser {
                 self.input.next();
                 Ok(SimpleSelector::Universal(None))
             }
-            _ => bail!(
+            _ => Err(Error::CssSelectorParse(format!(
                 "Expected namespace prefix or \"*\" but found {:?} when parsing CSS selectors in parse_universal",
                 v.first()
-            ),
+            ))),
         }
     }
 
@@ -581,10 +584,10 @@ impl SelectorParser {
         if let Some(ComponentValue::PreservedToken(CssToken::Delim('.'))) = v {
             Ok(SimpleSelector::Class(self.parse_element_name()?))
         } else {
-            bail!(
+            Err(Error::CssSelectorParse(format!(
                 "Expected \".\" but found {:?} when parsing CSS selectors in parse_class",
                 v
-            );
+            )))
         }
     }
 
@@ -605,18 +608,19 @@ impl SelectorParser {
             values: values_in_block,
         }) = v
         {
-            ensure!(
-                t == CssToken::OpenSquareBracket,
-                "Expected \"[\" but found {:?} when parsing CSS selectors in parse_attrib",
-                t
-            );
+            if t != CssToken::OpenSquareBracket {
+                return Err(Error::CssSelectorParse(format!(
+                    "Expected \"[\" but found {:?} when parsing CSS selectors in parse_attrib",
+                    t
+                )));
+            }
 
             values_in_block.clone().into_iter().peekable()
         } else {
-            bail!(
+            return Err(Error::CssSelectorParse(format!(
                 "Expected simple block but found {:?} when parsing CSS selectors in parse_attrib",
                 v
-            );
+            )));
         };
 
         while values_in_block
@@ -632,18 +636,20 @@ impl SelectorParser {
                 Some(ComponentValue::PreservedToken(CssToken::Delim('|'))),
             ) => Some(Self::new(values_in_block.clone().collect()).parse_namespace_prefix()?),
             (Some(ComponentValue::PreservedToken(CssToken::Ident(_))), _) => None,
-            _ => bail!(
-                "Expected namespace prefix or ident but found {:?} when parsing CSS selectors in parse_attrib",
-                v.first(),
-            ),
+            _ => {
+                return Err(Error::CssSelectorParse(format!(
+                    "Expected namespace prefix or ident but found {:?} when parsing CSS selectors in parse_attrib",
+                    v.first()
+                )));
+            }
         };
 
         let v = values_in_block.next();
         let Some(ComponentValue::PreservedToken(CssToken::Ident(name))) = v else {
-            bail!(
+            return Err(Error::CssSelectorParse(format!(
                 "Expected ident but found {:?} when parsing CSS selectors in parse_attrib",
                 v
-            );
+            )));
         };
         while values_in_block
             .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
@@ -664,16 +670,16 @@ impl SelectorParser {
                         values_in_block.next();
                         format!("{}=", c)
                     } else {
-                        bail!(
+                        return Err(Error::CssSelectorParse(format!(
                             "Expected \"=\" but found {:?} when parsing CSS selectors in parse_attrib",
                             values_in_block.peek()
-                        )
+                        )));
                     }
                 } else {
-                    bail!(
+                    return Err(Error::CssSelectorParse(format!(
                         "Expected \"=\", \"^=\", \"$=\", \"*=\", \"~=\", \"|=\" but found {:?} when parsing CSS selectors in parse_attrib",
                         values_in_block.peek()
-                    );
+                    )));
                 };
 
                 while values_in_block
@@ -688,10 +694,10 @@ impl SelectorParser {
                 {
                     Some(s)
                 } else {
-                    bail!(
+                    return Err(Error::CssSelectorParse(format!(
                         "Expected ident or string but found {:?} when parsing CSS selectors in parse_attrib",
                         v
-                    );
+                    )));
                 };
 
                 while values_in_block
@@ -712,10 +718,10 @@ impl SelectorParser {
                 op: None,
                 value: None,
             }),
-            _ => bail!(
+            _ => Err(Error::CssSelectorParse(format!(
                 "Unexpected token when parsing CSS selectors in parse_attrib: {:?}",
                 values_in_block.peek()
-            ),
+            ))),
         }
     }
 
@@ -737,10 +743,12 @@ impl SelectorParser {
                 // pseudo-class
                 self.input.next();
             }
-            _ => bail!(
-                "Expected \":\" but found {:?} when parsing CSS selectors in parse_pseudo",
-                v.first()
-            ),
+            _ => {
+                return Err(Error::CssSelectorParse(format!(
+                    "Expected \":\" but found {:?} when parsing CSS selectors in parse_pseudo",
+                    v.first()
+                )));
+            }
         }
 
         // todo: handle functional-pseudo and pseudo-element
@@ -748,10 +756,10 @@ impl SelectorParser {
         if let Some(ComponentValue::PreservedToken(CssToken::Ident(s))) = v {
             Ok(SimpleSelector::PseudoClass(s))
         } else {
-            bail!(
+            Err(Error::CssSelectorParse(format!(
                 "Expected ident but found {:?} when parsing CSS selectors in parse_pseudo",
                 v
-            );
+            )))
         }
     }
 }

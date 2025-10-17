@@ -1,15 +1,16 @@
 use std::{fmt, iter::Peekable};
 
-use anyhow::{Ok, Result, bail};
-
-use crate::renderer::{
-    css::{cssom::ComponentValue, token::CssToken},
-    style::{
-        SpecifiedStyle,
-        property::{
-            AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
-            font_size::{self, FontSizeProp},
-            parse_length_percentage_type,
+use crate::{
+    error::{Error, Result},
+    renderer::{
+        css::{cssom::ComponentValue, token::CssToken},
+        style::{
+            SpecifiedStyle,
+            property::{
+                AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
+                font_size::{self, FontSizeProp},
+                parse_length_percentage_type,
+            },
         },
     },
 };
@@ -94,7 +95,10 @@ impl CssProperty for MarginProp {
                 bottom: trbl.get(2).unwrap().clone(),
                 left: trbl.get(3).unwrap().clone(),
             }),
-            _ => bail!("Invalid margin declaration: {:?}", values),
+            _ => Err(Error::CssProperty(format!(
+                "Invalid margin declaration: {:?}",
+                trbl
+            ))),
         }
     }
 
@@ -127,7 +131,12 @@ impl MarginProp {
                 size: CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
             }) => size,
             None => &font_size::MEDIUM,
-            _ => bail!("Invalid font-size value: {:?}", current_font_size),
+            _ => {
+                return Err(Error::CssProperty(format!(
+                    "Invalid font-size value: {:?}",
+                    current_font_size
+                )));
+            }
         };
         match &value {
             CssValue::Ident(v) => {
@@ -153,7 +162,10 @@ impl MarginProp {
                 _ => unimplemented!("{:?} unit is not supported yet", unit),
             },
             CssValue::Percentage(_) => unimplemented!(),
-            _ => bail!("Invalid margin value: {:?}", &value),
+            _ => Err(Error::CssProperty(format!(
+                "Invalid margin value: {:?}",
+                &value
+            ))),
         }
     }
 }
@@ -207,7 +219,10 @@ impl CssProperty for MarginBlockProp {
                 start: start_end.first().unwrap().clone(),
                 end: start_end.get(1).unwrap().clone(),
             }),
-            _ => bail!("Invalid margin-block declaration: {:?}", start_end),
+            _ => Err(Error::CssProperty(format!(
+                "Invalid margin-block declaration: {:?}",
+                start_end
+            ))),
         }
     }
 
@@ -237,7 +252,12 @@ impl MarginBlockProp {
                 size: CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
             }) => size,
             None => &font_size::MEDIUM,
-            _ => bail!("Invalid font-size value: {:?}", current_font_size),
+            _ => {
+                return Err(Error::CssProperty(format!(
+                    "Invalid font-size value: {:?}",
+                    current_font_size
+                )));
+            }
         };
         match &value {
             CssValue::Length(size, unit) => match unit {
@@ -257,7 +277,10 @@ impl MarginBlockProp {
                 _ => unimplemented!(),
             },
             CssValue::Percentage(_) => unimplemented!(),
-            _ => bail!("Invalid margin value: {:?}", &value),
+            _ => Err(Error::CssProperty(format!(
+                "Invalid margin value: {:?}",
+                &value
+            ))),
         }
     }
 }

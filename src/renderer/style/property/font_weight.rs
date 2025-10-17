@@ -1,15 +1,16 @@
 use std::{fmt, iter::Peekable};
 
-use anyhow::{Ok, Result, bail};
-
-use crate::renderer::{
-    css::{
-        cssom::ComponentValue,
-        token::{CssToken, NumericType},
-    },
-    style::{
-        SpecifiedStyle,
-        property::{CssProperty, CssValue},
+use crate::{
+    error::{Error, Result},
+    renderer::{
+        css::{
+            cssom::ComponentValue,
+            token::{CssToken, NumericType},
+        },
+        style::{
+            SpecifiedStyle,
+            property::{CssProperty, CssValue},
+        },
     },
 };
 
@@ -48,7 +49,10 @@ impl CssProperty for FontWeightProp {
                 "normal" | "bold" => Ok(Self {
                     weight: parse_font_weight_absolute(&mut values)?,
                 }),
-                _ => bail!("Expected \"bolder\" or \"lighter\" but found: {:?}", values),
+                _ => Err(Error::CssProperty(format!(
+                    "Expected \"bolder\" or \"lighter\" but found: {:?}",
+                    values
+                ))),
             }
         } else {
             Ok(Self {
@@ -104,7 +108,12 @@ impl FontWeightProp {
             CssValue::Ident(weight) => match weight.as_str() {
                 "normal" => "Regular",
                 "bold" => "Bold",
-                _ => bail!("Invalid font weight: {:?}", weight),
+                _ => {
+                    return Err(Error::CssProperty(format!(
+                        "Invalid font weight: {:?}",
+                        weight
+                    )));
+                }
             },
             CssValue::Number(weight) => match weight {
                 0.0..150.0 => "Thin",
@@ -117,9 +126,19 @@ impl FontWeightProp {
                 750.0..850.0 => "Extra-Bold",
                 850.0..950.0 => "Black",
                 950.0.. => "Extra-Black",
-                _ => bail!("Invalid font weight: {:?}", weight),
+                _ => {
+                    return Err(Error::CssProperty(format!(
+                        "Invalid font weight: {:?}",
+                        weight
+                    )));
+                }
             },
-            _ => bail!("Invalid font weight: {:?}", self.weight),
+            _ => {
+                return Err(Error::CssProperty(format!(
+                    "Invalid font weight: {:?}",
+                    self.weight
+                )));
+            }
         };
         Ok(weight.to_string())
     }
@@ -137,15 +156,23 @@ where
         Some(v) => match &v {
             ComponentValue::PreservedToken(CssToken::Ident(size)) => match size.as_str() {
                 "normal" | "bold" => Ok(CssValue::Ident(size.to_string())),
-                _ => bail!("Expected \"normal\" or \"bold\" but found: {:?}", v),
+                _ => Err(Error::CssProperty(format!(
+                    "Expected \"normal\" or \"bold\" but found: {:?}",
+                    v
+                ))),
             },
             ComponentValue::PreservedToken(CssToken::Number(NumericType::Number(n)))
                 if *n >= 1.0 && *n <= 1000.0 =>
             {
                 Ok(CssValue::Number(*n))
             }
-            _ => bail!("Expected number between 1 and 1000 but found: {:?}", v),
+            _ => Err(Error::CssProperty(format!(
+                "Expected number between 1 and 1000 but found: {:?}",
+                v
+            ))),
         },
-        None => bail!("Expected <font-weight-absolute> but found none"),
+        None => Err(Error::CssProperty(
+            "Expected <font-weight-absolute> but found none".into(),
+        )),
     }
 }

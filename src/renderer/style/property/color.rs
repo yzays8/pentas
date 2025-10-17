@@ -1,15 +1,16 @@
 use std::{fmt, iter::Peekable};
 
-use anyhow::{Ok, Result, anyhow, bail, ensure};
-
-use crate::renderer::{
-    css::{
-        cssom::ComponentValue,
-        token::{CssToken, NumericType},
-    },
-    style::{
-        SpecifiedStyle,
-        property::{CssProperty, CssValue},
+use crate::{
+    error::{Error, Result},
+    renderer::{
+        css::{
+            cssom::ComponentValue,
+            token::{CssToken, NumericType},
+        },
+        style::{
+            SpecifiedStyle,
+            property::{CssProperty, CssValue},
+        },
     },
 };
 
@@ -75,7 +76,10 @@ impl CssProperty for ColorProp {
                     if let Some((r, g, b)) = name_to_rgb(name) {
                         self.value = CssValue::Color { r, g, b, a: 1.0 };
                     } else {
-                        bail!("Failed to compute color: {}", name);
+                        return Err(Error::CssProperty(format!(
+                            "Failed to compute color: {}",
+                            name
+                        )));
                     }
                 }
             },
@@ -89,7 +93,12 @@ impl CssProperty for ColorProp {
                 };
             }
             CssValue::Color { .. } => {}
-            _ => bail!("Failed to compute color: {:?}", self.value),
+            _ => {
+                return Err(Error::CssProperty(format!(
+                    "Failed to compute color: {:?}",
+                    self.value
+                )));
+            }
         }
         Ok(self)
     }
@@ -157,7 +166,10 @@ impl CssProperty for BackGroundColorProp {
                     if let Some((r, g, b)) = name_to_rgb(name) {
                         self.value = CssValue::Color { r, g, b, a: 1.0 };
                     } else {
-                        bail!("Failed to compute color: {}", name);
+                        return Err(Error::CssProperty(format!(
+                            "Failed to compute color: {}",
+                            name
+                        )));
                     }
                 }
             },
@@ -171,7 +183,12 @@ impl CssProperty for BackGroundColorProp {
                 };
             }
             CssValue::Color { .. } => {}
-            _ => bail!("Failed to compute color: {:?}", self.value),
+            _ => {
+                return Err(Error::CssProperty(format!(
+                    "Failed to compute color: {:?}",
+                    self.value
+                )));
+            }
         }
         Ok(self)
     }
@@ -235,9 +252,11 @@ where
             }
             ComponentValue::PreservedToken(CssToken::Hash(..)) => Ok(parse_hex_color_type(values)?),
             ComponentValue::Function { .. } => Ok(parse_color_function_type(values)?),
-            _ => bail!("Invalid color value: {:?}", v),
+            _ => Err(Error::CssProperty(format!("Invalid color value: {:?}", v))),
         },
-        None => bail!("Expected color value but found nothing"),
+        None => Err(Error::CssProperty(
+            "Expected color value but found nothing".into(),
+        )),
     }
 }
 
@@ -269,9 +288,11 @@ where
                     _ => unimplemented!(),
                 }
             }
-            _ => bail!("Invalid color value: {:?}", v),
+            _ => Err(Error::CssProperty(format!("Invalid color value: {:?}", v))),
         },
-        None => bail!("Expected color value but found nothing"),
+        None => Err(Error::CssProperty(
+            "Expected color value but found nothing".into(),
+        )),
     }
 }
 
@@ -318,11 +339,13 @@ where
                         r, g, b, a
                     )))
                 }
-                _ => bail!("Invalid hex color: {}", v),
+                _ => Err(Error::CssProperty(format!("Invalid hex color: {}", v))),
             },
-            _ => bail!("Invalid color value: {:?}", v),
+            _ => Err(Error::CssProperty(format!("Invalid color value: {:?}", v))),
         },
-        None => bail!("Expected color value but found nothing"),
+        None => Err(Error::CssProperty(
+            "Expected color value but found nothing".into(),
+        )),
     }
 }
 
@@ -354,9 +377,11 @@ where
                 }
                 _ => unimplemented!(),
             },
-            _ => bail!("Invalid color value: {:?}", v),
+            _ => Err(Error::CssProperty(format!("Invalid color value: {:?}", v))),
         },
-        None => bail!("Expected color value but found none"),
+        None => Err(Error::CssProperty(
+            "Expected color value but found none".into(),
+        )),
     }
 }
 
@@ -392,7 +417,7 @@ where
                 ))
             )
         })
-        .ok_or_else(|| anyhow!("Invalid rgb function"))?;
+        .ok_or(Error::CssProperty("Invalid rgb function".into()))?;
     while values
         .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
         .is_some()
@@ -417,7 +442,7 @@ where
                 ))
             )
         })
-        .ok_or_else(|| anyhow!("Invalid rgb function"))?;
+        .ok_or(Error::CssProperty("Invalid rgb function".into()))?;
     while values
         .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
         .is_some()
@@ -427,7 +452,7 @@ where
         .is_some()
     {
         if !is_legacy_syntax {
-            bail!("Invalid rgb function");
+            return Err(Error::CssProperty("Invalid rgb function".into()));
         }
         while values
             .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
@@ -444,7 +469,7 @@ where
                 ))
             )
         })
-        .ok_or_else(|| anyhow!("Invalid rgb function"))?;
+        .ok_or(Error::CssProperty("Invalid rgb function".into()))?;
     while values
         .next_if_eq(&ComponentValue::PreservedToken(CssToken::Whitespace))
         .is_some()
@@ -478,16 +503,19 @@ where
 
     let a = match values.next() {
         Some(ComponentValue::PreservedToken(CssToken::Number(NumericType::Number(v)))) => {
-            ensure!(
-                (0.0..=1.0).contains(&v),
-                "Invalid value for alpha in rgb function"
-            );
+            if !(0.0..=1.0).contains(&v) {
+                return Err(Error::CssProperty(
+                    "Invalid value for alpha in rgb function".into(),
+                ));
+            }
             v
         }
-        Some(_) => bail!("Invalid rgb function"),
+        Some(_) => {
+            return Err(Error::CssProperty("Invalid rgb function".into()));
+        }
         None => {
             if is_separator_present {
-                bail!("Invalid rgb function");
+                return Err(Error::CssProperty("Invalid rgb function".into()));
             }
             1.0
         }
@@ -495,54 +523,66 @@ where
 
     let r = match r {
         ComponentValue::PreservedToken(CssToken::Number(NumericType::Integer(r))) => {
-            ensure!(
-                (0..=255).contains(&r),
-                "Invalid value for red in rgb function"
-            );
+            if !(0..=255).contains(&r) {
+                return Err(Error::CssProperty(
+                    "Invalid value for red in rgb function".into(),
+                ));
+            }
             r as u8
         }
         ComponentValue::PreservedToken(CssToken::Number(NumericType::Number(r))) => {
-            ensure!(
-                (0.0..=255.0).contains(&r),
-                "Invalid value for red in rgb function"
-            );
+            if !(0.0..=255.0).contains(&r) {
+                return Err(Error::CssProperty(
+                    "Invalid value for red in rgb function".into(),
+                ));
+            }
             r.round() as u8
         }
-        _ => bail!("Invalid rgb function"),
+        _ => {
+            return Err(Error::CssProperty("Invalid rgb function".into()));
+        }
     };
     let g = match g {
         ComponentValue::PreservedToken(CssToken::Number(NumericType::Integer(g))) => {
-            ensure!(
-                (0..=255).contains(&g),
-                "Invalid value for green in rgb function"
-            );
+            if !(0..=255).contains(&g) {
+                return Err(Error::CssProperty(
+                    "Invalid value for green in rgb function".into(),
+                ));
+            }
             g as u8
         }
         ComponentValue::PreservedToken(CssToken::Number(NumericType::Number(g))) => {
-            ensure!(
-                (0.0..=255.0).contains(&g),
-                "Invalid value for green in rgb function"
-            );
+            if !(0.0..=255.0).contains(&g) {
+                return Err(Error::CssProperty(
+                    "Invalid value for green in rgb function".into(),
+                ));
+            }
             g.round() as u8
         }
-        _ => bail!("Invalid rgb function"),
+        _ => {
+            return Err(Error::CssProperty("Invalid rgb function".into()));
+        }
     };
     let b = match b {
         ComponentValue::PreservedToken(CssToken::Number(NumericType::Integer(b))) => {
-            ensure!(
-                (0..=255).contains(&b),
-                "Invalid value for blue in rgb function"
-            );
+            if !(0..=255).contains(&b) {
+                return Err(Error::CssProperty(
+                    "Invalid value for blue in rgb function".into(),
+                ));
+            }
             b as u8
         }
         ComponentValue::PreservedToken(CssToken::Number(NumericType::Number(b))) => {
-            ensure!(
-                (0.0..=255.0).contains(&b),
-                "Invalid value for blue in rgb function"
-            );
+            if !(0.0..=255.0).contains(&b) {
+                return Err(Error::CssProperty(
+                    "Invalid value for blue in rgb function".into(),
+                ));
+            }
             b.round() as u8
         }
-        _ => bail!("Invalid rgb function"),
+        _ => {
+            return Err(Error::CssProperty("Invalid rgb function".into()));
+        }
     };
 
     Ok(CssValue::Color { r, g, b, a })
@@ -601,7 +641,7 @@ fn hex_to_rgba(hex: &str) -> Result<(u8, u8, u8, u8)> {
             let a = u8::from_str_radix(&hex[6..8], 16)?;
             Ok((r, g, b, a))
         }
-        _ => bail!("Invalid hex color: {}", hex),
+        _ => Err(Error::CssProperty(format!("Invalid hex color: {}", hex))),
     }
 }
 

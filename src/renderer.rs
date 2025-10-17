@@ -6,7 +6,6 @@ mod style;
 
 pub use self::object::{RenderObject, RenderObjectsInfo};
 
-use anyhow::Result;
 use gtk4::pango;
 
 use self::{
@@ -15,6 +14,7 @@ use self::{
 };
 use crate::{
     app::TreeTraceLevel,
+    error::Result,
     ui::{DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH},
     utils::PrintableTree as _,
 };

@@ -1,12 +1,13 @@
 use std::{fmt, iter::Peekable};
 
-use anyhow::{Result, bail};
-
-use crate::renderer::{
-    css::{cssom::ComponentValue, token::CssToken},
-    style::{
-        SpecifiedStyle,
-        property::{CssProperty, CssValue},
+use crate::{
+    error::{Error, Result},
+    renderer::{
+        css::{cssom::ComponentValue, token::CssToken},
+        style::{
+            SpecifiedStyle,
+            property::{CssProperty, CssValue},
+        },
     },
 };
 
@@ -78,7 +79,9 @@ impl CssProperty for DisplayProp {
                             match ident.as_str() {
                                 "flow" | "table" => {
                                     if is_inside_parsed {
-                                        bail!("Inside display value is already parsed");
+                                        return Err(Error::CssProperty(
+                                            "Inside display value is already parsed".to_string(),
+                                        ));
                                     }
                                     match parse_display_inside_type(&mut values)? {
                                         CssValue::Ident(v) => match v.as_str() {
@@ -92,7 +95,9 @@ impl CssProperty for DisplayProp {
                                 }
                                 "block" | "inline" => {
                                     if is_outside_parsed {
-                                        bail!("Outside display value is already parsed");
+                                        return Err(Error::CssProperty(
+                                            "Outside display value is already parsed".to_string(),
+                                        ));
                                     }
                                     match parse_display_outside_type(&mut values)? {
                                         CssValue::Ident(v) => match v.as_str() {
@@ -113,9 +118,14 @@ impl CssProperty for DisplayProp {
                     CssValue::Ident(v) => match v.as_str() {
                         "none" => ret.display_box = Some(DisplayBox::None),
                         "contents" => ret.display_box = Some(DisplayBox::Contents),
-                        _ => bail!("Invalid display box value: {:?}", v),
+                        _ => {
+                            return Err(Error::CssProperty(format!(
+                                "Invalid display box value: {}",
+                                v
+                            )));
+                        }
                     },
-                    _ => bail!("Invalid display box value"),
+                    _ => return Err(Error::CssProperty("Invalid display box value".into())),
                 },
                 _ => unimplemented!(),
             }
@@ -146,9 +156,14 @@ where
                     _ => unimplemented!(),
                 }
             }
-            _ => bail!("Invalid inside display value: {:?}", v),
+            _ => Err(Error::CssProperty(format!(
+                "Invalid inside display value: {:?}",
+                v
+            ))),
         },
-        None => bail!("Expected inside display value but found none"),
+        None => Err(Error::CssProperty(
+            "Expected inside display value but found none".into(),
+        )),
     }
 }
 
@@ -169,9 +184,14 @@ where
                     _ => unimplemented!(),
                 }
             }
-            _ => bail!("Invalid outside display value: {:?}", v),
+            _ => Err(Error::CssProperty(format!(
+                "Invalid outside display value: {:?}",
+                v
+            ))),
         },
-        None => bail!("Expected outside display value but found none"),
+        None => Err(Error::CssProperty(
+            "Expected outside display value but found none".into(),
+        )),
     }
 }
 
@@ -192,9 +212,15 @@ where
                     _ => unimplemented!(),
                 }
             }
-            _ => bail!("Invalid outside display value: {:?}", v),
+            // _ => bail!("Invalid outside display value: {:?}", v),
+            _ => Err(Error::CssProperty(format!(
+                "Invalid outside display value: {:?}",
+                v
+            ))),
         },
-        None => bail!("Expected outside display value but found none"),
+        None => Err(Error::CssProperty(
+            "Expected outside display value but found none".into(),
+        )),
     }
 }
 

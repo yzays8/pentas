@@ -1,8 +1,7 @@
 use std::collections::VecDeque;
 
-use anyhow::{Result, ensure};
-
 use crate::{
+    error::{Error, Result},
     renderer::css::{
         cssom::{AtRule, ComponentValue, Declaration, QualifiedRule, Rule, StyleSheet},
         selector::SelectorParser,
@@ -81,7 +80,9 @@ impl CssParser {
                     while let Some(CssToken::Whitespace) = self.input.peek() {
                         self.input.next();
                     }
-                    ensure!(matches!(self.input.next(), Some(CssToken::CloseCurlyBrace)));
+                    if !matches!(self.input.next(), Some(CssToken::CloseCurlyBrace)) {
+                        return Err(Error::CssParse("Expected closing curly brace '}'".into()));
+                    }
                     return Ok(Some(at_rule));
                 }
                 _ => {

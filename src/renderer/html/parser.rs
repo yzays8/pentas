@@ -1,25 +1,15 @@
 use std::{cell::RefCell, rc::Rc};
 
-use anyhow::{Ok, Result, bail, ensure};
-use thiserror::Error;
-
-use crate::renderer::{
-    css::{CssParser, CssTokenizer, cssom::StyleSheet},
-    html::{
-        dom::{DocumentTree, DomNode, Element, NodeType},
-        token::{HtmlToken, HtmlTokenizer, TokenizationState},
+use crate::{
+    error::{Error, Result},
+    renderer::{
+        css::{CssParser, CssTokenizer, cssom::StyleSheet},
+        html::{
+            dom::{DomNode, Element, NodeType},
+            token::{HtmlToken, HtmlTokenizer, TokenizationState},
+        },
     },
 };
-
-#[derive(Error, Debug)]
-#[error(
-    "{message} (in the HTML tree construction stage)\nCurrent HTML token: {current_token:?}\nCurrent DOM tree:\n{current_tree}"
-)]
-struct ParseError {
-    message: String,
-    current_token: HtmlToken,
-    current_tree: String,
-}
 
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq)]
 enum InsertionMode {
@@ -123,12 +113,7 @@ impl HtmlParser {
                     || (system_identifier.is_some()
                         && system_identifier.clone().unwrap() != "about:legacy-compat")
                 {
-                    bail!(ParseError {
-                        message: "Invalid doctype".to_string(),
-                        current_token: token.clone(),
-                        current_tree: DocumentTree::build(Rc::clone(&self.output.dom_root))?
-                            .to_string(),
-                    });
+                    return Err(Error::HtmlParse("Invalid doctype".into()));
                 }
                 DomNode::append_child(
                     &self.output.dom_root,
@@ -299,24 +284,11 @@ impl HtmlParser {
                 "head" => {
                     let elm = self.stack.pop().unwrap();
                     if let NodeType::Element(elm) = &elm.borrow().node_type {
-                        ensure!(
-                            elm.tag_name == "head",
-                            ParseError {
-                                message: "Expected head element".to_string(),
-                                current_token: token.clone(),
-                                current_tree: DocumentTree::build(Rc::clone(
-                                    &self.output.dom_root,
-                                ))?
-                                .to_string(),
-                            }
-                        );
+                        if elm.tag_name != "head" {
+                            return Err(Error::HtmlParse("Expected head element".into()));
+                        }
                     } else {
-                        bail!(ParseError {
-                            message: "Expected head element".to_string(),
-                            current_token: token.clone(),
-                            current_tree: DocumentTree::build(Rc::clone(&self.output.dom_root,))?
-                                .to_string(),
-                        });
+                        return Err(Error::HtmlParse("Expected head element".into()));
                     }
                     self.insertion_mode = InsertionMode::AfterHead;
                 }
@@ -433,14 +405,7 @@ impl HtmlParser {
                                         break;
                                     }
                                 } else {
-                                    bail!(ParseError {
-                                        message: "li element not found".to_string(),
-                                        current_token: token.clone(),
-                                        current_tree: DocumentTree::build(Rc::clone(
-                                            &self.output.dom_root
-                                        ))?
-                                        .to_string(),
-                                    });
+                                    return Err(Error::HtmlParse("li element not found".into()));
                                 }
                             }
                             break;
@@ -451,25 +416,13 @@ impl HtmlParser {
                             // Set the node to the previous entry in the stack of open elements.
                             node_type = if let Some(node) = &self.stack.get(self.stack.len() - 2) {
                                 let NodeType::Element(elm) = &node.borrow().node_type else {
-                                    bail!(ParseError {
-                                        message: "The node is not an element".to_string(),
-                                        current_token: token.clone(),
-                                        current_tree: DocumentTree::build(Rc::clone(
-                                            &self.output.dom_root
-                                        ))?
-                                        .to_string(),
-                                    });
+                                    return Err(Error::HtmlParse(
+                                        "The node is not an element".into(),
+                                    ));
                                 };
                                 elm.tag_name.clone()
                             } else {
-                                bail!(ParseError {
-                                    message: "Previous node not found".to_string(),
-                                    current_token: token.clone(),
-                                    current_tree: DocumentTree::build(Rc::clone(
-                                        &self.output.dom_root
-                                    ))?
-                                    .to_string(),
-                                });
+                                return Err(Error::HtmlParse("Previous node not found".into()));
                             };
                             continue;
                         } else {
@@ -500,14 +453,7 @@ impl HtmlParser {
                                 break;
                             }
                         } else {
-                            bail!(ParseError {
-                                message: "a element not found".to_string(),
-                                current_token: token.clone(),
-                                current_tree: DocumentTree::build(Rc::clone(
-                                    &self.output.dom_root
-                                ))?
-                                .to_string(),
-                            });
+                            return Err(Error::HtmlParse("a element not found".into()));
                         }
                     }
                 }
@@ -540,14 +486,7 @@ impl HtmlParser {
                                 break;
                             }
                         } else {
-                            bail!(ParseError {
-                                message: "p element not found".to_string(),
-                                current_token: token.clone(),
-                                current_tree: DocumentTree::build(Rc::clone(
-                                    &self.output.dom_root
-                                ))?
-                                .to_string(),
-                            });
+                            return Err(Error::HtmlParse("p element not found".into()));
                         }
                     }
                 }
@@ -564,14 +503,7 @@ impl HtmlParser {
                                 break;
                             }
                         } else {
-                            bail!(ParseError {
-                                message: "li element not found".to_string(),
-                                current_token: token.clone(),
-                                current_tree: DocumentTree::build(Rc::clone(
-                                    &self.output.dom_root
-                                ))?
-                                .to_string(),
-                            });
+                            return Err(Error::HtmlParse("li element not found".into()));
                         }
                     }
                 }
@@ -591,14 +523,7 @@ impl HtmlParser {
                                 break;
                             }
                         } else {
-                            bail!(ParseError {
-                                message: "h1-h6 element not found".to_string(),
-                                current_token: token.clone(),
-                                current_tree: DocumentTree::build(Rc::clone(
-                                    &self.output.dom_root
-                                ))?
-                                .to_string(),
-                            });
+                            return Err(Error::HtmlParse("h1-h6 element not found".into()));
                         }
                     }
                 }
@@ -800,6 +725,7 @@ impl HtmlParser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::renderer::html::dom::DocumentTree;
 
     // <!DOCTYPE html>
     // <html class=e>

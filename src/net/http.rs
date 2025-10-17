@@ -3,8 +3,9 @@ use std::{
     net::{TcpStream, ToSocketAddrs},
 };
 
-use anyhow::{Context, Result, anyhow};
 use native_tls::TlsConnector;
+
+use crate::error::{Error, Result};
 
 /// HTTP/1.1 Request
 #[allow(dead_code)]
@@ -58,7 +59,10 @@ impl HttpResponse {
     /// https://datatracker.ietf.org/doc/html/rfc9112#section-2.1
     pub fn from_str(response_text: &str) -> Result<Self> {
         let mut lines = response_text.split("\r\n");
-        let status_line = lines.next().context(anyhow!("No status line"))?.to_string();
+        let status_line = lines
+            .next()
+            .ok_or(Error::Network("No status line".into()))?
+            .to_string();
 
         let mut headers = Vec::new();
         for line in lines.by_ref() {
@@ -108,7 +112,7 @@ impl HttpClient {
             // note: This is a blocking operation.
             .to_socket_addrs()?
             .next()
-            .context(anyhow!("Failed to resolve address"))?;
+            .ok_or(Error::Network("Failed to resolve address".into()))?;
 
         let request = HttpRequest {
             method: method.to_string(),

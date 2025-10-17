@@ -1,15 +1,17 @@
 use std::{cell::RefCell, cmp::max_by, rc::Rc};
 
-use anyhow::Result;
 use gtk4::pango;
 use regex::Regex;
 
-use crate::renderer::{
-    layout::{LayoutBox, LayoutInfo},
-    object::{RenderObject, RenderText},
-    style::{
-        RenderNode,
-        property::{CssValue, DisplayOutside},
+use crate::{
+    error::Result,
+    renderer::{
+        layout::{LayoutBox, LayoutInfo},
+        object::{RenderObject, RenderText},
+        style::{
+            RenderNode,
+            property::{CssValue, DisplayOutside},
+        },
     },
 };
 

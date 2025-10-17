@@ -1,14 +1,15 @@
 use std::{collections::HashMap, fmt, iter::Peekable};
 
-use anyhow::{Ok, Result, bail};
-
-use crate::renderer::{
-    css::{cssom::ComponentValue, token::CssToken},
-    style::{
-        SpecifiedStyle,
-        property::{
-            CssProperty, CssValue,
-            color::{ColorProp, parse_color_type},
+use crate::{
+    error::{Error, Result},
+    renderer::{
+        css::{cssom::ComponentValue, token::CssToken},
+        style::{
+            SpecifiedStyle,
+            property::{
+                CssProperty, CssValue,
+                color::{ColorProp, parse_color_type},
+            },
         },
     },
 };
@@ -78,21 +79,27 @@ impl CssProperty for TextDecorationProp {
                     match ident.as_str() {
                         "none" | "underline" | "overline" | "line-through" => {
                             if is_line_parsed {
-                                bail!("text-decoration-line is already parsed");
+                                return Err(Error::CssProperty(
+                                    "text-decoration-line is already parsed".into(),
+                                ));
                             }
                             ret.line = parse_text_decoration_line_type(&mut values)?;
                             is_line_parsed = true;
                         }
                         "solid" | "double" | "dotted" | "dashed" | "wavy" => {
                             if is_style_parsed {
-                                bail!("text-decoration-style is already parsed");
+                                return Err(Error::CssProperty(
+                                    "text-decoration-style is already parsed".into(),
+                                ));
                             }
                             ret.style = parse_text_decoration_style_type(&mut values)?;
                             is_style_parsed = true;
                         }
                         _ => {
                             if is_color_parsed {
-                                bail!("text-decoration-color is already parsed");
+                                return Err(Error::CssProperty(
+                                    "text-decoration-color is already parsed".into(),
+                                ));
                             }
                             ret.color = ColorProp {
                                 value: parse_text_decoration_color_type(&mut values)?,
@@ -103,7 +110,9 @@ impl CssProperty for TextDecorationProp {
                 }
                 _ => {
                     if is_color_parsed {
-                        bail!("text-decoration-color is already parsed");
+                        return Err(Error::CssProperty(
+                            "text-decoration-color is already parsed".into(),
+                        ));
                     }
                     ret.color = ColorProp {
                         value: parse_text_decoration_color_type(&mut values)?,
@@ -165,7 +174,10 @@ where
                 values.next();
             } else {
                 if lines.len() == 3 {
-                    bail!("Invalid text-decoration-line value: {:?}", ident);
+                    return Err(Error::CssProperty(format!(
+                        "Invalid text-decoration-line value: {:?}",
+                        ident
+                    )));
                 }
                 break;
             }
@@ -196,9 +208,14 @@ where
             "solid" | "double" | "dotted" | "dashed" | "wavy" => {
                 Ok(CssValue::Ident(ident.to_string()))
             }
-            _ => bail!("Invalid text-decoration-style value: {:?}", ident),
+            _ => Err(Error::CssProperty(format!(
+                "Invalid text-decoration-style value: {:?}",
+                ident
+            ))),
         },
-        _ => bail!("Invalid text-decoration-style value"),
+        _ => Err(Error::CssProperty(
+            "Invalid text-decoration-style value".into(),
+        )),
     }
 }
 

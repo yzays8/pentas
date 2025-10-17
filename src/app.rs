@@ -1,7 +1,6 @@
-use anyhow::{Ok, Result};
 use gtk4::{DrawingArea, prelude::WidgetExt};
 
-use crate::{renderer::Renderer, ui::show_ui};
+use crate::{error::Result, renderer::Renderer, ui::show_ui};
 
 #[derive(Debug)]
 pub struct Config {

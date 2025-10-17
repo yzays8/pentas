@@ -1,12 +1,13 @@
 use std::fmt;
 
-use anyhow::{Ok, Result, bail};
-
-use crate::renderer::{
-    css::{cssom::ComponentValue, token::CssToken},
-    style::{
-        SpecifiedStyle,
-        property::{CssProperty, CssValue},
+use crate::{
+    error::{Error, Result},
+    renderer::{
+        css::{cssom::ComponentValue, token::CssToken},
+        style::{
+            SpecifiedStyle,
+            property::{CssProperty, CssValue},
+        },
     },
 };
 
@@ -64,10 +65,12 @@ impl CssProperty for FontFamilyProp {
                     CssToken::Ident(font) | CssToken::String(font) => {
                         family.push(CssValue::String(font.to_string()));
                     }
-                    _ => bail!(
-                        "Expected <family-name> or <generic-family> but found: {:?}",
-                        v
-                    ),
+                    _ => {
+                        return Err(Error::CssProperty(format!(
+                            "Expected <family-name> or <generic-family> but found: {:?}",
+                            v
+                        )));
+                    }
                 }
             }
         }

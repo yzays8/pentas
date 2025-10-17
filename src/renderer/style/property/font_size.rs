@@ -1,14 +1,15 @@
 use std::{fmt, iter::Peekable};
 
-use anyhow::{Ok, Result, bail};
-
-use crate::renderer::{
-    css::{cssom::ComponentValue, token::CssToken},
-    style::{
-        SpecifiedStyle,
-        property::{
-            AbsoluteLengthUnit, AbsoluteSize, CssProperty, CssValue, LengthUnit,
-            RelativeLengthUnit, RelativeSize, parse_length_percentage_type,
+use crate::{
+    error::{Error, Result},
+    renderer::{
+        css::{cssom::ComponentValue, token::CssToken},
+        style::{
+            SpecifiedStyle,
+            property::{
+                AbsoluteLengthUnit, AbsoluteSize, CssProperty, CssValue, LengthUnit,
+                RelativeLengthUnit, RelativeSize, parse_length_percentage_type,
+            },
         },
     },
 };
@@ -55,10 +56,10 @@ impl CssProperty for FontSizeProp {
                 "larger" | "smaller" => Ok(Self {
                     size: parse_relative_size_type(&mut values)?,
                 }),
-                _ => bail!(
+                _ => Err(Error::CssProperty(format!(
                     "Expected absolute or relative size value but found: {:?}",
                     values
-                ),
+                ))),
             }
         } else {
             Ok(Self {
@@ -136,7 +137,12 @@ impl CssProperty for FontSizeProp {
                     LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px),
                 );
             }
-            _ => bail!("Invalid font-size value: {:?}", self.size),
+            _ => {
+                return Err(Error::CssProperty(format!(
+                    "Invalid font-size value: {:?}",
+                    self.size
+                )));
+            }
         }
 
         Ok(self)
@@ -164,11 +170,19 @@ where
                 "large" => Ok(CssValue::AbsoluteSize(AbsoluteSize::Large)),
                 "x-large" => Ok(CssValue::AbsoluteSize(AbsoluteSize::XLarge)),
                 "xx-large" => Ok(CssValue::AbsoluteSize(AbsoluteSize::XXLarge)),
-                _ => bail!("Invalid absolute size value: {:?}", v),
+                _ => Err(Error::CssProperty(format!(
+                    "Invalid absolute size value: {:?}",
+                    v
+                ))),
             },
-            _ => bail!("Expected absolute size value but found: {:?}", v),
+            _ => Err(Error::CssProperty(format!(
+                "Expected absolute size value but found: {:?}",
+                v
+            ))),
         },
-        None => bail!("Expected absolute size value but found none"),
+        None => Err(Error::CssProperty(
+            "Expected absolute size value but found none".into(),
+        )),
     }
 }
 
@@ -182,11 +196,19 @@ where
             ComponentValue::PreservedToken(CssToken::Ident(size)) => match size.as_str() {
                 "larger" => Ok(CssValue::RelativeSize(RelativeSize::Larger)),
                 "smaller" => Ok(CssValue::RelativeSize(RelativeSize::Smaller)),
-                _ => bail!("Invalid relative size value: {:?}", v),
+                _ => Err(Error::CssProperty(format!(
+                    "Invalid relative size value: {:?}",
+                    v
+                ))),
             },
-            _ => bail!("Expected relative size value but found: {:?}", v),
+            _ => Err(Error::CssProperty(format!(
+                "Expected relative size value but found: {:?}",
+                v
+            ))),
         },
-        None => bail!("Expected relative size value but found none"),
+        None => Err(Error::CssProperty(
+            "Expected relative size value but found none".into(),
+        )),
     }
 }
 

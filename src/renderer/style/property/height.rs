@@ -1,15 +1,16 @@
 use std::fmt;
 
-use anyhow::{Result, bail};
-
-use crate::renderer::{
-    css::{cssom::ComponentValue, token::CssToken},
-    style::{
-        SpecifiedStyle,
-        property::{
-            AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
-            font_size::{self, FontSizeProp},
-            parse_length_percentage_type,
+use crate::{
+    error::{Error, Result},
+    renderer::{
+        css::{cssom::ComponentValue, token::CssToken},
+        style::{
+            SpecifiedStyle,
+            property::{
+                AbsoluteLengthUnit, CssProperty, CssValue, LengthUnit, RelativeLengthUnit,
+                font_size::{self, FontSizeProp},
+                parse_length_percentage_type,
+            },
         },
     },
 };
@@ -72,7 +73,12 @@ impl CssProperty for HeightProp {
                 size: CssValue::Length(size, LengthUnit::AbsoluteLengthUnit(AbsoluteLengthUnit::Px)),
             }) => size,
             None => &font_size::MEDIUM,
-            _ => bail!("Invalid font-size value: {:?}", current_font_size),
+            _ => {
+                return Err(Error::CssProperty(format!(
+                    "Invalid font-size value: {:?}",
+                    current_font_size
+                )));
+            }
         };
         match &self.size {
             CssValue::Ident(v) => {
