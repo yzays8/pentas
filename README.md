@@ -1,57 +1,69 @@
 # pentas
 
-pentas is a small browser built from scratch for educational purposes. Its core functionality is implemented without relying on external libraries, except for the GUI, which uses [gtk4](https://docs.gtk.org/gtk4/).
+pentas is a small, educational web browser built from scratch, designed to demonstrate how a browser works with as few dependencies as possible.
 
-While this is just a toy program and not intended for practical use, it loosely adheres to web standards.
+![example1](./assets/example1.png)
 
-![example_com](./assets/example.png)
+![example2](./assets/example2.png)
 
-## Install
+## Installation
+
+The GUI requires GTK4.
 
 ### Linux (Debian)
 
 ```shell
-sudo apt install libgtk-4-dev build-essential
+sudo apt install libgtk-4-dev
 ```
 
-### Mac
+### macOS
 
 ```shell
 brew install gtk4
 ```
 
-For more detailed instructions, see [here](https://gtk-rs.org/gtk4-rs/stable/latest/book/installation.html).
-
 ## Usage
 
 ```text
 $ cargo run -- -h
-Usage: pentas [OPTIONS]
+Usage: pentas [OPTIONS] [COMMAND]
+
+Commands:
+  headless
+  help      Print this message or the help of the given subcommand(s)
 
 Options:
-      --no-window-html <HTML>  The HTML file to parse in CLI mode
-      --no-window-css <CSS>    The CSS file to parse in CLI mode
-  -t, --tree-trace <LEVEL>     The verbosity level of the tree trace [default: silent] [possible values: silent, normal, debug]
-  -h, --help                   Print help
-  -V, --version                Print version
+      --window-size <WIDTH,HEIGHT>  Initial window size [default: 1200 800]
+  -d, --dump <LEVEL>                Dump level [default: off] [possible values: off, all, debug]
+  -h, --help                        Print help
+  -V, --version                     Print version
+```
+
+```text
+$ cargo run -- headless -h
+Usage: pentas headless [OPTIONS] [URL]
+
+Arguments:
+  [URL]  Target URL to process
+
+Options:
+      --local-html <HTML>           A local HTML file to parse
+      --local-css <CSS>             A local CSS file to parse
+      --window-size <WIDTH,HEIGHT>  Initial window size [default: 1200 800]
+  -d, --dump <LEVEL>                Dump level [default: off] [possible values: off, all, debug]
+  -h, --help                        Print help
 ```
 
 ### Example
 
-To open the browser window:
+Run with a GUI window:
 
 ```shell
 cargo run
 ```
 
-To see how an HTML file is converted into a box tree (no window):
+Run in headless mode:
 
 ```shell
-cargo run -- --no-window-html <HTML file>
-```
-
-To see how a CSS file is converted into a style sheet (no window):
-
-```shell
-cargo run -- --no-window-css <CSS file>
+cargo run headless https://example.com/ --window-size 1500,1000 -d all
 ```
