@@ -88,10 +88,7 @@ impl<I: Clone> TokenIterator<I> {
     }
 }
 
-impl<I> Iterator for TokenIterator<I>
-where
-    I: Clone,
-{
+impl<I: Clone> Iterator for TokenIterator<I> {
     type Item = I;
 
     fn next(&mut self) -> Option<I> {
