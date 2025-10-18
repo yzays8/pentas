@@ -8,5 +8,5 @@ mod renderer;
 mod ui;
 mod utils;
 
-pub use app::{Config, Runner, TreeTraceLevel};
+pub use app::{Config, DumpLevel, Runner};
 pub use error::Error;

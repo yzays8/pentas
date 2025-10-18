@@ -2,16 +2,16 @@ use std::{collections::VecDeque, fmt};
 
 use terminal_size::{Width, terminal_size};
 
-use crate::app::TreeTraceLevel;
+use crate::app::DumpLevel;
 
 /// A trait for printing trees with different verbosity levels.
 pub trait PrintableTree
 where
     Self: fmt::Display,
 {
-    fn print(&self, verbosity: TreeTraceLevel) {
+    fn print(&self, verbosity: DumpLevel) {
         match verbosity {
-            TreeTraceLevel::Normal | TreeTraceLevel::Silent => {
+            DumpLevel::All | DumpLevel::Off => {
                 if let Some((Width(w), _)) = terminal_size() {
                     let view = self.to_string();
                     for line in view.lines() {
@@ -25,11 +25,11 @@ where
                     println!("{}", self);
                 }
             }
-            TreeTraceLevel::Debug => println!("{}", self),
+            DumpLevel::Debug => println!("{}", self),
         }
     }
 
-    fn print_in_chain(self, verbosity: TreeTraceLevel) -> Self
+    fn print_in_chain(self, verbosity: DumpLevel) -> Self
     where
         Self: Sized,
     {

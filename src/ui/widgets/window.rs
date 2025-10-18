@@ -4,7 +4,7 @@ use gtk4::{
     subclass::prelude::ObjectSubclassIsExt,
 };
 
-use crate::app::TreeTraceLevel;
+use crate::ui::WindowContext;
 
 mod imp {
     use glib::subclass::InitializingObject;
@@ -134,9 +134,12 @@ impl Window {
         Object::builder().property("application", app).build()
     }
 
-    pub fn set_tree_trace_level(&self, tree_trace_level: TreeTraceLevel) {
+    pub fn setup_with_context(&self, ctx: &WindowContext) {
         self.imp()
             .content_area
-            .set_tree_trace_level(tree_trace_level);
+            .imp()
+            .renderer
+            .borrow_mut()
+            .set_dump_level(ctx.dump_level);
     }
 }

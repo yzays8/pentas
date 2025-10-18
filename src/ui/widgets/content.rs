@@ -1,9 +1,6 @@
 use gtk4::{glib, prelude::*, subclass::prelude::ObjectSubclassIsExt};
 
-use crate::{
-    app::TreeTraceLevel,
-    net::{self, Url},
-};
+use crate::net::{self, Url};
 
 mod imp {
     use std::{cell::RefCell, sync::OnceLock};
@@ -154,13 +151,6 @@ glib::wrapper! {
 }
 
 impl ContentArea {
-    pub fn set_tree_trace_level(&self, tree_trace_level: TreeTraceLevel) {
-        self.imp()
-            .renderer
-            .borrow_mut()
-            .set_trace_level(tree_trace_level);
-    }
-
     pub fn on_toolbar_entry_activate(&self, query: &str) {
         let url = match Url::from_str(query) {
             Ok(url) => url,

@@ -1,55 +1,80 @@
 use std::fmt;
 
-use clap::{Parser, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
-    #[arg(long, value_name = "HTML", help = "The HTML file to parse in CLI mode")]
-    pub no_window_html: Option<String>,
+    #[command(subcommand)]
+    pub command: Option<Commands>,
 
     #[arg(
         long,
-        value_name = "CSS",
-        conflicts_with = "no_window_html",
-        help = "The CSS file to parse in CLI mode"
+        value_name = "WIDTH,HEIGHT",
+        default_values_t = [1200, 800],
+        value_delimiter = ',',
+        global = true,
+        help = "Initial window size"
     )]
-    pub no_window_css: Option<String>,
+    pub window_size: Vec<i32>,
 
     #[arg(
         long,
         short,
-        default_value_t = TreeTraceLevel::Silent,
         value_name = "LEVEL",
-        help = "The verbosity level of the tree trace"
+        default_value_t = DumpLevel::Off,
+        global = true,
+        help = "Dump level"
     )]
-    pub tree_trace: TreeTraceLevel,
+    pub dump: DumpLevel,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum Commands {
+    Headless(HeadlessArgs),
+}
+
+#[derive(Debug, Parser)]
+pub struct HeadlessArgs {
+    #[arg(help = "Target URL to process")]
+    pub url: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "HTML",
+        conflicts_with = "url",
+        help = "A local HTML file to parse"
+    )]
+    pub local_html: Option<String>,
+
+    #[arg(long, value_name = "CSS", conflicts_with_all = ["url", "local_html", "dump"], help = "A local CSS file to parse")]
+    pub local_css: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
-pub enum TreeTraceLevel {
+pub enum DumpLevel {
     #[default]
-    Silent,
-    Normal,
+    Off,
+    All,
     Debug,
 }
 
-impl fmt::Display for TreeTraceLevel {
+impl fmt::Display for DumpLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> fmt::Result {
         match self {
-            TreeTraceLevel::Silent => write!(f, "silent"),
-            TreeTraceLevel::Normal => write!(f, "normal"),
-            TreeTraceLevel::Debug => write!(f, "debug"),
+            DumpLevel::Off => write!(f, "off"),
+            DumpLevel::All => write!(f, "all"),
+            DumpLevel::Debug => write!(f, "debug"),
         }
     }
 }
 
-impl From<TreeTraceLevel> for pentas::TreeTraceLevel {
-    fn from(level: TreeTraceLevel) -> Self {
+impl From<DumpLevel> for pentas::DumpLevel {
+    fn from(level: DumpLevel) -> Self {
         match level {
-            TreeTraceLevel::Silent => pentas::TreeTraceLevel::Silent,
-            TreeTraceLevel::Normal => pentas::TreeTraceLevel::Normal,
-            TreeTraceLevel::Debug => pentas::TreeTraceLevel::Debug,
+            DumpLevel::Off => pentas::DumpLevel::Off,
+            DumpLevel::All => pentas::DumpLevel::All,
+            DumpLevel::Debug => pentas::DumpLevel::Debug,
         }
     }
 }
