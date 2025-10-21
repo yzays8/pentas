@@ -331,6 +331,7 @@ impl HttpResponse {
     }
 }
 
+/// HTTP/1.1 client
 #[derive(Debug)]
 pub struct HttpClient;
 

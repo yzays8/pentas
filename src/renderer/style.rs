@@ -266,6 +266,9 @@ impl DeclaredStyle {
     }
 }
 
+/// https://www.w3.org/TR/css-cascade-3/#specified
+type SpecifiedStyle = ComputedStyle;
+
 /// https://www.w3.org/TR/css-cascade-3/#cascaded
 #[derive(Debug)]
 pub struct CascadedStyle {
@@ -283,8 +286,8 @@ impl CascadedStyle {
 
     /// Returns the specified values. All properties are set to their initial values or inherited values.
     /// https://www.w3.org/TR/css-cascade-3/#defaulting
-    pub fn apply_defaulting(self, parent_style: &Option<ComputedStyle>) -> ComputedStyle {
-        let mut specified_values = ComputedStyle::new();
+    pub fn apply_defaulting(self, parent_style: &Option<ComputedStyle>) -> SpecifiedStyle {
+        let mut specified_values = SpecifiedStyle::new();
 
         if parent_style.is_some() {
             specified_values.inherit(parent_style.as_ref().unwrap());
@@ -296,7 +299,7 @@ impl CascadedStyle {
     }
 }
 
-/// https://www.w3.org/TR/css-cascade-3/#specified
+/// https://www.w3.org/TR/css-cascade-3/#computed
 #[derive(Clone, Debug, Default)]
 pub struct ComputedStyle {
     pub background: BackGroundProp,
@@ -429,7 +432,6 @@ impl ComputedStyle {
     }
 
     /// Converts the relative values to absolute values.
-    /// https://www.w3.org/TR/css-cascade-3/#computed
     pub fn apply_computing(mut self, viewport_width: i32, viewport_height: i32) -> Result<Self> {
         // Compute the properties whose values are used to compute other properties.
         let s = self.clone();
