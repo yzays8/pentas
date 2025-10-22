@@ -4,7 +4,7 @@ use gtk4::{
     subclass::prelude::ObjectSubclassIsExt,
 };
 
-use crate::ui::WindowContext;
+use crate::ui::WindowSetupContext;
 
 mod imp {
     use glib::subclass::InitializingObject;
@@ -13,7 +13,7 @@ mod imp {
         style_context_add_provider_for_display, subclass::prelude::*,
     };
 
-    use crate::ui::widgets::{ContentArea, Toolbar};
+    use crate::ui::{ContentArea, Toolbar};
 
     // "/pentas" is just a prefix. See resources.gresource.xml
     #[derive(Debug, CompositeTemplate, Default)]
@@ -134,7 +134,7 @@ impl Window {
         Object::builder().property("application", app).build()
     }
 
-    pub fn setup_with_context(&self, ctx: &WindowContext) {
+    pub fn setup_with_context(&self, ctx: &WindowSetupContext) {
         self.imp()
             .content_area
             .imp()

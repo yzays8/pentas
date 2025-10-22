@@ -4,7 +4,7 @@ use crate::{
     error::Result,
     net,
     renderer::Renderer,
-    ui::{WindowContext, show_ui},
+    ui::{WindowSetupContext, show_ui},
 };
 
 #[derive(Debug)]
@@ -38,11 +38,11 @@ impl Runner {
     pub fn run(&self) -> Result<()> {
         // GUI mode
         if !self.config.is_headless {
-            let context = WindowContext {
+            let ctx = WindowSetupContext {
                 window_size: self.config.window_size,
                 dump_level: self.config.dump_level,
             };
-            show_ui(context);
+            show_ui(ctx);
             return Ok(());
         }
 
@@ -54,18 +54,26 @@ impl Runner {
         ) {
             (Some(url), None, None) => {
                 gtk4::init()?;
-                let mut renderer = Renderer::with_ctx(&DrawingArea::default().pango_context());
+                let mut renderer = Renderer::new();
                 renderer.set_dump_level(self.config.dump_level);
                 let html = net::get(url)?.text();
-                renderer.print_box_tree(&html, self.config.window_size)?;
+                renderer.print_box_tree(
+                    &html,
+                    &DrawingArea::default().pango_context(),
+                    self.config.window_size,
+                )?;
             }
             (None, Some(p), None) => {
                 if self.config.is_headless {
                     gtk4::init()?;
-                    let mut renderer = Renderer::with_ctx(&DrawingArea::default().pango_context());
+                    let mut renderer = Renderer::new();
                     renderer.set_dump_level(self.config.dump_level);
                     let html = std::fs::read_to_string(p)?;
-                    renderer.print_box_tree(&html, self.config.window_size)?;
+                    renderer.print_box_tree(
+                        &html,
+                        &DrawingArea::default().pango_context(),
+                        self.config.window_size,
+                    )?;
                 }
             }
             (None, None, Some(p)) => {

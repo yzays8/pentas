@@ -1,5 +1,7 @@
-use gtk4::{cairo, pango};
+use gtk4::pango;
 use pangocairo::functions::show_layout;
+
+use crate::renderer::object::{Paintable, RenderContext};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RenderText {
@@ -9,19 +11,19 @@ pub struct RenderText {
     pub font_family: Vec<String>,
     pub font_size: f64,
     pub font_weight: String,
-    /// RGB, 0.0 to 1.0
+    /// RGB, [0.0, 1.0]
     pub color: (f64, f64, f64),
-    /// RGB, 0.0 to 1.0
+    /// RGB, [0.0, 1.0]
     pub decoration_color: (f64, f64, f64),
     pub decoration_line: Vec<String>,
     pub decoration_style: String,
 }
 
-impl RenderText {
-    pub fn paint(&self, cairo_ctx: &cairo::Context, pango_ctx: &pango::Context) {
-        cairo_ctx.move_to(self.x, self.y);
+impl Paintable for RenderText {
+    fn paint(&self, ctx: &RenderContext) {
+        ctx.gfx_ctx.move_to(self.x, self.y);
 
-        let layout = pango::Layout::new(pango_ctx);
+        let layout = pango::Layout::new(&ctx.text_ctx);
         let attrs = pango::AttrList::new();
 
         // https://docs.gtk.org/Pango/struct.Color.html
@@ -78,6 +80,6 @@ impl RenderText {
             self.font_size
         ))));
         layout.set_attributes(Some(&attrs));
-        show_layout(cairo_ctx, &layout);
+        show_layout(&ctx.gfx_ctx, &layout);
     }
 }

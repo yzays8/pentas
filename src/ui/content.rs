@@ -8,7 +8,10 @@ mod imp {
     use glib::subclass::InitializingObject;
     use gtk4::{CompositeTemplate, glib, glib::subclass::Signal, prelude::*, subclass::prelude::*};
 
-    use crate::{history::History, renderer::Renderer, ui::painter::Painter};
+    use crate::{
+        history::History,
+        renderer::{Renderer, paint},
+    };
 
     // "/pentas" is just a prefix. See resources.gresource.xml
     #[derive(Debug, CompositeTemplate, Default)]
@@ -22,7 +25,6 @@ mod imp {
         pub canvas: TemplateChild<gtk4::DrawingArea>,
 
         pub renderer: RefCell<Renderer>,
-        pub painter: RefCell<Painter>,
         pub history: RefCell<History>,
     }
 
@@ -45,53 +47,47 @@ mod imp {
         fn constructed(&self) {
             self.parent_constructed();
 
-            self.painter
-                .borrow_mut()
-                .set_ctx(&self.canvas.get().create_pango_context());
-
-            let obj = self.obj();
+            let canvas_obj = self.obj();
             self.canvas.get().set_draw_func(glib::clone!(
                 #[strong]
-                obj,
+                canvas_obj,
                 // Note: Each time the canvas is resized, this closure is called.
-                move |_, ctx, _, _| {
-                    let history = obj.imp().history.borrow();
+                move |_, gfx_ctx, _, _| {
+                    let history = canvas_obj.imp().history.borrow();
                     let curr_page = history.get_current().unwrap();
 
-                    let parsed_obj = match &curr_page.parsed_object {
+                    let parsed_obj = match &curr_page.parsed_obj {
                         Some(parsed) => parsed.clone(),
                         None => return,
                     };
 
-                    let objs_info = obj
+                    let text_ctx = canvas_obj.imp().canvas.get().create_pango_context();
+                    let render_objs_info = canvas_obj
                         .imp()
                         .renderer
                         .borrow()
-                        .get_render_objects_info(
+                        .get_render_objs_info(
                             parsed_obj,
-                            obj.imp().viewport.width(),
-                            obj.imp().viewport.height(),
+                            &text_ctx,
+                            canvas_obj.imp().viewport.width(),
+                            canvas_obj.imp().viewport.height(),
                         )
                         .unwrap();
 
-                    let new_page_width = objs_info.max_width.round() as i32;
-                    let new_page_height = objs_info.max_height.round() as i32 + 5;
+                    let new_page_width = render_objs_info.max_width.round() as i32;
+                    let new_page_height = render_objs_info.max_height.round() as i32 + 5;
 
                     // Adjust the width and the height of the canvas for scrolling.
-                    if obj.imp().canvas.width() != new_page_width {
-                        obj.imp().canvas.set_width_request(new_page_width);
+                    if canvas_obj.imp().canvas.width() != new_page_width {
+                        canvas_obj.imp().canvas.set_width_request(new_page_width);
                     }
-                    if obj.imp().canvas.height() != new_page_height {
-                        obj.imp().canvas.set_height_request(new_page_height);
+                    if canvas_obj.imp().canvas.height() != new_page_height {
+                        canvas_obj.imp().canvas.set_height_request(new_page_height);
                     }
 
-                    obj.imp().painter.borrow().paint(ctx, &objs_info.objects)
+                    paint(gfx_ctx, &text_ctx, &render_objs_info.objs)
                 }
             ));
-
-            self.renderer
-                .borrow_mut()
-                .set_draw_ctx(&self.canvas.get().create_pango_context());
 
             // The initial history is a blank page.
             self.history.borrow_mut().add("", "", None);
@@ -156,18 +152,13 @@ impl ContentArea {
             }
         };
 
-        let parsed = self
-            .imp()
-            .renderer
-            .borrow()
-            .get_parsed_object(&html)
-            .unwrap();
-        let title = parsed.clone().title.unwrap_or(host_name.to_string());
+        let parsed_obj = self.imp().renderer.borrow().get_parsed_obj(&html).unwrap();
+        let title = parsed_obj.clone().title.unwrap_or(host_name.to_string());
 
         self.imp()
             .history
             .borrow_mut()
-            .add(query, &title, Some(parsed));
+            .add(query, &title, Some(parsed_obj));
         self.emit_by_name::<()>(
             "history-updated",
             &[

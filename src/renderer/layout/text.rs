@@ -36,8 +36,8 @@ impl LayoutBox for Text {
 
     fn layout_children(&mut self, _: &LayoutInfo) {}
 
-    fn to_render_objects(&self, _: i32, _: i32) -> Vec<RenderObject> {
-        let mut objects = Vec::new();
+    fn to_render_objs(&self, _: i32, _: i32) -> Vec<RenderObject> {
+        let mut objs = Vec::new();
         let color = self.style_node.borrow().style.color.to_rgba().unwrap();
         let decoration_color = self
             .style_node
@@ -64,7 +64,7 @@ impl LayoutBox for Text {
             .style
             .to_name()
             .unwrap();
-        objects.push(RenderObject::Text(RenderText {
+        objs.push(RenderObject::Text(RenderText {
             text: self
                 .style_node
                 .borrow()
@@ -103,7 +103,7 @@ impl LayoutBox for Text {
             decoration_style,
         }));
 
-        objects
+        objs
     }
 }
 

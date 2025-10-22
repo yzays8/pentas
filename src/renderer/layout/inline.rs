@@ -93,18 +93,18 @@ impl LayoutBox for InlineBox {
         self.layout_info.size.height = inline_max_height;
     }
 
-    fn to_render_objects(&self, viewport_width: i32, viewport_height: i32) -> Vec<RenderObject> {
-        let mut objects = Vec::new();
+    fn to_render_objs(&self, viewport_width: i32, viewport_height: i32) -> Vec<RenderObject> {
+        let mut objs = Vec::new();
 
         for child in self.children.iter() {
-            objects.extend(
+            objs.extend(
                 child
                     .borrow()
-                    .to_render_objects(viewport_width, viewport_height),
+                    .to_render_objs(viewport_width, viewport_height),
             );
         }
 
-        objects
+        objs
     }
 }
 

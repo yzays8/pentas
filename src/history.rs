@@ -1,10 +1,10 @@
-use crate::renderer::ParsedObject;
+use crate::renderer::HtmlParsedObject;
 
 #[derive(Debug, Clone)]
 pub struct HistoryEntry {
     pub query: String,
     pub title: String,
-    pub parsed_object: Option<ParsedObject>,
+    pub parsed_obj: Option<HtmlParsedObject>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -23,10 +23,10 @@ impl History {
     pub fn with_initial_page(
         query: &str,
         title: &str,
-        parsed_object: Option<ParsedObject>,
+        parsed_obj: Option<HtmlParsedObject>,
     ) -> Self {
         let mut history = Self::new();
-        history.add(query, title, parsed_object);
+        history.add(query, title, parsed_obj);
         history
     }
 
@@ -34,7 +34,7 @@ impl History {
         self.current.as_ref()
     }
 
-    pub fn add(&mut self, query: &str, title: &str, parsed_object: Option<ParsedObject>) {
+    pub fn add(&mut self, query: &str, title: &str, parsed_obj: Option<HtmlParsedObject>) {
         while let Some(e) = self.forward_stack.pop() {
             self.unreachable_stack.push(e);
         }
@@ -44,7 +44,7 @@ impl History {
         self.current = Some(HistoryEntry {
             query: query.to_owned(),
             title: title.to_owned(),
-            parsed_object,
+            parsed_obj,
         });
     }
 

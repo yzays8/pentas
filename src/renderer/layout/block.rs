@@ -149,8 +149,8 @@ impl LayoutBox for BlockBox {
         }
     }
 
-    fn to_render_objects(&self, viewport_width: i32, viewport_height: i32) -> Vec<RenderObject> {
-        let mut objects = Vec::new();
+    fn to_render_objs(&self, viewport_width: i32, viewport_height: i32) -> Vec<RenderObject> {
+        let mut objs = Vec::new();
 
         let (r, g, b, a) = self
             .style_node
@@ -179,7 +179,7 @@ impl LayoutBox for BlockBox {
             };
 
             if is_body {
-                objects.push(RenderObject::Rect(RenderRect {
+                objs.push(RenderObject::Rect(RenderRect {
                     x: 0.0,
                     y: 0.0,
                     width: viewport_width as f64,
@@ -188,7 +188,7 @@ impl LayoutBox for BlockBox {
                     border_radius,
                 }));
             } else {
-                objects.push(RenderObject::Rect(RenderRect {
+                objs.push(RenderObject::Rect(RenderRect {
                     x: self.layout_info.pos.x as f64,
                     y: self.layout_info.pos.y as f64,
                     width: self.layout_info.size.width as f64,
@@ -200,14 +200,14 @@ impl LayoutBox for BlockBox {
         }
 
         for child in self.children.iter() {
-            objects.extend(
+            objs.extend(
                 child
                     .borrow()
-                    .to_render_objects(viewport_width, viewport_height),
+                    .to_render_objs(viewport_width, viewport_height),
             );
         }
 
-        objects
+        objs
     }
 }
 
@@ -426,18 +426,18 @@ impl LayoutBox for AnonymousBox {
         self.layout_info.size.height = inline_max_height;
     }
 
-    fn to_render_objects(&self, viewport_width: i32, viewport_height: i32) -> Vec<RenderObject> {
-        let mut objects = Vec::new();
+    fn to_render_objs(&self, viewport_width: i32, viewport_height: i32) -> Vec<RenderObject> {
+        let mut objs = Vec::new();
 
         for child in self.children.iter() {
-            objects.extend(
+            objs.extend(
                 child
                     .borrow()
-                    .to_render_objects(viewport_width, viewport_height),
+                    .to_render_objs(viewport_width, viewport_height),
             );
         }
 
-        objects
+        objs
     }
 }
 

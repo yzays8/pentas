@@ -176,14 +176,10 @@ impl BoxTree {
         self
     }
 
-    pub fn to_render_objects(
-        &self,
-        viewport_width: i32,
-        viewport_height: i32,
-    ) -> Vec<RenderObject> {
+    pub fn to_render_objs(&self, viewport_width: i32, viewport_height: i32) -> Vec<RenderObject> {
         self.root
             .borrow()
-            .to_render_objects(viewport_width, viewport_height)
+            .to_render_objs(viewport_width, viewport_height)
     }
 
     /// Returns the maximum (width, height) of the box tree.
@@ -334,7 +330,7 @@ pub trait LayoutBox {
         prev_sibling_info: Option<LayoutInfo>,
     );
     fn layout_children(&mut self, containing_block_info: &LayoutInfo);
-    fn to_render_objects(&self, viewport_width: i32, viewport_height: i32) -> Vec<RenderObject>;
+    fn to_render_objs(&self, viewport_width: i32, viewport_height: i32) -> Vec<RenderObject>;
 }
 
 #[derive(Debug)]
@@ -507,29 +503,25 @@ impl BoxNode {
         self
     }
 
-    pub fn to_render_objects(
-        &self,
-        viewport_width: i32,
-        viewport_height: i32,
-    ) -> Vec<RenderObject> {
-        let mut objects = Vec::new();
+    pub fn to_render_objs(&self, viewport_width: i32, viewport_height: i32) -> Vec<RenderObject> {
+        let mut objs = Vec::new();
 
         match self {
             BoxNode::Text(t) => {
-                objects.extend(t.to_render_objects(viewport_width, viewport_height));
+                objs.extend(t.to_render_objs(viewport_width, viewport_height));
             }
             BoxNode::BlockBox(block) => {
-                objects.extend(block.to_render_objects(viewport_width, viewport_height));
+                objs.extend(block.to_render_objs(viewport_width, viewport_height));
             }
             BoxNode::InlineBox(inline) => {
-                objects.extend(inline.to_render_objects(viewport_width, viewport_height));
+                objs.extend(inline.to_render_objs(viewport_width, viewport_height));
             }
             BoxNode::AnonymousBox(anonymous) => {
-                objects.extend(anonymous.to_render_objects(viewport_width, viewport_height));
+                objs.extend(anonymous.to_render_objs(viewport_width, viewport_height));
             }
         }
 
-        objects
+        objs
     }
 }
 

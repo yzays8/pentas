@@ -27,7 +27,7 @@ enum InsertionMode {
 }
 
 #[derive(Debug, Clone)]
-pub struct ParsedObject {
+pub struct HtmlParsedObject {
     pub dom_root: Rc<RefCell<DomNode>>,
     pub style_sheets: Vec<StyleSheet>,
     pub title: Option<String>,
@@ -43,7 +43,7 @@ pub struct HtmlParser {
     /// insertion mode is also set.
     /// This is the insertion mode to which the tree construction stage will return.
     orig_insertion_mode: Option<InsertionMode>,
-    output: ParsedObject,
+    output: HtmlParsedObject,
     is_parsing_done: bool,
     is_reprocessing_required: bool,
 }
@@ -55,7 +55,7 @@ impl HtmlParser {
             tokenizer: HtmlTokenizer::new(html),
             stack: Vec::new(),
             orig_insertion_mode: None,
-            output: ParsedObject {
+            output: HtmlParsedObject {
                 // The output of the whole parsing (tree construction) is a Document object.
                 dom_root: Rc::new(RefCell::new(DomNode::new(NodeType::Document))),
                 style_sheets: Vec::new(),
@@ -67,7 +67,7 @@ impl HtmlParser {
     }
 
     /// Returns a Document object node, CSS style sheets, and the title of the document.
-    pub fn parse(&mut self) -> Result<ParsedObject> {
+    pub fn parse(&mut self) -> Result<HtmlParsedObject> {
         while !self.is_parsing_done {
             let token = self.tokenizer.consume();
 
