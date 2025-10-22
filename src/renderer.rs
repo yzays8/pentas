@@ -4,7 +4,10 @@ mod layout;
 mod object;
 mod style;
 
-pub use self::object::{RenderObject, RenderObjectsInfo};
+pub use self::{
+    html::parser::ParsedObject,
+    object::{RenderObject, RenderObjectsInfo},
+};
 
 use gtk4::pango;
 
@@ -40,18 +43,19 @@ impl Renderer {
         self.dump_level = dump_level;
     }
 
+    pub fn get_parsed_object(&self, html: &str) -> Result<ParsedObject> {
+        HtmlParser::new(html).parse()
+    }
+
     pub fn get_render_objects_info(
         &self,
-        html: &str,
-        host_name: &str,
+        parsed_object: ParsedObject,
         viewport_width: i32,
         viewport_height: i32,
     ) -> Result<RenderObjectsInfo> {
-        let parsed_object = HtmlParser::new(html).parse()?;
         let style_sheets = std::iter::once(get_ua_style_sheet()?)
             .chain(parsed_object.style_sheets)
             .collect::<Vec<_>>();
-        let title = parsed_object.title.unwrap_or(host_name.to_string());
 
         match self.dump_level {
             DumpLevel::Off => {
@@ -63,7 +67,6 @@ impl Renderer {
                 let (max_width, max_height) = box_tree.get_max_size();
                 Ok(RenderObjectsInfo {
                     objects: box_tree.to_render_objects(viewport_width, viewport_height),
-                    title,
                     max_width,
                     max_height,
                 })
@@ -82,7 +85,6 @@ impl Renderer {
                 let (max_width, max_height) = box_tree.get_max_size();
                 Ok(RenderObjectsInfo {
                     objects: box_tree.to_render_objects(viewport_width, viewport_height),
-                    title,
                     max_width,
                     max_height,
                 })

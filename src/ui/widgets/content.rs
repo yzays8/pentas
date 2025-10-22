@@ -8,11 +8,7 @@ mod imp {
     use glib::subclass::InitializingObject;
     use gtk4::{CompositeTemplate, glib, glib::subclass::Signal, prelude::*, subclass::prelude::*};
 
-    use crate::{
-        history::History,
-        renderer::{RenderObjectsInfo, Renderer},
-        ui::painter::Painter,
-    };
+    use crate::{history::History, renderer::Renderer, ui::painter::Painter};
 
     // "/pentas" is just a prefix. See resources.gresource.xml
     #[derive(Debug, CompositeTemplate, Default)]
@@ -57,29 +53,31 @@ mod imp {
             self.canvas.get().set_draw_func(glib::clone!(
                 #[strong]
                 obj,
+                // Note: Each time the canvas is resized, this closure is called.
                 move |_, ctx, _, _| {
-                    let new_page_width = obj
+                    let history = obj.imp().history.borrow();
+                    let curr_page = history.get_current().unwrap();
+
+                    let parsed_obj = match &curr_page.parsed_object {
+                        Some(parsed) => parsed.clone(),
+                        None => return,
+                    };
+
+                    let objs_info = obj
                         .imp()
-                        .history
+                        .renderer
                         .borrow()
-                        .get_current()
-                        .unwrap()
-                        .objs_info
-                        .max_width
-                        .round() as i32;
-                    let new_page_height = obj
-                        .imp()
-                        .history
-                        .borrow()
-                        .get_current()
-                        .unwrap()
-                        .objs_info
-                        .max_height
-                        .round() as i32
-                        + 5;
+                        .get_render_objects_info(
+                            parsed_obj,
+                            obj.imp().viewport.width(),
+                            obj.imp().viewport.height(),
+                        )
+                        .unwrap();
+
+                    let new_page_width = objs_info.max_width.round() as i32;
+                    let new_page_height = objs_info.max_height.round() as i32 + 5;
 
                     // Adjust the width and the height of the canvas for scrolling.
-                    // Note: Each time the canvas is resized, this closure is called.
                     if obj.imp().canvas.width() != new_page_width {
                         obj.imp().canvas.set_width_request(new_page_width);
                     }
@@ -87,16 +85,7 @@ mod imp {
                         obj.imp().canvas.set_height_request(new_page_height);
                     }
 
-                    obj.imp().painter.borrow().paint(
-                        ctx,
-                        &obj.imp()
-                            .history
-                            .borrow()
-                            .get_current()
-                            .unwrap()
-                            .objs_info
-                            .objects,
-                    )
+                    obj.imp().painter.borrow().paint(ctx, &objs_info.objects)
                 }
             ));
 
@@ -105,15 +94,7 @@ mod imp {
                 .set_draw_ctx(&self.canvas.get().create_pango_context());
 
             // The initial history is a blank page.
-            self.history.borrow_mut().add(
-                "",
-                &RenderObjectsInfo {
-                    objects: vec![],
-                    title: "".to_string(),
-                    max_width: self.canvas.width() as f32,
-                    max_height: self.canvas.height() as f32,
-                },
-            );
+            self.history.borrow_mut().add("", "", None);
         }
 
         fn signals() -> &'static [glib::subclass::Signal] {
@@ -175,27 +156,23 @@ impl ContentArea {
             }
         };
 
-        let render_objs_info = self
+        let parsed = self
             .imp()
             .renderer
             .borrow()
-            .get_render_objects_info(
-                &html,
-                &host_name,
-                self.imp().viewport.width(),
-                self.imp().viewport.height(),
-            )
+            .get_parsed_object(&html)
             .unwrap();
+        let title = parsed.clone().title.unwrap_or(host_name.to_string());
 
         self.imp()
             .history
             .borrow_mut()
-            .add(query, &render_objs_info);
+            .add(query, &title, Some(parsed));
         self.emit_by_name::<()>(
             "history-updated",
             &[
-                &query.to_string(),
-                &render_objs_info.title,
+                &query,
+                &title,
                 &self.imp().history.borrow().is_rewindable(),
                 &self.imp().history.borrow().is_forwardable(),
             ],
@@ -211,7 +188,7 @@ impl ContentArea {
                 "history-updated",
                 &[
                     &history.query,
-                    &history.objs_info.title,
+                    &history.title,
                     &self.imp().history.borrow().is_rewindable(),
                     &self.imp().history.borrow().is_forwardable(),
                 ],
@@ -227,7 +204,7 @@ impl ContentArea {
                 "history-updated",
                 &[
                     &history.query,
-                    &history.objs_info.title,
+                    &history.title,
                     &self.imp().history.borrow().is_rewindable(),
                     &self.imp().history.borrow().is_forwardable(),
                 ],

@@ -12,7 +12,6 @@ pub enum RenderObject {
 #[derive(Debug, Clone, Default)]
 pub struct RenderObjectsInfo {
     pub objects: Vec<RenderObject>,
-    pub title: String,
     pub max_width: f32,
     pub max_height: f32,
 }
