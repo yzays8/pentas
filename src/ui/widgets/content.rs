@@ -182,8 +182,8 @@ impl ContentArea {
             .get_render_objects_info(
                 &html,
                 &host_name,
-                self.imp().canvas.width(),
-                self.imp().canvas.height(),
+                self.imp().viewport.width(),
+                self.imp().viewport.height(),
             )
             .unwrap();
 
