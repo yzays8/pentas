@@ -69,7 +69,7 @@ mod imp {
             self.toolbar.connect_closure(
                 "backward-button-clicked",
                 false,
-                closure_local!(move |_: Toolbar, _: String| {
+                closure_local!(move |_: Toolbar, _: bool| {
                     content_area.on_backward_button_click();
                 }),
             );
@@ -78,7 +78,7 @@ mod imp {
             self.toolbar.connect_closure(
                 "forward-button-clicked",
                 false,
-                closure_local!(move |_: Toolbar, _: String| {
+                closure_local!(move |_: Toolbar, _: bool| {
                     content_area.on_forward_button_click();
                 }),
             );

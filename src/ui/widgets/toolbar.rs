@@ -64,10 +64,10 @@ mod imp {
                         .param_types([glib::Type::STRING])
                         .build(),
                     Signal::builder("backward-button-clicked")
-                        .param_types([glib::Type::STRING])
+                        .param_types([glib::Type::BOOL])
                         .build(),
                     Signal::builder("forward-button-clicked")
-                        .param_types([glib::Type::STRING])
+                        .param_types([glib::Type::BOOL])
                         .build(),
                 ]
             })
@@ -88,12 +88,12 @@ glib::wrapper! {
 impl Toolbar {
     #[template_callback]
     fn on_backward_button_click(&self) {
-        self.emit_by_name::<()>("backward-button-clicked", &[&""]);
+        self.emit_by_name::<()>("backward-button-clicked", &[&true]);
     }
 
     #[template_callback]
     fn on_forward_button_click(&self) {
-        self.emit_by_name::<()>("forward-button-clicked", &[&""]);
+        self.emit_by_name::<()>("forward-button-clicked", &[&true]);
     }
 
     #[template_callback]
@@ -108,29 +108,11 @@ impl Toolbar {
         is_history_forwardable: bool,
     ) {
         self.imp().entry.set_text(query);
-        match (
-            self.imp().backward_button.is_sensitive(),
-            is_history_rewindable,
-        ) {
-            (true, false) => {
-                self.imp().backward_button.set_sensitive(false);
-            }
-            (false, true) => {
-                self.imp().backward_button.set_sensitive(true);
-            }
-            _ => {}
-        }
-        match (
-            self.imp().forward_button.is_sensitive(),
-            is_history_forwardable,
-        ) {
-            (true, false) => {
-                self.imp().forward_button.set_sensitive(false);
-            }
-            (false, true) => {
-                self.imp().forward_button.set_sensitive(true);
-            }
-            _ => {}
-        }
+        self.imp()
+            .backward_button
+            .set_sensitive(is_history_rewindable);
+        self.imp()
+            .forward_button
+            .set_sensitive(is_history_forwardable);
     }
 }
