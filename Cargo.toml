@@ -4,14 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-anyhow = "1.0.82"
-clap = { version = "4.5.4", features = ["derive"] }
-gtk4 = "0.9.4"
-native-tls = "0.2.14"
-pangocairo = "0.20.4"
-regex = "1.10.6"
-terminal_size = "0.4.1"
-thiserror = "1.0.59"
+anyhow = "1.0.101"
+clap = { version = "4.5.58", features = ["derive"] }
+gtk4 = "0.9.7"
+native-tls = "0.2.15"
+pangocairo = "0.20.10"
+regex = "1.12.3"
+terminal_size = "0.4.3"
+thiserror = "1.0.69"
 
 [build-dependencies]
 glib-build-tools = "0.20.0"
