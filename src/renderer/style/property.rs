@@ -85,8 +85,8 @@ impl fmt::Display for CssValue {
             CssValue::Color { r, g, b, a } => {
                 if *a == 1.0 {
                     let name = rgb_to_name(*r, *g, *b);
-                    if name.is_some() {
-                        write!(f, "{}", name.unwrap())
+                    if let Some(name) = name {
+                        write!(f, "{}", name)
                     } else {
                         write!(f, "rgb({}, {}, {})", r, g, b)
                     }
